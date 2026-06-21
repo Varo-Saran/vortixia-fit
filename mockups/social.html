@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vortixia Fit - Social Mockup</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap');
+
+        :root {
+            --bg-color: #0a0a0a;
+            --card-bg: rgba(255, 255, 255, 0.03);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --accent-green: #4ade80;
+            --accent-glow: rgba(74, 222, 128, 0.3);
+            --text-main: #ffffff;
+            --text-muted: #a3a3a3;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .mobile-container {
+            width: 100%;
+            max-width: 400px;
+            background: radial-gradient(circle at 100% 0%, rgba(74, 222, 128, 0.1) 0%, var(--bg-color) 50%);
+            position: relative;
+            overflow-x: hidden;
+            padding: 20px;
+            padding-bottom: 100px;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            margin-top: 20px;
+        }
+
+        .title h1 {
+            font-size: 28px;
+            font-weight: 800;
+        }
+
+        .toggle-group {
+            display: flex;
+            background: rgba(255,255,255,0.05);
+            border-radius: 20px;
+            padding: 4px;
+            margin-bottom: 25px;
+        }
+
+        .toggle-btn {
+            flex: 1;
+            text-align: center;
+            padding: 10px;
+            border-radius: 16px;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-muted);
+            cursor: pointer;
+        }
+
+        .toggle-btn.active {
+            background: var(--card-bg);
+            color: var(--accent-green);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            border: 1px solid var(--card-border);
+        }
+
+        /* Duel Card */
+        .duel-card {
+            background: linear-gradient(135deg, rgba(74, 222, 128, 0.1) 0%, rgba(255,255,255,0.02) 100%);
+            border: 1px solid var(--accent-green);
+            border-radius: 24px;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 30px;
+            position: relative;
+            box-shadow: 0 0 30px rgba(74, 222, 128, 0.1);
+        }
+
+        .duel-card h3 {
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+
+        .duel-card p {
+            color: var(--text-muted);
+            font-size: 13px;
+            margin-bottom: 20px;
+        }
+
+        .vs-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+            margin-bottom: 20px;
+        }
+
+        .avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+            border: 2px solid var(--accent-green);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .vs-text {
+            font-size: 24px;
+            font-weight: 800;
+            color: var(--accent-green);
+            text-shadow: 0 0 10px var(--accent-glow);
+            font-style: italic;
+        }
+
+        .primary-btn {
+            background: var(--accent-green);
+            color: #000;
+            padding: 12px 24px;
+            border-radius: 12px;
+            border: none;
+            font-weight: 800;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        /* Leaderboard */
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+
+        .leaderboard-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .lb-item {
+            display: flex;
+            align-items: center;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            padding: 12px 16px;
+            border-radius: 16px;
+            backdrop-filter: blur(10px);
+        }
+
+        .lb-item.top-1 {
+            border-color: rgba(255, 215, 0, 0.5);
+            background: rgba(255, 215, 0, 0.05);
+        }
+
+        .lb-rank {
+            width: 30px;
+            font-weight: 800;
+            color: var(--text-muted);
+        }
+
+        .lb-item.top-1 .lb-rank {
+            color: #ffd700;
+        }
+
+        .lb-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #333;
+            margin-right: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .lb-info {
+            flex: 1;
+        }
+
+        .lb-name {
+            font-weight: 600;
+            font-size: 15px;
+        }
+
+        .lb-xp {
+            font-size: 13px;
+            color: var(--accent-green);
+            font-weight: 600;
+        }
+
+        .lb-score {
+            text-align: right;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        /* Bottom Nav */
+        .bottom-nav {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: calc(100% - 40px);
+            max-width: 360px;
+            background: rgba(10, 10, 10, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--card-border);
+            border-radius: 30px;
+            display: flex;
+            justify-content: space-around;
+            padding: 12px 20px;
+            z-index: 100;
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            color: var(--text-muted);
+            font-size: 10px;
+        }
+        .nav-item.active { color: var(--accent-green); }
+        .nav-icon { width: 24px; height: 24px; background: currentColor; }
+    </style>
+</head>
+<body>
+    <div class="mobile-container">
+        
+        <header>
+            <div class="title">
+                <h1>Social</h1>
+            </div>
+            <div style="font-size: 24px;">🏆</div>
+        </header>
+
+        <div class="toggle-group">
+            <div class="toggle-btn">Friends</div>
+            <div class="toggle-btn active">Leaderboard</div>
+        </div>
+
+        <div class="duel-card">
+            <h3>Player Duel</h3>
+            <p>Challenge a friend to a Volume Battle</p>
+            
+            <div class="vs-container">
+                <div class="avatar">👨</div>
+                <div class="vs-text">VS</div>
+                <div class="avatar" style="border-color: rgba(255,255,255,0.2);">?</div>
+            </div>
+            
+            <button class="primary-btn">INVITE TO DUEL</button>
+        </div>
+
+        <div class="section-title">Weekly Rankings</div>
+        
+        <div class="leaderboard-list">
+            <div class="lb-item top-1">
+                <div class="lb-rank">1</div>
+                <div class="lb-avatar">🧔</div>
+                <div class="lb-info">
+                    <div class="lb-name">Marcus Fit</div>
+                    <div class="lb-xp">✦ 3,450 XP</div>
+                </div>
+                <div class="lb-score">
+                    12,400 kg<br>Volume
+                </div>
+            </div>
+
+            <div class="lb-item" style="border-color: var(--accent-green); background: rgba(74, 222, 128, 0.05);">
+                <div class="lb-rank">2</div>
+                <div class="lb-avatar" style="border: 2px solid var(--accent-green);">👨</div>
+                <div class="lb-info">
+                    <div class="lb-name">Alex (You)</div>
+                    <div class="lb-xp">✦ 2,890 XP</div>
+                </div>
+                <div class="lb-score">
+                    9,200 kg<br>Volume
+                </div>
+            </div>
+
+            <div class="lb-item">
+                <div class="lb-rank">3</div>
+                <div class="lb-avatar">👱‍♀️</div>
+                <div class="lb-info">
+                    <div class="lb-name">Sarah Jenkins</div>
+                    <div class="lb-xp">✦ 2,100 XP</div>
+                </div>
+                <div class="lb-score">
+                    7,100 kg<br>Volume
+                </div>
+            </div>
+        </div>
+
+        <div class="bottom-nav">
+            <div class="nav-item">
+                <div class="nav-icon" style="-webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\'><path d=\'M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z\'/></svg>') no-repeat center;"></div>
+                Home
+            </div>
+            <div class="nav-item">
+                <div class="nav-icon" style="-webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\'><path d=\'M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z\'/></svg>') no-repeat center;"></div>
+                Log
+            </div>
+            <div class="nav-item active">
+                <div class="nav-icon" style="-webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\'><path d=\'M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z\'/></svg>') no-repeat center;"></div>
+                Social
+            </div>
+        </div>
+
+    </div>
+</body>
+</html>

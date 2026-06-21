@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vortixia Fit - Logs Mockup</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap');
+
+        :root {
+            --bg-color: #0a0a0a;
+            --card-bg: rgba(255, 255, 255, 0.03);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --accent-green: #4ade80;
+            --text-main: #ffffff;
+            --text-muted: #a3a3a3;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .mobile-container {
+            width: 100%;
+            max-width: 400px;
+            background: var(--bg-color);
+            position: relative;
+            overflow-x: hidden;
+            padding: 20px;
+            padding-bottom: 100px;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            margin-top: 20px;
+        }
+
+        .title h1 {
+            font-size: 28px;
+            font-weight: 800;
+        }
+
+        /* Calendar Widget */
+        .calendar-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+
+        .cal-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .cal-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 8px;
+            text-align: center;
+        }
+
+        .cal-day-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 5px;
+        }
+
+        .cal-date {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            font-size: 14px;
+            margin: 0 auto;
+        }
+
+        .cal-date.completed {
+            background: rgba(74, 222, 128, 0.2);
+            color: var(--accent-green);
+            border: 1px solid var(--accent-green);
+            font-weight: bold;
+        }
+
+        .cal-date.active {
+            background: var(--text-main);
+            color: var(--bg-color);
+            font-weight: bold;
+        }
+
+        /* History List */
+        .history-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .history-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+
+        .log-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+
+        .log-title {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .log-date {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .log-stats {
+            display: flex;
+            gap: 15px;
+            font-size: 13px;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            color: var(--text-muted);
+        }
+
+        .stat-item span {
+            color: var(--text-main);
+            font-weight: 600;
+        }
+
+        .pr-badge {
+            background: rgba(255, 215, 0, 0.15);
+            color: #ffd700;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-top: 12px;
+            display: inline-block;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="mobile-container">
+        
+        <header>
+            <div class="title">
+                <h1>History Logs</h1>
+            </div>
+        </header>
+
+        <div class="calendar-card">
+            <div class="cal-header">
+                <span>June 2026</span>
+                <span>&lt; &gt;</span>
+            </div>
+            <div class="cal-grid">
+                <div class="cal-day-label">M</div><div class="cal-day-label">T</div><div class="cal-day-label">W</div><div class="cal-day-label">T</div><div class="cal-day-label">F</div><div class="cal-day-label">S</div><div class="cal-day-label">S</div>
+                
+                <div class="cal-date completed">15</div>
+                <div class="cal-date completed">16</div>
+                <div class="cal-date completed">17</div>
+                <div class="cal-date">18</div>
+                <div class="cal-date completed">19</div>
+                <div class="cal-date completed">20</div>
+                <div class="cal-date active">21</div>
+            </div>
+        </div>
+
+        <div class="history-title">
+            <span>Recent Workouts</span>
+            <span style="color: var(--accent-green); font-size: 14px; cursor: pointer;">View All</span>
+        </div>
+
+        <div class="history-card">
+            <div class="log-header">
+                <div class="log-title">Leg Day - Quads & Calves</div>
+                <div class="log-date">Yesterday</div>
+            </div>
+            <div class="log-stats">
+                <div class="stat-item">⏱️ <span>55m</span></div>
+                <div class="stat-item">🏋️ <span>6,400 kg</span></div>
+                <div class="stat-item">🔥 <span>320 kcal</span></div>
+            </div>
+            <div class="pr-badge">🏆 New PR: Squat 120kg</div>
+        </div>
+
+        <div class="history-card">
+            <div class="log-header">
+                <div class="log-title">Pull Day - Back & Biceps</div>
+                <div class="log-date">Jun 19</div>
+            </div>
+            <div class="log-stats">
+                <div class="stat-item">⏱️ <span>48m</span></div>
+                <div class="stat-item">🏋️ <span>4,850 kg</span></div>
+                <div class="stat-item">🔥 <span>290 kcal</span></div>
+            </div>
+        </div>
+
+        <div class="history-card">
+            <div class="log-header">
+                <div class="log-title">Push Day - Chest & Triceps</div>
+                <div class="log-date">Jun 17</div>
+            </div>
+            <div class="log-stats">
+                <div class="stat-item">⏱️ <span>52m</span></div>
+                <div class="stat-item">🏋️ <span>5,100 kg</span></div>
+                <div class="stat-item">🔥 <span>310 kcal</span></div>
+            </div>
+        </div>
+
+    </div>
+</body>
+</html>

@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vortixia Fit - Login Mockup</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap');
+
+        :root {
+            --bg-color: #0a0a0a;
+            --accent-green: #4ade80;
+            --accent-glow: rgba(74, 222, 128, 0.4);
+            --text-main: #ffffff;
+            --text-muted: #a3a3a3;
+            --card-bg: rgba(255, 255, 255, 0.05);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .mobile-container {
+            width: 100%;
+            max-width: 400px;
+            /* Using a simulated image background with overlay */
+            background: linear-gradient(180deg, rgba(10,10,10,0.1) 0%, rgba(10,10,10,1) 60%), 
+                        url('https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=600&auto=format&fit=crop') center/cover;
+            position: relative;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            padding: 30px 20px;
+        }
+
+        .brand-header {
+            position: absolute;
+            top: 40px;
+            left: 20px;
+            font-size: 28px;
+            font-weight: 800;
+            letter-spacing: -1px;
+            text-shadow: 0 4px 20px rgba(0,0,0,0.8);
+        }
+
+        .brand-header span {
+            color: var(--accent-green);
+        }
+
+        .login-card {
+            background: rgba(10, 10, 10, 0.6);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 30px;
+            padding: 30px 24px;
+            box-shadow: 0 -10px 40px rgba(0,0,0,0.5);
+        }
+
+        .login-card h2 {
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .login-card p {
+            color: var(--text-muted);
+            font-size: 14px;
+            margin-bottom: 30px;
+            line-height: 1.4;
+        }
+
+        .oauth-btn {
+            width: 100%;
+            padding: 16px;
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.2);
+            background: var(--card-bg);
+            color: #fff;
+            font-size: 15px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .oauth-btn:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 12px;
+            margin: 20px 0;
+        }
+
+        .divider::before, .divider::after {
+            content: '';
+            flex: 1;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .divider:not(:empty)::before { margin-right: 15px; }
+        .divider:not(:empty)::after { margin-left: 15px; }
+
+        .input-group {
+            margin-bottom: 16px;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 16px;
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(0,0,0,0.5);
+            color: #fff;
+            font-size: 15px;
+            outline: none;
+        }
+
+        .input-group input:focus {
+            border-color: var(--accent-green);
+            box-shadow: 0 0 10px var(--accent-glow);
+        }
+
+        .primary-btn {
+            background: var(--accent-green);
+            color: #000;
+            width: 100%;
+            padding: 16px;
+            border-radius: 16px;
+            border: none;
+            font-weight: 800;
+            font-size: 16px;
+            cursor: pointer;
+            box-shadow: 0 4px 20px var(--accent-glow);
+            margin-top: 10px;
+            transition: transform 0.2s ease;
+        }
+
+        .primary-btn:hover {
+            transform: scale(1.02);
+        }
+
+        .footer-text {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .footer-text span {
+            color: var(--accent-green);
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="mobile-container">
+        
+        <div class="brand-header">
+            Vortixia<span>Fit</span>
+        </div>
+
+        <div class="login-card">
+            <h2>Sign in for<br>Fitness Success</h2>
+            <p>Fuel your fitness journey with our dynamic app designed for a healthier lifestyle.</p>
+
+            <button class="oauth-btn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="#fff"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+                Continue with Google
+            </button>
+            <button class="oauth-btn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="#fff"><path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.04 2.26-.74 3.58-.8 1.93-.05 3.31.83 4.26 2.16-3.51 2.04-2.92 6.55.54 7.95-.82 2.04-1.98 4-3.46 5.36M12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.35 2.4-1.9 4.38-3.74 4.25"/></svg>
+                Continue with Apple
+            </button>
+
+            <div class="divider">OR</div>
+
+            <div class="input-group">
+                <input type="email" placeholder="Email address">
+            </div>
+
+            <button class="primary-btn">CONTINUE</button>
+
+            <div class="footer-text">
+                Don't have an account? <span>Sign Up</span>
+            </div>
+        </div>
+
+    </div>
+</body>
+</html>

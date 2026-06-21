@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vortixia Fit - Dashboard Mockup</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap');
+
+        :root {
+            --bg-color: #0a0a0a;
+            --card-bg: rgba(255, 255, 255, 0.03);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --accent-green: #4ade80;
+            --accent-glow: rgba(74, 222, 128, 0.3);
+            --text-main: #ffffff;
+            --text-muted: #a3a3a3;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .mobile-container {
+            width: 100%;
+            max-width: 400px;
+            background: radial-gradient(circle at 50% 0%, rgba(74, 222, 128, 0.15) 0%, var(--bg-color) 40%);
+            position: relative;
+            overflow-x: hidden;
+            padding: 20px;
+        }
+
+        /* Header */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            margin-top: 20px;
+        }
+
+        .greeting h1 {
+            font-size: 24px;
+            font-weight: 600;
+        }
+        .greeting p {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .xp-badge {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            padding: 8px 12px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--accent-green);
+            backdrop-filter: blur(10px);
+        }
+
+        /* Glass Card */
+        .glass-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 24px;
+            padding: 20px;
+            backdrop-filter: blur(16px);
+            margin-bottom: 20px;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .glass-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+        }
+
+        /* Weekly Streak */
+        .streak-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            font-weight: 600;
+            font-size: 16px;
+        }
+        
+        .days {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .day {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .day-label {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .circle {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.05);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        .circle.active {
+            background: var(--accent-green);
+            color: #000;
+            box-shadow: 0 0 15px var(--accent-glow);
+            font-weight: bold;
+        }
+
+        /* Active Workout Hero */
+        .workout-hero {
+            background: linear-gradient(145deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 100%);
+            position: relative;
+            overflow: hidden;
+            border-radius: 24px;
+            padding: 24px;
+            border: 1px solid var(--card-border);
+        }
+
+        .workout-hero::before {
+            content: '';
+            position: absolute;
+            top: -50px;
+            right: -50px;
+            width: 150px;
+            height: 150px;
+            background: var(--accent-green);
+            filter: blur(80px);
+            opacity: 0.2;
+        }
+
+        .workout-tag {
+            background: rgba(74, 222, 128, 0.2);
+            color: var(--accent-green);
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 800;
+            display: inline-block;
+            margin-bottom: 12px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .workout-hero h2 {
+            font-size: 28px;
+            margin-bottom: 8px;
+            line-height: 1.2;
+        }
+
+        .workout-hero p {
+            color: var(--text-muted);
+            font-size: 14px;
+            margin-bottom: 24px;
+        }
+
+        .primary-btn {
+            background: var(--accent-green);
+            color: #000;
+            width: 100%;
+            padding: 16px;
+            border-radius: 16px;
+            border: none;
+            font-weight: 800;
+            font-size: 16px;
+            cursor: pointer;
+            box-shadow: 0 4px 20px var(--accent-glow);
+            transition: all 0.3s ease;
+        }
+
+        .primary-btn:hover {
+            transform: scale(1.02);
+            box-shadow: 0 6px 25px rgba(74, 222, 128, 0.5);
+        }
+
+        /* Bottom Nav */
+        .bottom-nav {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: calc(100% - 40px);
+            max-width: 360px;
+            background: rgba(10, 10, 10, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--card-border);
+            border-radius: 30px;
+            display: flex;
+            justify-content: space-around;
+            padding: 12px 20px;
+            z-index: 100;
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            color: var(--text-muted);
+            font-size: 10px;
+            cursor: pointer;
+        }
+
+        .nav-item.active {
+            color: var(--accent-green);
+        }
+        
+        .nav-icon {
+            width: 24px;
+            height: 24px;
+            background: currentColor;
+            mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>') no-repeat center;
+            -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>') no-repeat center;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="mobile-container">
+        
+        <header>
+            <div class="greeting">
+                <h1>Good morning ☀️, Alex</h1>
+                <p>Ready to crush it today?</p>
+            </div>
+            <div class="xp-badge">
+                ✦ 1,420 XP
+            </div>
+        </header>
+
+        <div class="glass-card">
+            <div class="streak-header">
+                <span>Daily Streaks</span>
+                <span style="color: var(--accent-green);">🔥 3 Days</span>
+            </div>
+            <div class="days">
+                <div class="day"><span class="day-label">M</span><div class="circle active">✓</div></div>
+                <div class="day"><span class="day-label">T</span><div class="circle active">✓</div></div>
+                <div class="day"><span class="day-label">W</span><div class="circle active">✓</div></div>
+                <div class="day"><span class="day-label">T</span><div class="circle"></div></div>
+                <div class="day"><span class="day-label">F</span><div class="circle"></div></div>
+                <div class="day"><span class="day-label">S</span><div class="circle"></div></div>
+                <div class="day"><span class="day-label">S</span><div class="circle"></div></div>
+            </div>
+        </div>
+
+        <div class="workout-hero">
+            <div class="workout-tag">Day 3</div>
+            <h2>Push Day<br>Chest & Triceps</h2>
+            <p>6 exercises • 45 mins • Hypertrophy</p>
+            <button class="primary-btn">START WORKOUT</button>
+        </div>
+
+        <div class="glass-card" style="margin-top: 20px;">
+            <div class="streak-header">
+                <span>Recent Activity</span>
+            </div>
+            <p style="font-size: 13px; color: var(--text-muted); display: flex; align-items: center; gap: 10px;">
+                <span style="background: rgba(255,255,255,0.1); padding: 8px; border-radius: 50%;">💪</span>
+                You hit a new PR on Bench Press (100kg)!
+            </p>
+        </div>
+
+        <div class="bottom-nav">
+            <div class="nav-item active">
+                <div class="nav-icon"></div>
+                Home
+            </div>
+            <div class="nav-item">
+                <div class="nav-icon" style="-webkit-mask-image: url('data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\'><path d=\'M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z\'/></svg>')"></div>
+                Log
+            </div>
+            <div class="nav-item">
+                <div class="nav-icon" style="-webkit-mask-image: url('data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\'><path d=\'M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z\'/></svg>')"></div>
+                Social
+            </div>
+        </div>
+
+    </div>
+</body>
+</html>
