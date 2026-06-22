@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Intermediate Gym Schedule — Interactive v3</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --surface-2: #f0f1f5;
+    --surface-3: #e8eaf0;
+    --text: #1a1d2b;
+    --text-secondary: #5b6278;
+    --text-tertiary: #8a91a8;
+    --border: #e1e3ea;
+    --border-light: #eceef3;
+    --primary: #2563eb;
+    --primary-light: #dbeafe;
+    --accent-green: #10b981;
+    --accent-green-bg: #d1fae5;
+    --accent-amber: #f59e0b;
+    --accent-amber-bg: #fef3c7;
+    --accent-red: #ef4444;
+    --accent-red-bg: #fee2e2;
+    --accent-purple: #8b5cf6;
+    --accent-purple-bg: #ede9fe;
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-xl: 20px;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.06);
+    --shadow-lg: 0 8px 24px rgba(0,0,0,0.08);
+    --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  [data-theme="dark"] {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface-2: #222633;
+    --surface-3: #2a2e3d;
+    --text: #f0f1f5;
+    --text-secondary: #a0a6b8;
+    --text-tertiary: #6b7280;
+    --border: #2a2e3d;
+    --border-light: #32384a;
+    --primary: #3b82f6;
+    --primary-light: #1e3a5f;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    padding-bottom: 2rem;
+  }
+
+  /* Header */
+  .app-header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 1.25rem 1rem;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: blur(12px);
+    background: rgba(255,255,255,0.92);
+  }
+  [data-theme="dark"] .app-header { background: rgba(26,29,39,0.92); }
+
+  .header-inner {
+    max-width: 720px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .header-title h1 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--text);
+  }
+  .header-title p {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    margin-top: 2px;
+  }
+
+  .header-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .icon-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition);
+    font-size: 1rem;
+  }
+  .icon-btn:hover {
+    background: var(--surface-3);
+    color: var(--text);
+    transform: translateY(-1px);
+  }
+  .icon-btn.active {
+    background: var(--primary-light);
+    color: var(--primary);
+    border-color: var(--primary);
+  }
+
+  /* Progress bar */
+  .progress-wrap {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 0.75rem 1rem 0;
+  }
+  .progress-bar-bg {
+    height: 6px;
+    background: var(--surface-2);
+    border-radius: 100px;
+    overflow: hidden;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary), var(--accent-purple));
+    border-radius: 100px;
+    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    width: 0%;
+  }
+  .progress-text {
+    font-size: 0.7rem;
+    color: var(--text-tertiary);
+    text-align: right;
+    margin-top: 4px;
+    font-weight: 500;
+  }
+
+  /* Container */
+  .wrap {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 1rem;
+  }
+
+  /* Week grid */
+  .week-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+    margin: 1rem 0 1.25rem;
+  }
+  .wday {
+    text-align: center;
+    padding: 10px 4px;
+    border-radius: var(--radius-md);
+    font-size: 0.75rem;
+    font-weight: 600;
+    border: 1px solid var(--border-light);
+    background: var(--surface);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: var(--transition);
+    position: relative;
+    user-select: none;
+  }
+  .wday:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm); }
+  .wday .label { font-size: 0.65rem; color: var(--text-tertiary); font-weight: 500; margin-bottom: 3px; display: block; }
+  .wday .type { font-size: 0.7rem; line-height: 1.3; display: block; }
+  .wday.active {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px var(--primary-light);
+    color: var(--text);
+  }
+  .wday.push { background: #dbeafe; color: #1e40af; border-color: #bfdbfe; }
+  .wday.pull { background: #d1fae5; color: #065f46; border-color: #a7f3d0; }
+  .wday.legs { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+  .wday.rest { background: var(--surface-2); color: var(--text-tertiary); }
+  .wday.cardio-core { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+  .wday.upper { background: #ede9fe; color: #5b21b6; border-color: #ddd6fe; }
+
+  [data-theme="dark"] .wday.push { background: #1e3a5f; color: #93c5fd; border-color: #1e40af; }
+  [data-theme="dark"] .wday.pull { background: #064e3b; color: #6ee7b7; border-color: #065f46; }
+  [data-theme="dark"] .wday.legs { background: #78350f; color: #fcd34d; border-color: #92400e; }
+  [data-theme="dark"] .wday.cardio-core { background: #7f1d1d; color: #fca5a5; border-color: #991b1b; }
+  [data-theme="dark"] .wday.upper { background: #4c1d95; color: #c4b5fd; border-color: #5b21b6; }
+
+  .wday .completed-dot {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent-green);
+    display: none;
+  }
+  .wday.completed .completed-dot { display: block; }
+
+  /* Legend */
+  .legend {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 1.25rem;
+    align-items: center;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+    background: var(--surface);
+    padding: 4px 10px;
+    border-radius: 100px;
+    border: 1px solid var(--border-light);
+  }
+
+  /* Pills */
+  .machine-pill, .free-pill, .cardio-pill, .body-pill {
+    font-size: 0.65rem;
+    padding: 2px 7px;
+    border-radius: 100px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    display: inline-block;
+    vertical-align: middle;
+    margin-left: 4px;
+  }
+  .machine-pill { background: #dbeafe; color: #1e40af; }
+  .free-pill { background: #d1fae5; color: #065f46; }
+  .cardio-pill { background: #fee2e2; color: #991b1b; }
+  .body-pill { background: #f3f4f6; color: #4b5563; }
+
+  [data-theme="dark"] .machine-pill { background: #1e3a5f; color: #93c5fd; }
+  [data-theme="dark"] .free-pill { background: #064e3b; color: #6ee7b7; }
+  [data-theme="dark"] .cardio-pill { background: #7f1d1d; color: #fca5a5; }
+  [data-theme="dark"] .body-pill { background: #374151; color: #d1d5db; }
+
+  /* Day card */
+  .day-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+    box-shadow: var(--shadow-sm);
+    animation: fadeIn 0.3s ease-out;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .day-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+  .day-badge {
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: var(--radius-md);
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+  .badge-push { background: #dbeafe; color: #1e40af; }
+  .badge-pull { background: #d1fae5; color: #065f46; }
+  .badge-legs { background: #fef3c7; color: #92400e; }
+  .badge-cardio { background: #fee2e2; color: #991b1b; }
+  .badge-glute { background: #ede9fe; color: #5b21b6; }
+  .badge-rest { background: var(--surface-2); color: var(--text-secondary); }
+  .badge-upper { background: #ede9fe; color: #5b21b6; }
+
+  [data-theme="dark"] .badge-push { background: #1e3a5f; color: #93c5fd; }
+  [data-theme="dark"] .badge-pull { background: #064e3b; color: #6ee7b7; }
+  [data-theme="dark"] .badge-legs { background: #78350f; color: #fcd34d; }
+  [data-theme="dark"] .badge-cardio { background: #7f1d1d; color: #fca5a5; }
+  [data-theme="dark"] .badge-glute { background: #4c1d95; color: #c4b5fd; }
+  [data-theme="dark"] .badge-upper { background: #4c1d95; color: #c4b5fd; }
+
+  .day-title { font-size: 1.05rem; font-weight: 700; color: var(--text); letter-spacing: -0.01em; }
+
+  .section-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 18px 0 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-label::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--border-light);
+  }
+
+  /* Table */
+  .exercise-table {
+    width: 100%;
+    font-size: 0.85rem;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+  .exercise-table th {
+    text-align: left;
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: var(--text-tertiary);
+    padding: 8px 8px 8px 0;
+    border-bottom: 1px solid var(--border-light);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .exercise-table td {
+    padding: 10px 8px 10px 0;
+    color: var(--text);
+    border-bottom: 1px solid var(--border-light);
+    vertical-align: top;
+    line-height: 1.5;
+    transition: var(--transition);
+  }
+  .exercise-table tr:hover td { background: var(--surface-2); }
+  .exercise-table tr:last-child td { border-bottom: none; }
+  .exercise-table tr.completed td { opacity: 0.55; text-decoration: line-through; }
+  .exercise-table tr.completed td:first-child { text-decoration: none; opacity: 1; }
+  .exercise-table tr.completed td:first-child .exercise-name { text-decoration: line-through; opacity: 0.55; }
+
+  .sets-reps {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .note {
+    font-size: 0.72rem;
+    color: var(--text-tertiary);
+    font-style: italic;
+    margin-top: 3px;
+    line-height: 1.4;
+  }
+
+  .alt-slash { font-size: 0.85rem; color: var(--text-tertiary); margin: 0 3px; }
+
+  /* Checkbox */
+  .exercise-check {
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--border);
+    border-radius: 5px;
+    cursor: pointer;
+    position: relative;
+    transition: var(--transition);
+    vertical-align: middle;
+    margin-right: 8px;
+    flex-shrink: 0;
+  }
+  .exercise-check:checked {
+    background: var(--accent-green);
+    border-color: var(--accent-green);
+  }
+  .exercise-check:checked::after {
+    content: "✓";
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .exercise-check:hover { border-color: var(--accent-green); }
+
+  .exercise-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  /* Tip boxes */
+  .tip-box, .tip-glute, .tip-core {
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+    margin-top: 12px;
+    font-size: 0.8rem;
+    line-height: 1.6;
+    position: relative;
+    border-left: 3px solid;
+  }
+  .tip-box {
+    background: var(--surface-2);
+    border-left-color: var(--primary);
+    color: var(--text-secondary);
+  }
+  .tip-glute {
+    background: var(--accent-purple-bg);
+    border-left-color: var(--accent-purple);
+    color: #5b21b6;
+  }
+  .tip-core {
+    background: var(--accent-red-bg);
+    border-left-color: var(--accent-red);
+    color: #991b1b;
+  }
+  [data-theme="dark"] .tip-glute { background: #4c1d95; color: #c4b5fd; }
+  [data-theme="dark"] .tip-core { background: #7f1d1d; color: #fca5a5; }
+
+  /* Glute section */
+  .glute-section {
+    border: 1px solid #ddd6fe;
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+    margin-top: 12px;
+    background: #faf8ff;
+  }
+  [data-theme="dark"] .glute-section { border-color: #4c1d95; background: #1a1633; }
+  .glute-header {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #5b21b6;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  [data-theme="dark"] .glute-header { color: #c4b5fd; }
+
+  .core-swap-badge {
+    display: inline-block;
+    font-size: 0.65rem;
+    padding: 3px 10px;
+    background: var(--accent-red-bg);
+    color: #991b1b;
+    border-radius: 100px;
+    font-weight: 700;
+    margin-left: 8px;
+    letter-spacing: 0.02em;
+  }
+  [data-theme="dark"] .core-swap-badge { background: #7f1d1d; color: #fca5a5; }
+
+  /* HR guide */
+  .hr-guide {
+    background: var(--surface-2);
+    border-radius: var(--radius-md);
+    padding: 14px;
+    margin-bottom: 14px;
+  }
+  .hr-formula {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 10px;
+  }
+  .hr-zones {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+  }
+  .hz {
+    text-align: center;
+    padding: 8px 4px;
+    border-radius: var(--radius-sm);
+    transition: var(--transition);
+  }
+  .hz:hover { transform: translateY(-2px); }
+  .hz .znum { font-size: 0.65rem; font-weight: 700; }
+  .hz .zpct { font-size: 0.75rem; font-weight: 700; margin: 3px 0; }
+  .hz .zlabel { font-size: 0.62rem; line-height: 1.3; font-weight: 500; }
+  .z1 { background: #d1fae5; } .z1 .znum,.z1 .zpct { color: #065f46; } .z1 .zlabel { color: #047857; }
+  .z2 { background: #dbeafe; } .z2 .znum,.z2 .zpct { color: #1e40af; } .z2 .zlabel { color: #2563eb; }
+  .z3 { background: #ede9fe; } .z3 .znum,.z3 .zpct { color: #5b21b6; } .z3 .zlabel { color: #7c3aed; }
+  .z4 { background: #fef3c7; } .z4 .znum,.z4 .zpct { color: #92400e; } .z4 .zlabel { color: #d97706; }
+  .z5 { background: #fee2e2; } .z5 .znum,.z5 .zpct { color: #991b1b; } .z5 .zlabel { color: #dc2626; }
+
+  [data-theme="dark"] .z1 { background: #064e3b; } [data-theme="dark"] .z1 .znum,[data-theme="dark"] .z1 .zpct { color: #6ee7b7; } [data-theme="dark"] .z1 .zlabel { color: #34d399; }
+  [data-theme="dark"] .z2 { background: #1e3a5f; } [data-theme="dark"] .z2 .znum,[data-theme="dark"] .z2 .zpct { color: #93c5fd; } [data-theme="dark"] .z2 .zlabel { color: #60a5fa; }
+  [data-theme="dark"] .z3 { background: #4c1d95; } [data-theme="dark"] .z3 .znum,[data-theme="dark"] .z3 .zpct { color: #c4b5fd; } [data-theme="dark"] .z3 .zlabel { color: #a78bfa; }
+  [data-theme="dark"] .z4 { background: #78350f; } [data-theme="dark"] .z4 .znum,[data-theme="dark"] .z4 .zpct { color: #fcd34d; } [data-theme="dark"] .z4 .zlabel { color: #fbbf24; }
+  [data-theme="dark"] .z5 { background: #7f1d1d; } [data-theme="dark"] .z5 .znum,[data-theme="dark"] .z5 .zpct { color: #fca5a5; } [data-theme="dark"] .z5 .zlabel { color: #f87171; }
+
+  /* Action buttons */
+  .action-bar {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 1.25rem;
+  }
+  .action-btn {
+    padding: 8px 14px;
+    font-size: 0.78rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: var(--transition);
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .action-btn:hover {
+    background: var(--surface-2);
+    color: var(--text);
+    border-color: var(--text-tertiary);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* Timer overlay */
+  .timer-overlay {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 14px 18px;
+    box-shadow: var(--shadow-lg);
+    z-index: 200;
+    display: none;
+    min-width: 180px;
+    animation: slideUp 0.3s ease-out;
+  }
+  @keyframes slideUp {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  .timer-overlay.visible { display: block; }
+  .timer-display {
+    font-size: 1.5rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
+    text-align: center;
+    margin-bottom: 8px;
+  }
+  .timer-controls {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+  }
+  .timer-btn {
+    padding: 6px 12px;
+    font-size: 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface-2);
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-weight: 600;
+    transition: var(--transition);
+  }
+  .timer-btn:hover { background: var(--surface-3); color: var(--text); }
+  .timer-btn.primary { background: var(--primary); color: white; border-color: var(--primary); }
+  .timer-btn.primary:hover { background: #1d4ed8; }
+  .timer-label {
+    font-size: 0.65rem;
+    color: var(--text-tertiary);
+    text-align: center;
+    margin-bottom: 6px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* Responsive */
+  @media (max-width: 640px) {
+    .week-grid { grid-template-columns: repeat(4, 1fr); gap: 5px; }
+    .wday:nth-child(5), .wday:nth-child(6), .wday:nth-child(7) { grid-column: span 1; }
+    .day-card { padding: 1rem; border-radius: var(--radius-md); }
+    .exercise-table { font-size: 0.8rem; }
+    .exercise-table th { font-size: 0.6rem; }
+    .hr-zones { grid-template-columns: repeat(3, 1fr); }
+    .header-title h1 { font-size: 1rem; }
+    .wrap { padding: 0.75rem; }
+  }
+
+  @media (max-width: 480px) {
+    .week-grid { grid-template-columns: repeat(2, 1fr); }
+    .wday { padding: 8px 4px; }
+    .hr-zones { grid-template-columns: repeat(2, 1fr); }
+    .timer-overlay { left: 10px; right: 10px; bottom: 10px; }
+  }
+
+  /* Print */
+  @media print {
+    body { background: white; }
+    .app-header, .timer-overlay, .action-bar, .icon-btn { display: none !important; }
+    .day-card { box-shadow: none; border: 1px solid #ddd; break-inside: avoid; }
+    .exercise-check { display: none; }
+    .exercise-table tr.completed td { opacity: 1; text-decoration: none; }
+    .exercise-table tr.completed td:first-child .exercise-name { text-decoration: none; opacity: 1; }
+  }
+
+  /* Focus states */
+  button:focus-visible, .wday:focus-visible, .exercise-check:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 100px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-tertiary); }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="header-inner">
+    <div class="header-title">
+      <h1>Intermediate Program — v3</h1>
+      <p>5-day PPL split · HR zones · Glute emphasis · Cramp-safe core</p>
+    </div>
+    <div class="header-actions">
+      <button class="icon-btn" id="themeBtn" onclick="toggleTheme()" title="Toggle dark mode">
+        🌙
+      </button>
+      <button class="icon-btn" id="timerBtn" onclick="toggleTimer()" title="Workout timer">
+        ⏱️
+      </button>
+      <button class="icon-btn" onclick="resetProgress()" title="Reset all progress">
+        🔄
+      </button>
+    </div>
+  </div>
+</header>
+
+<div class="progress-wrap">
+  <div class="progress-bar-bg">
+    <div class="progress-bar-fill" id="progressFill"></div>
+  </div>
+  <div class="progress-text" id="progressText">0% complete</div>
+</div>
+
+<div class="wrap">
+
+  <div class="week-grid" role="tablist" aria-label="Day selector">
+    <div class="wday push" role="tab" tabindex="0" aria-selected="true" onclick="show('mon')" onkeydown="if(event.key==='Enter'||event.key===' ')show('mon')">
+      <span class="completed-dot"></span>
+      <span class="label">Mon</span>
+      <span class="type">Push</span>
+    </div>
+    <div class="wday pull" role="tab" tabindex="0" aria-selected="false" onclick="show('tue')" onkeydown="if(event.key==='Enter'||event.key===' ')show('tue')">
+      <span class="completed-dot"></span>
+      <span class="label">Tue</span>
+      <span class="type">Pull</span>
+    </div>
+    <div class="wday cardio-core" role="tab" tabindex="0" aria-selected="false" onclick="show('wed')" onkeydown="if(event.key==='Enter'||event.key===' ')show('wed')">
+      <span class="completed-dot"></span>
+      <span class="label">Wed</span>
+      <span class="type">Cardio + Core</span>
+    </div>
+    <div class="wday legs" role="tab" tabindex="0" aria-selected="false" onclick="show('thu')" onkeydown="if(event.key==='Enter'||event.key===' ')show('thu')">
+      <span class="completed-dot"></span>
+      <span class="label">Thu</span>
+      <span class="type">Legs + Glutes</span>
+    </div>
+    <div class="wday upper" role="tab" tabindex="0" aria-selected="false" onclick="show('fri')" onkeydown="if(event.key==='Enter'||event.key===' ')show('fri')">
+      <span class="completed-dot"></span>
+      <span class="label">Fri</span>
+      <span class="type">Shoulders + Arms</span>
+    </div>
+    <div class="wday rest" role="tab" tabindex="0" aria-selected="false" onclick="show('sat')" onkeydown="if(event.key==='Enter'||event.key===' ')show('sat')">
+      <span class="completed-dot"></span>
+      <span class="label">Sat</span>
+      <span class="type">Active Rest</span>
+    </div>
+    <div class="wday rest" role="tab" tabindex="0" aria-selected="false" onclick="show('sun')" onkeydown="if(event.key==='Enter'||event.key===' ')show('sun')">
+      <span class="completed-dot"></span>
+      <span class="label">Sun</span>
+      <span class="type">Rest</span>
+    </div>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><span class="machine-pill">machine</span></div>
+    <div class="legend-item"><span class="free-pill">free weight</span></div>
+    <div class="legend-item"><span class="cardio-pill">cardio</span></div>
+    <div class="legend-item"><span class="body-pill">bodyweight</span></div>
+    <div class="legend-item">A / B = do either depending on availability</div>
+  </div>
+
+  <!-- Monday -->
+  <div id="mon" class="day-panel">
+    <div class="day-card">
+      <div class="day-header">
+        <span class="day-badge badge-push">Push</span>
+        <span class="day-title">Monday — Chest & Triceps</span>
+      </div>
+      <div class="section-label">Warm-up</div>
+      <table class="exercise-table">
+        <tr><th style="width:52%">Exercise</th><th>Sets × Reps</th><th>Rest</th></tr>
+        <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="mon" onchange="updateProgress()"><span class="exercise-name">Treadmill incline walk <span class="cardio-pill">cardio</span></span></label></td><td class="sets-reps">5 min</td><td class="sets-reps">—</td></tr>
+        <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="mon" onchange="updateProgress()"><span class="exercise-name">Arm swings + shoulder rotations <span class="body-pill">bodyweight</span></span></label></td><td class="sets-reps">2 × 15</td><td class="sets-reps">30s</td></tr>
+      </table>
+      <div class="section-label">Main lifts</div>
+      <table class="exercise-table">
+        <tr><th style="width:52%">Exercise</th><th>Sets × Reps</th><th>Rest</th></tr>
+        <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="mon" onchange="updateProgress()"><span class="exercise-name">Flat barbell bench press <span class="free-pill">free weight</span><div class="note">Primary compound — add weight when you hit top of rep range for 2 sessions</div></span></label></td><td class="sets-reps">4 × 6–8</td><td class="sets-reps">2–3 min</td></tr>
+        <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="mon" onchange="updateProgress()"><span class="exercise-name">Incline dumbbell press <span class="free-pill">free weight</span><div class="note">Upper chest emphasis</div></span></label></td><td class="sets-reps">3 × 10–12</td><td class="sets-reps">90s</td></tr>
+        <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="mon" onchange="updateProgress()"><span class="exercise-name">Machine chest fly / pec deck <span class="machine-pill">machine</span><div class="note">Constant tension, peak squeeze</div></span></label></td><td class="sets-reps">3 × 12–15</td><td class="sets-reps">60s</td></tr>
+        <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="mon" onchange="updateProgress()"><span class="exercise-name">Cable crossover (high to low) <span class="machine-pill">machine</span></span></label></td><td class="sets-reps">3 × 15</td><td class="sets-reps">60s</td></tr>
+        <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="mon" onchange="updateProgress()"><span class="exercise-name">Tricep rope pushdown <span class="machine-pill">machine</span></span></label></td><td class="sets-reps">3 × 12–15</td><td class="sets-reps">60s</td></tr>
+        <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="mon" onchange="updateProgress()"><span class="exercise-name">Overhead EZ-bar tricep extension <span class="free-pill">free weight</span><div class="note">Long head emphasis</div></span></label></td><td class="sets-reps">3 × 10–12</td><td class="sets-reps">60s</td></tr>
+      </table>
+      <div class="tip-box">No changes from v1 on this day.</div>
+    </div>
+  </div>
+
+  <!-- Tuesday -->
+  <div id="tue" class="day-panel" style="display:none">
+    <div class="day-card">
+      <div class="day-header">
+        <span class="day-badge badge-pull">Pull</span>
+        <span class="day-title">Tuesday — Back & Biceps</span>
+      </div>
+      <div class="section-label">Warm-up</div>
+      <table class="exercise-table">
+        <tr><th style="width:52%">Exercise</th><th>Sets × Reps</th><th>Rest</th></tr>
+        <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="tue" onchange="updateProgress()"><span class="exercise-name">Stationary bike easy pace <span class="cardio-pill">cardio</span> <span class="alt-slash">/</span> Treadmill incline walk easy <span class="cardio-pill">cardio</span><div class="note">Either activates posterior chain before pulling — 5 min at Zone 1 (50–60% max HR)</div></span></label></td><td class="sets-reps">5 min</td><td class="sets-reps">—</td></tr>
+      </table>
+      <div class="section-label">Main lifts</div>
+      <table class="exercise-table">
+        <tr><th style="width:52%">Exercise</th><th>Sets × Reps</th><th>Rest</th></tr>
+        <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="tue" onchange="updateProgress()"><span class="exercise-name">Lat pulldown (wide grip) <span class="machine-pill">machine</span><div class="note">Primary vertical pull</div></span></label></td><td class="sets-reps">4 × 8–10</td><td class="sets-reps">2 min</td></tr>
+        <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="tue" onchange="updateProgress()"><span class="exercise-name">Seated cable row (close grip) <span class="machine-pill">machine</span> <span class="alt-slash">/</span> Back extension (hyperextension machine) <span class="machine-pill">machine</span><div class="note">Cable row = mid-back horizontal pull | Back extension = erector spinae + glutes. Use whichever station is free. If doing back extension here, add one extra set of dumbbell row below.</div></span></label></td><td class="sets-reps">4 × 10–12</td><td class="sets-reps">90s</td></tr>
+        <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="tue" onchange="updateProgress()"><span class="exercise-name">Dumbbell single-arm row <span class="free-pill">free weight</span><div class="note">Unilateral — fixes left/right imbalances</div></span></label></td><td class="sets-reps">3 × 10 each</td><td class="sets-reps">60s</td></tr>
+        <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="tue" onchange="updateProgress()"><span class="exercise-name">Machine low row (neutral grip) <span class="machine-pill">machine</span><div class="note">Full ROM retraction</div></span></label></td><td class="sets-reps">3 × 12</td><td class="sets-reps">60s</td></tr>
+        <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="tue" onchange="updateProgress()"><span class="exercise-name">Face pulls (cable, rope) <span class="machine-pill">machine</span><div class="note">Rear delts + external rotation — injury prevention essential</div></span></label></td><td class="sets-reps">3 × 15–20</td><td class="sets-reps">45s</td></tr>
+        <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="tue" onchange="updateProgress()"><span class="exercise-name">EZ-bar or dumbbell curl <span class="free-pill">free weight</span></span></label></td><td class="sets-reps">3 × 10–12</td><td class="sets-reps">60s</td></tr>
+        <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="tue" onchange="updateProgress()"><span class="exercise-name">Cable hammer curl <span class="machine-pill">machine</span><div class="note">Brachialis + brachioradialis</div></span></label></td><td class="sets-reps">3 × 12–15</td><td class="sets-reps">60s</td></tr>
+      </table>
+      <div class="tip-box">Back extension substitution note: It's a solid lower-back and glute exercise but doesn't replace the horizontal pull of a cable row entirely. On days you use it, add an extra set on the dumbbell row or machine low row to compensate for the lost mid-back volume.</div>
+    </div>
+  </div>
+
+  <!-- Wednesday -->
+  <div id="wed" class="day-panel" style="display:none">
+    <div class="day-card">
+      <div class="day-header">
+        <span class="day-badge badge-cardio">Cardio + Core</span>
+        <span class="day-title">Wednesday — Cardio, Core & Glute Activation</span>
+      </div>
+
+      <div class="hr-guide">
+        <div class="hr-formula">Heart rate guide — Max HR = 220 − your age · Check your band throughout</div>
+        <div class="hr-zones">
+          <div class="hz z1"><div class="znum">Zone 1</div><div class="zpct">50–60%</div><div class="zlabel">Warm-up cool-down</div></div>
+          <div class="hz z2"><div class="znum">Zone 2</div><div class="zpct">60–70%</div><div class="zlabel">Fat burn / aerobic base</div></div>
+          <div class="hz z3"><div class="znum">Zone 3</div><div class="zpct">70–80%</div><div class="zlabel">Cardio fitness</div></div>
+          <div class="hz z4"><div class="znum">Zone 4</div><div class="zpct">80–90%</div><div class="zlabel">HIIT active effort</div></div>
+          <div class="hz z5"><div class="znum">Zone 5</div><div class="zpct">90–100%</div><div class="zlabel">Peak sprint — short only</div></div>
+        </div>
+      </div>
+
+      <div class="section-label">Cardio block — rotate options each week to prevent adaptation</div>
+      <table class="exercise-table">
+        <tr><th style="width:48%">Machine + Protocol</th><th>Duration</th><th>Target HR zone</th></tr>
+        <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="wed" onchange="updateProgress()"><span class="exercise-name"><strong>Option A</strong> — Elliptical (arms + legs) — steady state <span class="cardio-pill">cardio</span><div class="note">Full-body, low-impact. Keep arms + legs moving for maximum burn. Increase resistance over 4 weeks.</div></span></label></td><td class="sets-reps">28–35 min</td><td class="sets-reps">Zone 2–3 (60–75%)</td></tr>
+        <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="wed" onchange="updateProgress()"><span class="exercise-name"><strong>Option B</strong> — Treadmill incline walk <span class="cardio-pill">cardio</span><div class="note">12–15% incline, 5.5–6.5 km/h. Top-ranked for fat oxidation. No running needed.</div></span></label></td><td class="sets-reps">30–35 min</td><td class="sets-reps">Zone 2 (60–70%)</td></tr>
+        <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="wed" onchange="updateProgress()"><span class="exercise-name"><strong>Option C</strong> — Stationary bike intervals <span class="cardio-pill">cardio</span><div class="note">30s hard sprint → 90s easy recovery × 8 rounds. Strong EPOC (burns calories post-session).</div></span></label></td><td class="sets-reps">~25 min total</td><td class="sets-reps">Sprint: Zone 4 (80–88%) · Recovery: Zone 2</td></tr>
+      </table>
+
+      <div class="section-label">
+        Core circuit — light weight, high volume
+        <span class="core-swap-badge">fully updated — cramp-safe</span>
+      </div>
+      <div class="tip-core" style="margin-bottom: 8px;">Ab cramping is often caused by muscle fatigue + lactic acid buildup. The solution: controlled movement, slow tempo, no rushing between sets, and stay well hydrated before training. Progress by adding reps weekly, not weight. Never train abs to failure at this stage.</div>
+      <table class="exercise-table">
+        <tr><th style="width:52%">Exercise</th><th>Sets × Reps</th><th>Rest</th></tr>
+        <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="wed" onchange="updateProgress()"><span class="exercise-name">Cable crunch — lightest usable weight <span class="machine-pill">machine</span><div class="note">Slow 3-second descent on every rep. If any cramp sensation starts, stop immediately and breathe out slowly.</div></span></label></td><td class="sets-reps">3 × 20–25</td><td class="sets-reps">45s</td></tr>
+        <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="wed" onchange="updateProgress()"><span class="exercise-name">Dead bug <span class="body-pill">bodyweight</span><div class="note">Lie on back, arms up, knees at 90°. Extend opposite arm + leg slowly while lower back stays flat. Best cramp-prevention core exercise — very controlled, works deep TVA.</div></span></label></td><td class="sets-reps">3 × 10 each side</td><td class="sets-reps">30s</td></tr>
+        <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="wed" onchange="updateProgress()"><span class="exercise-name">Dumbbell side bend — light dumbbell <span class="free-pill">free weight</span><div class="note">Standing, hold one dumbbell, bend to the side slowly. Alternate sides.</div></span></label></td><td class="sets-reps">3 × 20 each side</td><td class="sets-reps">30s</td></tr>
+        <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="wed" onchange="updateProgress()"><span class="exercise-name">Standing cable oblique crunch / oblique extension <span class="machine-pill">machine</span><div class="note">Light weight, pull cable from high pulley down to hip. One side at a time. Can sub with a standing dumbbell oblique crunch.</div></span></label></td><td class="sets-reps">3 × 20 each side</td><td class="sets-reps">30s</td></tr>
+        <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="wed" onchange="updateProgress()"><span class="exercise-name">Side plank <span class="body-pill">bodyweight</span><div class="note">Static hold only — no moving. Focus on breathing steadily.</div></span></label></td><td class="sets-reps">3 × 20–25s each side</td><td class="sets-reps">20s</td></tr>
+        <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="wed" onchange="updateProgress()"><span class="exercise-name">Plank <span class="body-pill">bodyweight</span><div class="note">Standard plank. If you feel ab cramping building, end the set. Do not push through.</div></span></label></td><td class="sets-reps">2 × 25–30s</td><td class="sets-reps">30s</td></tr>
+      </table>
+
+      <div class="glute-section">
+        <div class="glute-header">🔥 Glute activation bonus — pairs with core day (no rest needed, low effort)</div>
+        <table class="exercise-table">
+          <tr><th style="width:52%">Exercise</th><th>Sets × Reps</th><th>Rest</th></tr>
+          <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="wed" onchange="updateProgress()"><span class="exercise-name">Glute bridge <span class="body-pill">bodyweight</span><div class="note">Lie on back, feet flat, drive hips up. Squeeze at top for 1 second. Light but effective for desk-weakened glutes.</div></span></label></td><td class="sets-reps">3 × 20</td><td class="sets-reps">30s</td></tr>
+          <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="wed" onchange="updateProgress()"><span class="exercise-name">Donkey kick <span class="body-pill">bodyweight</span><div class="note">On all fours, kick one leg back and up. Controlled — squeeze glute at top. No swinging.</div></span></label></td><td class="sets-reps">3 × 20 each side</td><td class="sets-reps">20s</td></tr>
+        </table>
+      </div>
+      <div class="tip-glute">Glute activation on Wednesday primes them for heavy leg work on Thursday. Weak glutes from prolonged sitting are a common cause of lower back pain — these lightweight activations help re-establish the neural connection before heavier loading.</div>
+    </div>
+  </div>
+
+  <!-- Thursday -->
+  <div id="thu" class="day-panel" style="display:none">
+    <div class="day-card">
+      <div class="day-header">
+        <span class="day-badge badge-legs">Legs + Glutes</span>
+        <span class="day-title">Thursday — Legs, Hamstrings & Glute Focus</span>
+      </div>
+      <div class="section-label">Warm-up</div>
+      <table class="exercise-table">
+        <tr><th style="width:52%">Exercise</th><th>Sets × Reps</th><th>Rest</th></tr>
+        <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="thu" onchange="updateProgress()"><span class="exercise-name">Stationary bike easy pace <span class="cardio-pill">cardio</span><div class="note">Zone 1 (50–60% max HR)</div></span></label></td><td class="sets-reps">5–8 min</td><td class="sets-reps">—</td></tr>
+        <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="thu" onchange="updateProgress()"><span class="exercise-name">Bodyweight glute bridge <span class="body-pill">bodyweight</span><div class="note">Glute activation before heavy squats — fires up the posterior chain</div></span></label></td><td class="sets-reps">2 × 15</td><td class="sets-reps">30s</td></tr>
+        <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="thu" onchange="updateProgress()"><span class="exercise-name">Hip flexor stretch + bodyweight squat <span class="body-pill">bodyweight</span></span></label></td><td class="sets-reps">2 × 10</td><td class="sets-reps">30s</td></tr>
+      </table>
+      <div class="section-label">Main lifts</div>
+      <table class="exercise-table">
+        <tr><th style="width:52%">Exercise</th><th>Sets × Reps</th><th>Rest</th></tr>
+        <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="thu" onchange="updateProgress()"><span class="exercise-name">Barbell squat <span class="free-pill">free weight</span><span class="alt-slash">/</span>Smith machine squat <span class="machine-pill">machine</span><div class="note">Primary compound. Smith is a valid alternative for form safety.</div></span></label></td><td class="sets-reps">4 × 6–8</td><td class="sets-reps">3 min</td></tr>
+        <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="thu" onchange="updateProgress()"><span class="exercise-name">Leg press <span class="machine-pill">machine</span><div class="note">High quad + glute volume safely after squats. Feet higher on platform = more glute activation.</div></span></label></td><td class="sets-reps">3 × 12</td><td class="sets-reps">2 min</td></tr>
+        <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="thu" onchange="updateProgress()"><span class="exercise-name">Romanian deadlift <span class="free-pill">free weight</span><div class="note">Hip hinge — hamstring + glute primary. Feel the stretch at the bottom.</div></span></label></td><td class="sets-reps">3 × 10</td><td class="sets-reps">90s</td></tr>
+        <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="thu" onchange="updateProgress()"><span class="exercise-name">Seated leg curl <span class="machine-pill">machine</span><span class="alt-slash">/</span>Lying leg curl <span class="machine-pill">machine</span><div class="note">Seated preferred — hip flexion lengthens hamstring under load, greater growth stimulus.</div></span></label></td><td class="sets-reps">3 × 12–15</td><td class="sets-reps">60s</td></tr>
+        <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="thu" onchange="updateProgress()"><span class="exercise-name">Leg extension <span class="machine-pill">machine</span><div class="note">Quad isolation</div></span></label></td><td class="sets-reps">3 × 15</td><td class="sets-reps">60s</td></tr>
+        <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="thu" onchange="updateProgress()"><span class="exercise-name">Dumbbell walking lunges <span class="free-pill">free weight</span></span></label></td><td class="sets-reps">3 × 12 each leg</td><td class="sets-reps">60s</td></tr>
+        <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="thu" onchange="updateProgress()"><span class="exercise-name">Calf raises — machine or Smith bar <span class="machine-pill">machine</span></span></label></td><td class="sets-reps">4 × 20–25</td><td class="sets-reps">45s</td></tr>
+      </table>
+
+      <div class="glute-section">
+        <div class="glute-header">🔥 Glute finisher — desk-worker priority, do all 4 or pick 2–3 if short on time</div>
+        <table class="exercise-table">
+          <tr><th style="width:52%">Exercise</th><th>Sets × Reps</th><th>Rest</th></tr>
+          <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="thu" onchange="updateProgress()"><span class="exercise-name">Dumbbell hip thrust (back on bench) <span class="free-pill">free weight</span><span class="alt-slash">/</span>Barbell hip thrust <span class="free-pill">free weight</span><div class="note">Best single glute exercise — full hip extension. Dumbbell: place across hip bones, both hands holding it. Back rests on bench edge. Drive hips up, squeeze hard at top. Start light, add weight weekly.</div></span></label></td><td class="sets-reps">4 × 12–15</td><td class="sets-reps">60s</td></tr>
+          <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="thu" onchange="updateProgress()"><span class="exercise-name">Single-leg glute bridge <span class="body-pill">bodyweight</span><div class="note">One leg extended, drive through the grounded heel. Add a dumbbell on hip when bodyweight feels easy.</div></span></label></td><td class="sets-reps">3 × 15 each side</td><td class="sets-reps">30s</td></tr>
+          <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="thu" onchange="updateProgress()"><span class="exercise-name">Cable kickback <span class="machine-pill">machine</span><span class="alt-slash">/</span>Donkey kick (bodyweight) <span class="body-pill">bodyweight</span><div class="note">Cable when the machine is free; bodyweight donkey kick otherwise. Squeeze glute at full extension — don't swing.</div></span></label></td><td class="sets-reps">3 × 20 each side</td><td class="sets-reps">30s</td></tr>
+          <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="thu" onchange="updateProgress()"><span class="exercise-name">Curtsy lunge <span class="body-pill">bodyweight</span><span class="alt-slash">/</span>Dumbbell curtsy lunge <span class="free-pill">free weight</span><div class="note">Step back diagonally behind opposite leg. Hits glute medius (outer glute) which is often the weakest from sitting. Squeeze throughout the movement.</div></span></label></td><td class="sets-reps">3 × 12 each side</td><td class="sets-reps">30s</td></tr>
+        </table>
+      </div>
+      <div class="tip-glute">Hip thrust is the highest-activation glute exercise in EMG studies. For desk workers, sitting shortens the hip flexors and neurologically inhibits the glutes — the glute bridge in your warm-up and the hip thrust finisher directly counteract this. Expect visible results in 4–6 weeks of consistent training.</div>
+    </div>
+  </div>
+
+  <!-- Friday -->
+  <div id="fri" class="day-panel" style="display:none">
+    <div class="day-card">
+      <div class="day-header">
+        <span class="day-badge badge-upper">Shoulders + Arms</span>
+        <span class="day-title">Friday — Shoulders, Biceps & Triceps</span>
+      </div>
+      <div class="section-label">Warm-up</div>
+      <table class="exercise-table">
+        <tr><th style="width:52%">Exercise</th><th>Sets × Reps</th><th>Rest</th></tr>
+        <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="fri" onchange="updateProgress()"><span class="exercise-name">Elliptical easy pace <span class="cardio-pill">cardio</span><span class="alt-slash">/</span>Stationary bike easy <span class="cardio-pill">cardio</span><div class="note">Zone 1 — easy pace, prepare joints</div></span></label></td><td class="sets-reps">5 min</td><td class="sets-reps">—</td></tr>
+        <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="fri" onchange="updateProgress()"><span class="exercise-name">Wall slides <span class="body-pill">bodyweight</span><span class="alt-slash">/</span>Band pull-aparts <span class="body-pill">bodyweight</span><div class="note">Wall slides (no equipment): back flat against wall, slide arms up overhead like a snow angel. Excellent rotator cuff + scapular warm-up. Switch to band pull-aparts once you have long bands.</div></span></label></td><td class="sets-reps">2 × 12</td><td class="sets-reps">20s</td></tr>
+        <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="fri" onchange="updateProgress()"><span class="exercise-name">Light dumbbell YTW raises <span class="free-pill">free weight</span><div class="note">Very light (1–2 kg). Y = arms overhead, T = arms out wide, W = elbows bent 90°. Wakes up the rear delts and rotator cuff.</div></span></label></td><td class="sets-reps">2 × 10 each shape</td><td class="sets-reps">20s</td></tr>
+      </table>
+      <div class="section-label">Shoulders</div>
+      <table class="exercise-table">
+        <tr><th style="width:52%">Exercise</th><th>Sets × Reps</th><th>Rest</th></tr>
+        <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="fri" onchange="updateProgress()"><span class="exercise-name">Dumbbell overhead press (seated) <span class="free-pill">free weight</span><div class="note">Primary shoulder compound</div></span></label></td><td class="sets-reps">4 × 8–10</td><td class="sets-reps">2 min</td></tr>
+        <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="fri" onchange="updateProgress()"><span class="exercise-name">Machine shoulder press <span class="machine-pill">machine</span><div class="note">Safer spine loading on second compound</div></span></label></td><td class="sets-reps">3 × 10–12</td><td class="sets-reps">90s</td></tr>
+        <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="fri" onchange="updateProgress()"><span class="exercise-name">Lateral raise — dumbbell <span class="free-pill">free weight</span><span class="alt-slash">/</span>Cable lateral raise <span class="machine-pill">machine</span><div class="note">Cable provides constant tension throughout ROM — slightly superior for medial delt growth</div></span></label></td><td class="sets-reps">4 × 15–20</td><td class="sets-reps">60s</td></tr>
+        <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="fri" onchange="updateProgress()"><span class="exercise-name">Cable rear delt fly <span class="machine-pill">machine</span><div class="note">Rear delt balance — pair with all the pressing volume</div></span></label></td><td class="sets-reps">3 × 15</td><td class="sets-reps">45s</td></tr>
+      </table>
+      <div class="section-label">Arms — antagonist superset (A + B back-to-back, 90s rest after each pair)</div>
+      <table class="exercise-table">
+        <tr><th style="width:52%">Exercise</th><th>Sets × Reps</th><th>Rest</th></tr>
+        <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="fri" onchange="updateProgress()"><span class="exercise-name">A — Barbell or EZ-bar curl <span class="free-pill">free weight</span></span></label></td><td class="sets-reps">3 × 10</td><td class="sets-reps">0s → go to B</td></tr>
+        <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="fri" onchange="updateProgress()"><span class="exercise-name">B — Cable tricep pushdown (bar) <span class="machine-pill">machine</span></span></label></td><td class="sets-reps">3 × 10</td><td class="sets-reps">90s</td></tr>
+        <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="fri" onchange="updateProgress()"><span class="exercise-name">A — Incline dumbbell curl <span class="free-pill">free weight</span><div class="note">Long head bicep at stretch</div></span></label></td><td class="sets-reps">3 × 12</td><td class="sets-reps">0s → go to B</td></tr>
+        <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="fri" onchange="updateProgress()"><span class="exercise-name">B — Overhead cable tricep extension <span class="machine-pill">machine</span><div class="note">Long head tricep emphasis</div></span></label></td><td class="sets-reps">3 × 12</td><td class="sets-reps">90s</td></tr>
+      </table>
+      <div class="tip-box">Wall slides replace band pull-aparts perfectly for now — they're arguably more effective at activating the serratus anterior and lower traps, which are key for shoulder health under heavy pressing load. YTW raises can stay regardless of what bands you have.</div>
+    </div>
+  </div>
+
+  <!-- Saturday/Sunday -->
+  <div id="sat" class="day-panel" style="display:none">
+    <div class="day-card">
+      <div class="day-header">
+        <span class="day-badge badge-rest">Rest</span>
+        <span class="day-title">Saturday — Active Recovery · Sunday — Full Rest</span>
+      </div>
+      <table class="exercise-table">
+        <tr><th style="width:52%">Activity</th><th>Duration</th><th>HR target</th></tr>
+        <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="sat" onchange="updateProgress()"><span class="exercise-name">Treadmill walk (flat, easy) <span class="cardio-pill">cardio</span></span></label></td><td class="sets-reps">20–25 min</td><td class="sets-reps">Zone 1 (50–60%)</td></tr>
+        <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="sat" onchange="updateProgress()"><span class="exercise-name">Stationary bike (easy spin) <span class="cardio-pill">cardio</span></span></label></td><td class="sets-reps">20 min</td><td class="sets-reps">Zone 1</td></tr>
+        <tr><td><label class="exercise-row"><input type="checkbox" class="exercise-check" data-day="sat" onchange="updateProgress()"><span class="exercise-name">Full-body stretching + foam rolling</span></label></td><td class="sets-reps">15–20 min</td><td class="sets-reps">—</td></tr>
+      </table>
+      <div style="margin-top: 12px; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6; padding: 12px; background: var(--surface-2); border-radius: var(--radius-md);">
+        Sunday = complete rest. Prioritise 7–9 hours sleep — recovery and muscle protein synthesis peak during sleep. Hydrate well over the weekend to reduce Monday muscle soreness and reduce ab cramping risk on Wednesday.
+      </div>
+    </div>
+  </div>
+
+  <div id="sun" class="day-panel" style="display:none">
+    <div class="day-card">
+      <div class="day-header">
+        <span class="day-badge badge-rest">Rest</span>
+        <span class="day-title">Sunday — Full Rest</span>
+      </div>
+      <div style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.7; text-align: center; padding: 2rem 1rem;">
+        <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">😴</div>
+        <p><strong>Complete rest day.</strong></p>
+        <p style="margin-top: 8px;">Prioritise 7–9 hours sleep — recovery and muscle protein synthesis peak during sleep.</p>
+        <p style="margin-top: 8px;">Hydrate well to reduce Monday muscle soreness and ab cramping risk on Wednesday.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="action-bar">
+    <button class="action-btn" onclick="window.print()">🖨️ Print schedule</button>
+    <button class="action-btn" onclick="exportProgress()">📊 Export progress</button>
+  </div>
+
+</div>
+
+<!-- Timer overlay -->
+<div class="timer-overlay" id="timerOverlay">
+  <div class="timer-label">Workout Timer</div>
+  <div class="timer-display" id="timerDisplay">00:00:00</div>
+  <div class="timer-controls">
+    <button class="timer-btn primary" id="timerToggle" onclick="toggleTimerRun()">Start</button>
+    <button class="timer-btn" onclick="resetTimer()">Reset</button>
+    <button class="timer-btn" onclick="toggleTimer()">Close</button>
+  </div>
+</div>
+
+<script>
+  // Day navigation
+  const dayMap = { 'mon':0, 'tue':1, 'wed':2, 'thu':3, 'fri':4, 'sat':5, 'sun':6 };
+  const dayKeys = ['mon','tue','wed','thu','fri','sat','sun'];
+
+  function show(day) {
+    dayKeys.forEach(d => {
+      const el = document.getElementById(d);
+      if(el) el.style.display = d === day ? 'block' : 'none';
+    });
+    const wdays = document.querySelectorAll('.wday');
+    wdays.forEach((btn, i) => {
+      btn.classList.toggle('active', dayKeys[i] === day);
+      btn.setAttribute('aria-selected', dayKeys[i] === day);
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    localStorage.setItem('activeDay', day);
+  }
+
+  // Theme toggle
+  function toggleTheme() {
+    const html = document.documentElement;
+    const current = html.getAttribute('data-theme');
+    const next = current === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', next);
+    localStorage.setItem('theme', next);
+    document.getElementById('themeBtn').textContent = next === 'dark' ? '☀️' : '🌙';
+  }
+
+  // Progress tracking
+  function updateProgress() {
+    const checks = document.querySelectorAll('.exercise-check');
+    const checked = document.querySelectorAll('.exercise-check:checked');
+    const pct = Math.round((checked.length / checks.length) * 100);
+    document.getElementById('progressFill').style.width = pct + '%';
+    document.getElementById('progressText').textContent = pct + '% complete · ' + checked.length + '/' + checks.length + ' exercises';
+
+    // Save state
+    const state = {};
+    checks.forEach((cb, i) => { state[i] = cb.checked; });
+    localStorage.setItem('progress', JSON.stringify(state));
+
+    // Update day completion dots
+    dayKeys.forEach(day => {
+      const dayChecks = document.querySelectorAll('.exercise-check[data-day="' + day + '"]');
+      const dayChecked = document.querySelectorAll('.exercise-check[data-day="' + day + '"]:checked');
+      const wday = document.querySelectorAll('.wday')[dayMap[day]];
+      if (dayChecks.length > 0 && dayChecked.length === dayChecks.length) {
+        wday.classList.add('completed');
+      } else {
+        wday.classList.remove('completed');
+      }
+    });
+
+    // Visual row completion
+    checks.forEach(cb => {
+      const row = cb.closest('tr');
+      if (row) row.classList.toggle('completed', cb.checked);
+    });
+  }
+
+  function resetProgress() {
+    if (!confirm('Reset all exercise progress?')) return;
+    document.querySelectorAll('.exercise-check').forEach(cb => cb.checked = false);
+    updateProgress();
+  }
+
+  function exportProgress() {
+    const checks = document.querySelectorAll('.exercise-check');
+    const checked = document.querySelectorAll('.exercise-check:checked');
+    const data = {
+      date: new Date().toISOString().split('T')[0],
+      total: checks.length,
+      completed: checked.length,
+      percent: Math.round((checked.length / checks.length) * 100)
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'gym-progress-' + data.date + '.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // Timer
+  let timerInterval = null;
+  let timerSeconds = 0;
+  let timerRunning = false;
+
+  function toggleTimer() {
+    const el = document.getElementById('timerOverlay');
+    el.classList.toggle('visible');
+    document.getElementById('timerBtn').classList.toggle('active', el.classList.contains('visible'));
+  }
+
+  function toggleTimerRun() {
+    const btn = document.getElementById('timerToggle');
+    if (timerRunning) {
+      clearInterval(timerInterval);
+      timerRunning = false;
+      btn.textContent = 'Resume';
+      btn.classList.remove('primary');
+    } else {
+      timerInterval = setInterval(() => {
+        timerSeconds++;
+        updateTimerDisplay();
+      }, 1000);
+      timerRunning = true;
+      btn.textContent = 'Pause';
+      btn.classList.add('primary');
+    }
+  }
+
+  function resetTimer() {
+    clearInterval(timerInterval);
+    timerRunning = false;
+    timerSeconds = 0;
+    updateTimerDisplay();
+    document.getElementById('timerToggle').textContent = 'Start';
+    document.getElementById('timerToggle').classList.add('primary');
+  }
+
+  function updateTimerDisplay() {
+    const h = String(Math.floor(timerSeconds / 3600)).padStart(2, '0');
+    const m = String(Math.floor((timerSeconds % 3600) / 60)).padStart(2, '0');
+    const s = String(timerSeconds % 60).padStart(2, '0');
+    document.getElementById('timerDisplay').textContent = h + ':' + m + ':' + s;
+  }
+
+  // Init
+  document.addEventListener('DOMContentLoaded', () => {
+    // Theme
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    document.getElementById('themeBtn').textContent = savedTheme === 'dark' ? '☀️' : '🌙';
+
+    // Day
+    const savedDay = localStorage.getItem('activeDay') || 'mon';
+    show(savedDay);
+
+    // Progress
+    const savedProgress = localStorage.getItem('progress');
+    if (savedProgress) {
+      const state = JSON.parse(savedProgress);
+      const checks = document.querySelectorAll('.exercise-check');
+      checks.forEach((cb, i) => { if (state[i]) cb.checked = true; });
+    }
+    updateProgress();
+  });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Active Workout Mockup</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            background: '#0a0a0a',
+            accent: { green: '#4ade80', red: '#ff3333' },
+            text: { muted: '#a1a1aa' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { background-color: #0a0a0a; color: white; font-family: system-ui, -apple-system, sans-serif; }
+    .glass { background: rgba(0,0,0,0.5); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.05); }
+    /* Checkbox styles */
+    input[type="checkbox"] { accent-color: #4ade80; width: 24px; height: 24px; border-radius: 6px; cursor: pointer; }
+    
+    /* Remove arrows from number inputs */
+    input[type=number]::-webkit-inner-spin-button, 
+    input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col mx-auto max-w-md relative pb-24">
+  
+  <!-- Sticky Top Header -->
+  <header class="sticky top-0 z-50 glass px-4 py-3 flex justify-between items-center border-b border-white/5">
+    <div class="flex flex-col">
+      <span class="text-[10px] text-text-muted font-bold uppercase tracking-widest">Active Workout</span>
+      <h1 class="text-xl font-black text-accent-green tabular-nums">00:15:32</h1>
+    </div>
+    <button class="bg-accent-green text-black px-5 py-2 rounded-xl font-black text-sm active:scale-95 transition-transform shadow-[0_0_15px_rgba(74,222,128,0.3)]">
+      FINISH
+    </button>
+  </header>
+
+  <!-- Exercise 1 -->
+  <section class="mt-4 px-3">
+    <div class="glass rounded-3xl p-4 flex flex-col gap-3 relative overflow-hidden">
+      <!-- Glow -->
+      <div class="absolute -top-10 -right-10 w-32 h-32 bg-accent-green/10 blur-3xl rounded-full pointer-events-none"></div>
+
+      <div class="flex justify-between items-start z-10">
+        <h2 class="font-extrabold text-lg text-white">Barbell Bench Press</h2>
+        <button class="text-text-muted hover:text-white px-2">⋮</button>
+      </div>
+      
+      <!-- Mystery Weight Tag -->
+      <span class="text-[10px] text-text-muted font-bold tracking-widest uppercase flex items-center gap-1 z-10 -mt-1">
+        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path></svg>
+        Competition Bench (kg)
+      </span>
+
+      <!-- Sets Table Header -->
+      <div class="grid grid-cols-12 gap-1 text-[10px] font-bold text-text-muted uppercase tracking-widest mt-2 px-1 text-center z-10">
+        <div class="col-span-2 text-left">Set</div>
+        <div class="col-span-3">Previous</div>
+        <div class="col-span-3">Weight</div>
+        <div class="col-span-2">Reps</div>
+        <div class="col-span-2"><svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg></div>
+      </div>
+
+      <!-- Set 1 (Completed) -->
+      <div class="grid grid-cols-12 gap-1 items-center bg-accent-green/10 rounded-xl p-1.5 text-center border border-accent-green/30 z-10 transition-colors">
+        <div class="col-span-2 font-black text-sm text-accent-green">1</div>
+        <div class="col-span-3 text-xs text-text-muted font-medium">80 x 10</div>
+        <div class="col-span-3 bg-black/40 rounded-lg p-2 border border-white/5">
+          <input type="number" value="80" class="w-full bg-transparent text-center font-bold text-white outline-none opacity-50" disabled>
+        </div>
+        <div class="col-span-2 bg-black/40 rounded-lg p-2 border border-white/5">
+          <input type="number" value="10" class="w-full bg-transparent text-center font-bold text-white outline-none opacity-50" disabled>
+        </div>
+        <div class="col-span-2 flex justify-center">
+          <input type="checkbox" checked disabled class="opacity-50">
+        </div>
+      </div>
+
+      <!-- Set 2 (Active) -->
+      <div class="grid grid-cols-12 gap-1 items-center bg-white/5 rounded-xl p-1.5 text-center border border-white/10 focus-within:border-accent-green/50 transition-colors z-10 shadow-lg shadow-black/50">
+        <div class="col-span-2 font-black text-sm">2</div>
+        <div class="col-span-3 text-xs text-text-muted font-medium">80 x 8</div>
+        <div class="col-span-3 bg-black/60 rounded-lg p-2 border border-white/10">
+          <input type="number" placeholder="80" class="w-full bg-transparent text-center font-black text-white outline-none placeholder-text-muted/30">
+        </div>
+        <div class="col-span-2 bg-black/60 rounded-lg p-2 border border-white/10">
+          <input type="number" placeholder="8" class="w-full bg-transparent text-center font-black text-white outline-none placeholder-text-muted/30">
+        </div>
+        <div class="col-span-2 flex justify-center">
+          <input type="checkbox" class="border-2 border-white/20">
+        </div>
+      </div>
+
+      <!-- Set 3 (Empty) -->
+      <div class="grid grid-cols-12 gap-1 items-center bg-transparent rounded-xl p-1.5 text-center border border-transparent z-10 opacity-60">
+        <div class="col-span-2 font-black text-sm text-text-muted">3</div>
+        <div class="col-span-3 text-xs text-text-muted font-medium">-</div>
+        <div class="col-span-3 bg-black/40 rounded-lg p-2 border border-white/5">
+          <input type="number" placeholder="-" class="w-full bg-transparent text-center font-black text-white outline-none placeholder-text-muted/30">
+        </div>
+        <div class="col-span-2 bg-black/40 rounded-lg p-2 border border-white/5">
+          <input type="number" placeholder="-" class="w-full bg-transparent text-center font-black text-white outline-none placeholder-text-muted/30">
+        </div>
+        <div class="col-span-2 flex justify-center">
+          <input type="checkbox" disabled class="opacity-30 border-2 border-white/10 bg-transparent appearance-none rounded-md w-5 h-5">
+        </div>
+      </div>
+
+      <button class="mt-2 text-[10px] uppercase tracking-widest font-bold text-text-muted w-full py-2 flex items-center justify-center gap-1 hover:text-white transition-colors z-10 bg-white/5 rounded-lg border border-white/5">
+        + Add Set
+      </button>
+    </div>
+  </section>
+
+  <!-- Sticky Bottom Add Exercise -->
+  <div class="fixed bottom-0 left-0 w-full bg-black/90 backdrop-blur-xl p-4 flex justify-center pb-8 border-t border-white/10 z-50">
+    <button class="bg-white/10 hover:bg-white/20 border border-white/10 text-white font-black py-4 px-8 rounded-2xl shadow-lg w-full max-w-md flex items-center justify-center gap-2 transition-colors">
+      <svg class="w-5 h-5 text-accent-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4"></path></svg>
+      ADD EXERCISE
+    </button>
+  </div>
+</body>
+</html>
