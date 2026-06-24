@@ -105,6 +105,9 @@ export default function NotificationsPage() {
     } as any);
   }
 
+  const hasUnreadSystem = notifications.some(n => n.status === 'unread' && !["friend_request", "duel_challenge"].includes(n.type));
+  const hasUnreadCommunity = notifications.some(n => n.status === 'unread' && ["friend_request", "duel_challenge"].includes(n.type));
+
   return (
     <div className="min-h-screen bg-black text-white pb-24 overflow-x-hidden">
       {/* Header */}
@@ -119,15 +122,17 @@ export default function NotificationsPage() {
         <div className="flex px-6 gap-6 max-w-2xl mx-auto">
           <button 
             onClick={() => setActiveTab('system')}
-            className={`pb-3 text-sm font-semibold border-b-2 transition-colors ${activeTab === 'system' ? 'border-accent-green text-white' : 'border-transparent text-text-muted hover:text-white/80'}`}
+            className={`pb-3 text-sm font-semibold border-b-2 transition-colors relative ${activeTab === 'system' ? 'border-accent-green text-white' : 'border-transparent text-text-muted hover:text-white/80'}`}
           >
             System
+            {hasUnreadSystem && <span className="absolute top-1 -right-3 w-2 h-2 rounded-full bg-accent-green shadow-[0_0_8px_rgba(74,222,128,0.8)] animate-pulse" />}
           </button>
           <button 
             onClick={() => setActiveTab('community')}
-            className={`pb-3 text-sm font-semibold border-b-2 transition-colors ${activeTab === 'community' ? 'border-accent-green text-white' : 'border-transparent text-text-muted hover:text-white/80'}`}
+            className={`pb-3 text-sm font-semibold border-b-2 transition-colors relative ${activeTab === 'community' ? 'border-accent-green text-white' : 'border-transparent text-text-muted hover:text-white/80'}`}
           >
             Community
+            {hasUnreadCommunity && <span className="absolute top-1 -right-3 w-2 h-2 rounded-full bg-accent-green shadow-[0_0_8px_rgba(74,222,128,0.8)] animate-pulse" />}
           </button>
         </div>
       </header>

@@ -62,7 +62,7 @@ export async function GET(req: Request) {
           message: `${username} wants to connect with you.`,
           status: 'unread',
           createdAt: req.created_at || new Date().toISOString(),
-          avatarUrl
+          avatar_url: avatarUrl
         });
       });
     }
@@ -80,7 +80,7 @@ export async function GET(req: Request) {
           message: `${username} challenged you to a ${duel.duration_days}-day duel for ${duel.wager_xp} XP!`,
           status: 'unread',
           createdAt: duel.created_at || new Date().toISOString(),
-          avatarUrl
+          avatar_url: avatarUrl
         });
       });
     }
