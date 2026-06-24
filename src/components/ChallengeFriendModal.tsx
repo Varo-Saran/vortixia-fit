@@ -1,33 +1,72 @@
 import { useState, useEffect } from "react";
 import { X, Swords, UserCircle } from "lucide-react";
-import { useSocialStore, DuelType, DuelDuration } from "@/store/useSocialStore";
 import { useFriendsStore } from "@/store/useFriendsStore";
-import { UserProfile } from "@/store/useProfileStore";
+import { useProfileStore, UserProfile } from "@/store/useProfileStore";
+import { supabase } from "@/lib/supabase";
 
 interface ChallengeFriendModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onChallengeIssued?: () => void;
 }
 
-export function ChallengeFriendModal({ isOpen, onClose }: ChallengeFriendModalProps) {
+export function ChallengeFriendModal({ isOpen, onClose, onChallengeIssued }: ChallengeFriendModalProps) {
   const { friends } = useFriendsStore();
-  const { createDuel } = useSocialStore();
+  const { profile } = useProfileStore();
 
   const [selectedFriend, setSelectedFriend] = useState<UserProfile | null>(null);
-  const [duelType, setDuelType] = useState<DuelType>("war");
-  const [duration, setDuration] = useState<DuelDuration>("1_week");
-  const [targetScore, setTargetScore] = useState<number>(5000);
+  const [duration, setDuration] = useState<"1_week" | "1_month">("1_week");
+  const [wagerXP, setWagerXP] = useState<number>(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    // Mock friends are loaded instantly, so no fetch needed
-  }, [isOpen]);
+    // reset wager when duration changes
+    setWagerXP(0);
+  }, [duration]);
 
   if (!isOpen) return null;
 
-  const handleChallenge = () => {
-    if (!selectedFriend) return;
-    createDuel(selectedFriend, duelType, duration, targetScore);
-    onClose();
+  const totalXP = profile?.total_xp || 0;
+
+  const wagerTiers = duration === "1_week" 
+    ? [
+        { label: "Test", xp: 0 },
+        { label: "Friendly", xp: 50 },
+        { label: "Serious", xp: 150 },
+        { label: "Vengeance", xp: 300 }
+      ]
+    : [
+        { label: "Test", xp: 0 },
+        { label: "Friendly", xp: 200 },
+        { label: "Serious", xp: 500 },
+        { label: "Vengeance", xp: 1000 }
+      ];
+
+  const handleChallenge = async () => {
+    if (!selectedFriend || !profile) return;
+    setIsSubmitting(true);
+    try {
+      const duration_days = duration === "1_week" ? 7 : 30;
+      
+      const { error } = await supabase.from('duels').insert({
+        user_id_1: profile.id,
+        user_id_2: selectedFriend.id,
+        wager_xp: wagerXP,
+        duration_days,
+        status: 'pending'
+      });
+
+      if (error) throw error;
+      
+      if (onChallengeIssued) {
+        onChallengeIssued();
+      }
+      onClose();
+    } catch (err) {
+      console.error("Error creating duel:", err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const acceptedFriends = friends.filter(f => f.status === 'friends');
@@ -80,62 +119,54 @@ export function ChallengeFriendModal({ isOpen, onClose }: ChallengeFriendModalPr
             </div>
           </section>
 
-          {/* Duel Type */}
+          {/* Duration Toggle */}
           <section>
-            <h3 className="text-xs font-bold text-text-muted uppercase tracking-widest mb-3">Duel Type</h3>
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                { id: "war", label: "XP War", desc: "Most XP wins" },
-                { id: "volume", label: "Volume Battle", desc: "Total weight lifted" },
-                { id: "completion_streak", label: "Streak Race", desc: "Most days trained" }
-              ].map(type => (
-                <button
-                  key={type.id}
-                  onClick={() => {
-                    setDuelType(type.id as DuelType);
-                    setTargetScore(type.id === "war" ? 5000 : type.id === "volume" ? 20000 : 7);
-                  }}
-                  className={`p-3 rounded-xl flex flex-col gap-1 text-left border transition-all ${duelType === type.id ? 'bg-white/10 border-white text-white' : 'bg-black border-white/10 text-text-muted hover:border-white/30'}`}
-                >
-                  <span className="font-bold text-sm">{type.label}</span>
-                  <span className="text-[10px] opacity-70">{type.desc}</span>
-                </button>
-              ))}
+            <h3 className="text-xs font-bold text-text-muted uppercase tracking-widest mb-3">Duration</h3>
+            <div className="flex bg-black/50 p-1 rounded-xl border border-white/5">
+              <button 
+                onClick={() => setDuration("1_week")}
+                className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${duration === "1_week" ? "bg-white/10 text-white shadow-sm" : "text-text-muted hover:text-white"}`}
+              >
+                1 Week
+              </button>
+              <button 
+                onClick={() => setDuration("1_month")}
+                className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${duration === "1_month" ? "bg-white/10 text-white shadow-sm" : "text-text-muted hover:text-white"}`}
+              >
+                1 Month
+              </button>
             </div>
           </section>
 
-          {/* Target Score */}
+          {/* Wager Tiers */}
           <section>
             <div className="flex justify-between items-center mb-3">
-              <h3 className="text-xs font-bold text-text-muted uppercase tracking-widest">Target Score</h3>
-              <span className="text-xs font-bold text-accent-green">
-                {targetScore.toLocaleString()} {duelType === "war" ? "XP" : duelType === "volume" ? "KG" : "Days"}
-              </span>
+              <h3 className="text-xs font-bold text-text-muted uppercase tracking-widest">Wager Tier</h3>
+              <span className="text-xs font-bold text-text-muted">Your XP: {totalXP.toLocaleString()}</span>
             </div>
-            <input 
-              type="range" 
-              min={duelType === "completion_streak" ? 3 : 1000} 
-              max={duelType === "completion_streak" ? 30 : 50000} 
-              step={duelType === "completion_streak" ? 1 : 1000}
-              value={targetScore}
-              onChange={(e) => setTargetScore(Number(e.target.value))}
-              className="w-full accent-accent-red"
-            />
-          </section>
-
-          {/* Duration */}
-          <section>
-            <h3 className="text-xs font-bold text-text-muted uppercase tracking-widest mb-3">Time Limit</h3>
-            <select 
-              value={duration} 
-              onChange={(e) => setDuration(e.target.value as DuelDuration)}
-              className="w-full bg-black border border-white/10 rounded-xl p-3 text-sm font-bold text-white outline-none focus:border-white/50"
-            >
-              <option value="1_week">1 Week</option>
-              <option value="1_month">1 Month</option>
-              <option value="3_months">3 Months</option>
-              <option value="6_months">6 Months</option>
-            </select>
+            <div className="grid grid-cols-2 gap-3">
+              {wagerTiers.map(tier => {
+                const canAfford = totalXP >= tier.xp;
+                const isSelected = wagerXP === tier.xp;
+                return (
+                  <button
+                    key={tier.label}
+                    disabled={!canAfford}
+                    onClick={() => setWagerXP(tier.xp)}
+                    className={`p-3 rounded-xl flex flex-col gap-1 text-left border transition-all ${
+                      !canAfford 
+                        ? 'opacity-40 bg-black border-white/5 cursor-not-allowed' 
+                        : isSelected 
+                          ? 'bg-accent-red/20 border-accent-red shadow-[0_0_10px_rgba(255,51,51,0.2)] text-white' 
+                          : 'bg-black border-white/10 text-text-muted hover:border-white/30'
+                    }`}
+                  >
+                    <span className="font-bold text-sm">{tier.label}</span>
+                    <span className="text-xs opacity-80">{tier.xp} XP</span>
+                  </button>
+                );
+              })}
+            </div>
           </section>
 
         </div>
@@ -143,11 +174,11 @@ export function ChallengeFriendModal({ isOpen, onClose }: ChallengeFriendModalPr
         {/* Footer */}
         <div className="p-5 border-t border-white/10 bg-black/50">
           <button 
-            disabled={!selectedFriend}
+            disabled={!selectedFriend || isSubmitting}
             onClick={handleChallenge}
             className="w-full bg-accent-red hover:bg-red-600 disabled:opacity-50 disabled:hover:bg-accent-red text-white font-black text-sm uppercase tracking-widest py-4 rounded-xl shadow-[0_0_20px_rgba(255,51,51,0.3)] transition-all active:scale-95"
           >
-            {selectedFriend ? `Challenge ${selectedFriend.username}` : 'Select Opponent'}
+            {isSubmitting ? 'Challenging...' : selectedFriend ? `Challenge ${selectedFriend.username}` : 'Select Opponent'}
           </button>
         </div>
 

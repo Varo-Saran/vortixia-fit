@@ -5,12 +5,38 @@ import { Swords, Crown, UserCircle, Trophy, Plus, RefreshCw } from "lucide-react
 import { useSocialStore } from "@/store/useSocialStore";
 import { useProfileStore } from "@/store/useProfileStore";
 import { ChallengeFriendModal } from "@/components/ChallengeFriendModal";
+import { supabase } from "@/lib/supabase";
 
 export default function SocialArena() {
-  const { leaderboard, activeDuels, fetchSocialData, isLoading, simulateOpponent } = useSocialStore();
+  const { leaderboard, fetchSocialData, isLoading, simulateOpponent } = useSocialStore();
   const { profile } = useProfileStore();
   const [activeTab, setActiveTab] = useState<"leaderboard" | "duels">("leaderboard");
   const [isChallengeModalOpen, setIsChallengeModalOpen] = useState(false);
+  const [dbDuels, setDbDuels] = useState<any[]>([]);
+  const [loadingDuels, setLoadingDuels] = useState(false);
+
+  const fetchDuels = async () => {
+    if (!profile) return;
+    setLoadingDuels(true);
+    try {
+      const { data, error } = await supabase
+        .from('duels')
+        .select('*')
+        .or(`user_id_1.eq.${profile.id},user_id_2.eq.${profile.id}`);
+      if (error) throw error;
+      setDbDuels(data || []);
+    } catch (err) {
+      console.error("Error fetching duels", err);
+    } finally {
+      setLoadingDuels(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "duels") {
+      fetchDuels();
+    }
+  }, [activeTab, profile]);
 
   useEffect(() => {
     if (leaderboard.length === 0) {
@@ -103,55 +129,52 @@ export default function SocialArena() {
             <Plus className="w-4 h-4" /> Challenge a Friend
           </button>
 
-          {activeDuels.length === 0 ? (
+          {loadingDuels ? (
+            <div className="flex-1 flex items-center justify-center py-10">
+              <p className="text-text-muted font-bold animate-pulse">Loading Duels...</p>
+            </div>
+          ) : dbDuels.length === 0 ? (
             <div className="glass-card p-6 flex flex-col items-center justify-center text-center border-dashed border-2 border-white/10">
               <Swords className="w-8 h-8 text-text-muted mb-2" />
               <p className="text-sm font-bold text-text-muted">No Active Duels</p>
             </div>
           ) : (
-            activeDuels.map((duel) => {
-              const totalNeeded = duel.targetScore;
-              const myPerc = Math.min(100, (duel.myScore / totalNeeded) * 100);
-              const oppPerc = Math.min(100, (duel.opponentScore / totalNeeded) * 100);
+            dbDuels.map((duel) => {
+              const isChallenger = duel.user_id_1 === profile?.id;
+              const oppId = isChallenger ? duel.user_id_2 : duel.user_id_1;
+              const opponent = leaderboard.find(u => u.id === oppId) || { id: oppId, username: 'Unknown', avatar_url: null, full_name: 'Unknown' };
               
-              const typeLabel = duel.type === 'war' ? 'WAR (All Metrics)' : duel.type === 'volume' ? 'Volume Battle' : 'Completion Streak';
-              const durationLabel = duel.duration.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
-
+              const durationLabel = duel.duration_days === 7 ? "1 Week" : "1 Month";
+              
+              const myScore = isChallenger ? (duel.user_1_score || 0) : (duel.user_2_score || 0);
+              const oppScore = isChallenger ? (duel.user_2_score || 0) : (duel.user_1_score || 0);
+              
               return (
-                <div key={duel.id} className={`glass-card w-full p-5 flex flex-col relative overflow-hidden shadow-2xl border ${duel.status === 'winning' ? 'border-accent-green/30 shadow-accent-green/10' : duel.status === 'losing' ? 'border-accent-red/30 shadow-accent-red/10' : 'border-white/5'}`}>
-                  {/* Background Glows */}
-                  {duel.status === 'losing' && <div className="absolute -top-10 -right-10 w-40 h-40 bg-accent-red/20 blur-3xl rounded-full pointer-events-none" />}
-                  {duel.status === 'winning' && <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-accent-green/20 blur-3xl rounded-full pointer-events-none" />}
+                <div key={duel.id} className={`glass-card w-full p-5 flex flex-col relative overflow-hidden shadow-2xl border border-white/5`}>
                   
                   {/* Duel Settings Ribbon */}
                   <div className="flex justify-between items-center mb-6 relative z-10">
                      <span className="text-[10px] bg-white/10 text-white px-2 py-1 rounded-sm uppercase tracking-widest font-black border border-white/5">
-                        {typeLabel} ({totalNeeded.toLocaleString()})
+                        Wager: {duel.wager_xp} XP
                      </span>
                      <div className="flex items-center gap-2">
-                        {process.env.NODE_ENV === 'development' && (
-                        <button 
-                          onClick={() => simulateOpponent(duel.id, duel.type === 'volume' ? 500 : duel.type === 'war' ? 100 : 1)}
-                          className="text-[8px] bg-white/5 border border-white/10 px-2 py-1 rounded text-text-muted hover:text-white flex items-center gap-1 active:scale-95"
-                          title="Simulate Opponent Progress (Dev)"
-                        >
-                          <RefreshCw className="w-3 h-3" /> Opponent +
-                        </button>
-                        )}
                        <span className="text-[10px] text-text-muted uppercase tracking-widest font-bold">
                           {durationLabel}
+                       </span>
+                       <span className={`text-[10px] px-2 py-1 rounded-sm uppercase tracking-widest font-black border ${duel.status === 'pending' ? 'bg-yellow-500/20 text-yellow-500 border-yellow-500/30' : 'bg-white/10 text-white border-white/5'}`}>
+                          {duel.status}
                        </span>
                      </div>
                   </div>
 
                   <div className="flex justify-between items-center z-10 mb-6">
                     <div className="flex flex-col items-center gap-2 w-16">
-                      <div className={`w-14 h-14 rounded-full border-2 ${duel.status === 'winning' ? 'border-accent-green shadow-lg shadow-green-500/20' : 'border-white/20'} bg-black flex items-center justify-center overflow-hidden`}>
+                      <div className={`w-14 h-14 rounded-full border-2 border-white/20 bg-black flex items-center justify-center overflow-hidden`}>
                         {profile?.avatar_url ? (
                            <img src={profile.avatar_url} className="w-full h-full object-cover"/>
                         ) : <UserCircle className="text-text-muted"/>}
                       </div>
-                      <span className={`text-xs font-bold ${duel.status === 'winning' ? 'text-accent-green' : 'text-white'}`}>You</span>
+                      <span className={`text-xs font-bold text-white`}>You</span>
                     </div>
                     
                     <div className="bg-black/80 px-4 py-1.5 rounded-full border border-white/10 font-black italic text-lg text-white">
@@ -159,39 +182,36 @@ export default function SocialArena() {
                     </div>
 
                     <div className="flex flex-col items-center gap-2 w-16">
-                      <div className={`w-14 h-14 rounded-full border-2 ${duel.status === 'losing' ? 'border-accent-red shadow-lg shadow-red-500/20' : 'border-white/20'} bg-black flex items-center justify-center overflow-hidden`}>
-                        {duel.opponent.avatar_url ? (
-                           <img src={duel.opponent.avatar_url} className="w-full h-full object-cover"/>
+                      <div className={`w-14 h-14 rounded-full border-2 border-white/20 bg-black flex items-center justify-center overflow-hidden`}>
+                        {opponent.avatar_url ? (
+                           <img src={opponent.avatar_url} className="w-full h-full object-cover"/>
                         ) : <UserCircle className="text-text-muted"/>}
                       </div>
-                      <span className={`text-xs font-bold ${duel.status === 'losing' ? 'text-accent-red' : 'text-text-muted'} truncate max-w-full`}>{duel.opponent.full_name || duel.opponent.username}</span>
+                      <span className={`text-xs font-bold text-text-muted truncate max-w-full`}>{opponent.full_name || opponent.username}</span>
                     </div>
                   </div>
 
-                  <div className="z-10 flex flex-col gap-3">
-                    <div className="flex justify-between text-xs font-black">
-                      <span className={duel.status === 'winning' ? 'text-accent-green drop-shadow-sm' : 'text-white'}>{duel.myScore.toLocaleString()}</span>
-                      <span className={duel.status === 'losing' ? 'text-accent-red drop-shadow-sm' : 'text-white'}>{duel.opponentScore.toLocaleString()}</span>
-                    </div>
-                    
-                    {/* Progress Bars compared to Target Score */}
-                    <div className="flex flex-col gap-1">
-                      <div className="w-full h-2 bg-black/80 rounded-full overflow-hidden flex border border-white/5">
-                        <div className="h-full bg-accent-green transition-all duration-1000 relative" style={{ width: `${myPerc}%` }}>
-                          <div className="absolute inset-0 bg-gradient-to-r from-transparent to-white/20" />
-                        </div>
+                  {duel.status !== 'pending' && (
+                    <div className="z-10 flex flex-col gap-3">
+                      <div className="flex justify-between text-xs font-black">
+                        <span className="text-white">{myScore.toLocaleString()}</span>
+                        <span className="text-white">{oppScore.toLocaleString()}</span>
                       </div>
-                      <div className="w-full h-2 bg-black/80 rounded-full overflow-hidden flex border border-white/5 flex-row-reverse">
-                         <div className="h-full bg-accent-red transition-all duration-1000 relative" style={{ width: `${oppPerc}%` }}>
-                          <div className="absolute inset-0 bg-gradient-to-l from-transparent to-white/20" />
+                      
+                      <div className="flex flex-col gap-1">
+                        <div className="w-full h-2 bg-black/80 rounded-full overflow-hidden flex border border-white/5">
+                          <div className="h-full bg-white/20 transition-all duration-1000 relative" style={{ width: `50%` }}>
+                          </div>
                         </div>
                       </div>
                     </div>
-
+                  )}
+                  
+                  {duel.created_at && (
                     <p className="text-center text-[10px] text-text-muted uppercase tracking-widest font-bold mt-2">
-                      Ends on {new Date(duel.endDate).toLocaleDateString()}
+                      Started on {new Date(duel.created_at).toLocaleDateString()}
                     </p>
-                  </div>
+                  )}
                 </div>
               );
             })
@@ -202,6 +222,7 @@ export default function SocialArena() {
       <ChallengeFriendModal 
         isOpen={isChallengeModalOpen} 
         onClose={() => setIsChallengeModalOpen(false)} 
+        onChallengeIssued={fetchDuels}
       />
 
     </main>
