@@ -6,6 +6,7 @@ import { useSocialStore } from "@/store/useSocialStore";
 import { useProfileStore } from "@/store/useProfileStore";
 import { ChallengeFriendModal } from "@/components/ChallengeFriendModal";
 import { supabase } from "@/lib/supabase";
+import { toast } from "@/components/ui/Toast";
 
 export default function SocialArena() {
   const { leaderboard, fetchSocialData, isLoading, simulateOpponent } = useSocialStore();
@@ -14,6 +15,47 @@ export default function SocialArena() {
   const [isChallengeModalOpen, setIsChallengeModalOpen] = useState(false);
   const [dbDuels, setDbDuels] = useState<any[]>([]);
   const [loadingDuels, setLoadingDuels] = useState(false);
+  const [pendingRequests, setPendingRequests] = useState<any[]>([]);
+
+  const fetchPendingRequests = async () => {
+    if (!profile) return;
+    const { data: reqs, error } = await supabase
+      .from('user_friends')
+      .select('id, user_id, status')
+      .eq('friend_id', profile.id)
+      .eq('status', 'pending');
+
+    if (reqs && reqs.length > 0) {
+      const userIds = reqs.map(r => r.user_id);
+      const { data: users } = await supabase.from('users').select('*').in('id', userIds);
+      
+      const enriched = reqs.map(r => ({
+        ...r,
+        sender: users?.find(u => u.id === r.user_id)
+      }));
+      setPendingRequests(enriched);
+    } else {
+      setPendingRequests([]);
+    }
+  };
+
+  const handleRequestAction = async (requestId: string, action: 'accepted' | 'rejected') => {
+    try {
+      const res = await fetch('/api/friends', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requestId, status: action })
+      });
+      if (res.ok) {
+        setPendingRequests(prev => prev.filter(r => r.id !== requestId));
+      } else {
+        const err = await res.json();
+        toast.error(`Error: ${err.error}`);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const fetchDuels = async () => {
     if (!profile) return;
@@ -37,6 +79,12 @@ export default function SocialArena() {
       fetchDuels();
     }
   }, [activeTab, profile]);
+
+  useEffect(() => {
+    if (profile) {
+      fetchPendingRequests();
+    }
+  }, [profile]);
 
   useEffect(() => {
     if (leaderboard.length === 0) {
@@ -72,6 +120,35 @@ export default function SocialArena() {
           Active Duels
         </button>
       </div>
+
+      {pendingRequests.length > 0 && (
+        <section className="w-full mb-6 animate-fade-in-up">
+          <h2 className="text-sm font-bold text-text-muted mb-3 uppercase tracking-widest">Pending Requests</h2>
+          <div className="flex flex-col gap-3">
+            {pendingRequests.map(req => (
+              <div key={req.id} className="flex items-center justify-between p-4 rounded-2xl glass-card border border-white/5">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-full bg-black overflow-hidden border border-white/10">
+                    {req.sender?.avatar_url ? (
+                      <img src={req.sender.avatar_url} alt={req.sender.username} className="w-full h-full object-cover" />
+                    ) : (
+                      <UserCircle className="w-full h-full text-text-muted" strokeWidth={1} />
+                    )}
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="font-bold text-white">{req.sender?.full_name || req.sender?.username}</span>
+                    <span className="text-[10px] text-text-muted font-bold uppercase tracking-wider">@{req.sender?.username}</span>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => handleRequestAction(req.id, 'accepted')} className="px-3 py-1.5 bg-accent-green text-black text-xs font-bold rounded-lg hover:opacity-80 transition-opacity">Accept</button>
+                  <button onClick={() => handleRequestAction(req.id, 'rejected')} className="px-3 py-1.5 bg-white/10 text-white text-xs font-bold rounded-lg hover:bg-white/20 transition-opacity">Decline</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {isLoading && leaderboard.length === 0 ? (
         <div className="flex-1 flex items-center justify-center">

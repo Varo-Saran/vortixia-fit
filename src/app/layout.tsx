@@ -6,6 +6,8 @@ import BottomNav from "@/components/BottomNav";
 import { TrophyUnlockModal } from "@/components/TrophyUnlockModal";
 import { InitRecovery } from "@/components/InitRecovery";
 import { PWARegister } from "@/components/PWARegister";
+import { CustomToaster } from "@/components/ui/Toast";
+import { GlobalListeners } from "@/components/GlobalListeners";
 
 const outfit = Outfit({
   variable: "--font-outfit",
@@ -56,6 +58,8 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col mx-auto max-w-md relative bg-background w-full shadow-2xl overflow-x-hidden">
         <PWARegister />
         <InitRecovery />
+        <CustomToaster />
+        <GlobalListeners />
         {children}
         <BottomNav />
         <TrophyUnlockModal />

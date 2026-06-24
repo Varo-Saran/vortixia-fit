@@ -5,6 +5,7 @@ import { Calculator, ChevronLeft, Save, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import { useProfileStore } from "@/store/useProfileStore";
+import { toast } from "@/components/ui/Toast";
 
 export default function EditProfile() {
   const { profile, metrics, fetchProfile } = useProfileStore();
@@ -103,7 +104,7 @@ export default function EditProfile() {
           
         if (error) {
           if (error.code === '23505') {
-            alert('Username is already taken');
+            toast.error('Username is already taken');
             return;
           }
           console.error("Error updating user:", error);

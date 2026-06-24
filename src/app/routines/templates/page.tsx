@@ -5,7 +5,7 @@ import { ChevronLeft, Library, Check, X, Download, AlertTriangle } from "lucide-
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { GoalType, SplitType, generateRoutine } from "@/lib/ixia-ai";
+import { GoalType, SplitType } from "@/lib/ixia-ai";
 import { IxiaLoadingState } from "@/components/IxiaLoadingState";
 import Orb from "@/components/Orb";
 
@@ -32,25 +32,32 @@ export default function TemplatesPage() {
     }, 800);
   };
 
-  const handleGenerateAi = () => {
+  const handleGenerateAi = async () => {
     setIsGenerating(true);
-    // Simulate thinking process
-    setTimeout(() => {
-      const routineDict = generateRoutine(goal, split);
-      const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-      const planArray = daysOfWeek.map(day => ({
-        day,
-        shortDay: day.charAt(0),
-        type: routineDict[day]?.length > 0 ? "AI Split" : "Rest",
-        title: routineDict[day]?.length > 0 ? `${split.toUpperCase().replace('_', ' ')} ${day}` : "Rest",
-        warmups: [],
-        mainLifts: routineDict[day] || []
-      }));
+    try {
+      const res = await fetch('/api/ai/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ goal, split })
+      });
       
-      setGeneratedPlan(planArray);
+      if (!res.ok) {
+        throw new Error('Failed to generate routine from AI');
+      }
+      
+      const data = await res.json();
+      if (data.plan) {
+        setGeneratedPlan(data.plan);
+        setIsGenerating(false);
+        setIsConfirming(true);
+      } else {
+        throw new Error('Invalid response structure');
+      }
+    } catch (error) {
+      console.error('Error generating AI routine:', error);
       setIsGenerating(false);
-      setIsConfirming(true);
-    }, 4500); // Wait long enough for the loading texts to cycle
+      // Could show an error message here if an error state existed
+    }
   };
 
   const handleConfirmAndBackup = () => {

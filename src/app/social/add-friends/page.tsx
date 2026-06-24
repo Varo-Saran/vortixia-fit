@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { toast } from "@/components/ui/Toast";
 
 export default function AddFriendsPage() {
   const router = useRouter();
@@ -13,6 +14,20 @@ export default function AddFriendsPage() {
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [relationships, setRelationships] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchRels = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const { data } = await supabase
+        .from('user_friends')
+        .select('*')
+        .or(`user_id.eq.${session.user.id},friend_id.eq.${session.user.id}`);
+      if (data) setRelationships(data);
+    };
+    fetchRels();
+  }, []);
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -34,19 +49,22 @@ export default function AddFriendsPage() {
   }, [query]);
 
   const handleAddFriend = async (friendId: string) => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
-    
-    const { error } = await supabase.from('user_friends').insert({
-      user_id: session.user.id,
-      friend_id: friendId,
-      status: 'pending'
-    });
-    
-    if (error) {
-      console.error("Error adding friend:", error);
-    } else {
-      alert("Friend request sent!");
+    try {
+      const res = await fetch('/api/friends', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ friendId })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setRelationships(prev => [...prev, data]);
+        toast.success("Friend request sent!");
+      } else {
+        const err = await res.json();
+        toast.error(`Error: ${err.error}`);
+      }
+    } catch (e) {
+      console.error(e);
     }
   };
 
@@ -140,39 +158,56 @@ export default function AddFriendsPage() {
           <div className="text-white text-sm">Loading...</div>
         ) : (
           <div className="flex overflow-x-auto no-scrollbar gap-4 pb-8 pr-6 -mr-6 pl-1">
-            {results.map((user, idx) => (
-              <div 
-                key={user.id}
-                className={`min-w-[180px] p-5 rounded-3xl flex flex-col items-center relative overflow-hidden bg-black border ${
-                  idx % 2 === 0 ? 'border-accent-green/50 shadow-[0_0_30px_rgba(74,222,128,0.15)]' : 'border-purple-500/50 shadow-[0_0_30px_rgba(168,85,247,0.15)]'
-                }`}
-              >
-                {/* Inner glow */}
-                <div className={`absolute bottom-0 left-0 w-full h-1/2 blur-2xl ${idx % 2 === 0 ? 'bg-accent-green/20' : 'bg-purple-500/20'}`} />
-                
-                <h3 className="text-white font-bold z-10">{user.username || 'Unknown'}</h3>
-                <div className="flex items-center gap-1 mt-1 z-10">
-                  <Flame className={`w-3 h-3 ${idx % 2 === 0 ? 'text-accent-green' : 'text-purple-400'}`} />
-                  <span className="text-[10px] text-text-muted font-bold">XP: {user.total_xp || 0}</span>
-                </div>
+            {results.map((user, idx) => {
+              const rel = relationships.find(r => (r.user_id === user.id || r.friend_id === user.id));
+              let statusText = "Add friend";
+              let disabled = false;
+              
+              if (rel) {
+                if (rel.status === 'accepted') {
+                  statusText = "Friends";
+                  disabled = true;
+                } else if (rel.status === 'pending') {
+                  statusText = "Pending";
+                  disabled = true;
+                }
+              }
 
-                <div className="relative mt-4 mb-6 z-10">
-                  <div className={`absolute inset-[-4px] rounded-full blur-md ${idx % 2 === 0 ? 'bg-accent-green/40' : 'bg-purple-500/40'}`} />
-                  <img src={user.avatar_url || "https://i.pravatar.cc/150"} className="w-16 h-16 rounded-full border-2 border-black relative z-10 object-cover" />
-                </div>
-
-                <button 
-                  onClick={() => handleAddFriend(user.id)}
-                  className={`w-full py-3 rounded-2xl font-bold text-xs z-10 transition-transform active:scale-95 ${
-                    idx % 2 === 0 
-                      ? 'bg-white text-black hover:bg-gray-200' 
-                      : 'bg-white text-black hover:bg-gray-200'
+              return (
+                <div 
+                  key={user.id}
+                  className={`min-w-[180px] p-5 rounded-3xl flex flex-col items-center relative overflow-hidden bg-black border ${
+                    idx % 2 === 0 ? 'border-accent-green/50 shadow-[0_0_30px_rgba(74,222,128,0.15)]' : 'border-purple-500/50 shadow-[0_0_30px_rgba(168,85,247,0.15)]'
                   }`}
                 >
-                  Add friend
-                </button>
-              </div>
-            ))}
+                  {/* Inner glow */}
+                  <div className={`absolute bottom-0 left-0 w-full h-1/2 blur-2xl ${idx % 2 === 0 ? 'bg-accent-green/20' : 'bg-purple-500/20'}`} />
+                  
+                  <h3 className="text-white font-bold z-10">{user.username || 'Unknown'}</h3>
+                  <div className="flex items-center gap-1 mt-1 z-10">
+                    <Flame className={`w-3 h-3 ${idx % 2 === 0 ? 'text-accent-green' : 'text-purple-400'}`} />
+                    <span className="text-[10px] text-text-muted font-bold">XP: {user.total_xp || 0}</span>
+                  </div>
+
+                  <div className="relative mt-4 mb-6 z-10">
+                    <div className={`absolute inset-[-4px] rounded-full blur-md ${idx % 2 === 0 ? 'bg-accent-green/40' : 'bg-purple-500/40'}`} />
+                    <img src={user.avatar_url || "https://i.pravatar.cc/150"} className="w-16 h-16 rounded-full border-2 border-black relative z-10 object-cover" />
+                  </div>
+
+                  <button 
+                    onClick={() => handleAddFriend(user.id)}
+                    disabled={disabled}
+                    className={`w-full py-3 rounded-2xl font-bold text-xs z-10 transition-transform ${
+                      disabled 
+                        ? 'bg-white/20 text-white/50 cursor-not-allowed' 
+                        : 'active:scale-95 bg-white text-black hover:bg-gray-200'
+                    }`}
+                  >
+                    {statusText}
+                  </button>
+                </div>
+              );
+            })}
             {results.length === 0 && (
               <div className="text-text-muted text-sm">No athletes found.</div>
             )}

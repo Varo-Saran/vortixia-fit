@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { toast } from "@/components/ui/Toast";
 
 export default function Login() {
   const router = useRouter();
@@ -41,7 +42,7 @@ export default function Login() {
         }
       });
       if (error) throw error;
-      alert("Check your email for the login link!");
+      toast.success("Check your email for the login link!");
     } catch (err: any) {
       setError(err.message || "Failed to send magic link");
     } finally {
