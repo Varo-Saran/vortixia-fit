@@ -191,14 +191,14 @@ export default function NotificationsPage() {
                       }
                     }}
                     onClick={() => notif.status === 'unread' && markAsRead(notif.id)}
-                    className={`relative w-full p-4 rounded-2xl backdrop-blur-md border transition-colors ${
+                    className={`relative w-full p-4 rounded-2xl border transition-colors ${
                       notif.type === 'pwa_install'
-                        ? 'bg-blue-500/10 border-blue-500/30 shadow-[0_0_20px_rgba(59,130,246,0.15)]'
+                        ? 'bg-[#081225] border-blue-500/30 shadow-[0_0_20px_rgba(59,130,246,0.15)]'
                         : notif.type === 'system_tip'
-                        ? 'bg-white/[0.02] border-white/5 opacity-80'
+                        ? 'bg-[#111111] border-white/5'
                         : notif.status === 'read'
-                        ? 'bg-white/[0.03] border-white/5' 
-                        : 'bg-white/[0.08] border-white/15'
+                        ? 'bg-[#0a0a0a] border-white/5' 
+                        : 'bg-[#1a1a1a] border-white/15'
                     }`}
                   >
                     <div className="flex gap-4 items-start">
