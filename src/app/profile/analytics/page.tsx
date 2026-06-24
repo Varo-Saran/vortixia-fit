@@ -172,7 +172,7 @@ export default function AnalyticsPage() {
            score += (streak * 2);
            setDisciplineScore(Math.min(Math.round(score), 100));
         } else {
-           setDisciplineScore(100); // 100% based on active week-to-date with < 7 days data
+           setDisciplineScore(0); // 0% if no workouts logged in the last 30 days
         }
 
       } catch (error) {
