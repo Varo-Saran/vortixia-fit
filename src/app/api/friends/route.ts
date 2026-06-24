@@ -111,17 +111,16 @@ export async function DELETE(req: Request) {
 
   try {
     const { searchParams } = new URL(req.url);
-    const requestId = searchParams.get('id');
+    const friendId = searchParams.get('friendId');
 
-    if (!requestId) {
-      return NextResponse.json({ error: 'Request ID is required' }, { status: 400 });
+    if (!friendId) {
+      return NextResponse.json({ error: 'friendId is required' }, { status: 400 });
     }
 
     const { error } = await supabase
       .from('user_friends')
       .delete()
-      .eq('id', requestId)
-      .or(`user_id.eq.${session.user.id},friend_id.eq.${session.user.id}`);
+      .or(`and(user_id.eq.${session.user.id},friend_id.eq.${friendId}),and(user_id.eq.${friendId},friend_id.eq.${session.user.id})`);
 
     if (error) {
       console.error("Error deleting friend request:", error);

@@ -17,7 +17,7 @@ export default function SocialArena() {
   const [loadingDuels, setLoadingDuels] = useState(false);
   const [friendsList, setFriendsList] = useState<any[]>([]);
   const [friendsWorkedOutToday, setFriendsWorkedOutToday] = useState<Set<string>>(new Set());
-  const [friendToRemove, setFriendToRemove] = useState<{ id: string; name: string } | null>(null);
+  const [friendToRemove, setFriendToRemove] = useState<{ id: string; userId: string; name: string } | null>(null);
 
   const fetchFriends = async () => {
     if (!profile) return;
@@ -57,7 +57,7 @@ export default function SocialArena() {
   const handleRemoveFriend = async () => {
     if (!friendToRemove) return;
     try {
-      const res = await fetch(`/api/friends?id=${friendToRemove.id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/friends?friendId=${friendToRemove.userId}`, { method: 'DELETE' });
       if (res.ok) {
         setFriendsList(prev => prev.filter(f => f.requestId !== friendToRemove.id));
         toast.success("Friend removed");
@@ -239,7 +239,7 @@ export default function SocialArena() {
                     )}
 
                     <button 
-                      onClick={() => setFriendToRemove({ id: f.requestId, name: f.user.username })}
+                      onClick={() => setFriendToRemove({ id: f.requestId, userId: f.user.id, name: f.user.username })}
                       className="px-3 py-1.5 bg-red-500/10 text-red-500 text-xs font-bold rounded-lg hover:bg-red-500/20 transition-colors"
                     >
                       Remove

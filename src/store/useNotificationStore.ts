@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase';
 
 export interface NotificationItem {
   id: string;
-  type: 'friend_request' | 'duel_challenge' | 'system_alert';
+  type: 'friend_request' | 'duel_challenge' | 'system_alert' | 'pwa_install' | 'system_tip';
   title: string;
   message: string;
   status: 'unread' | 'read';

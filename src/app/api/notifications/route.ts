@@ -85,6 +85,29 @@ export async function GET(req: Request) {
       });
     }
 
+    const SYSTEM_TIPS = [
+      { title: "Did you know?", message: "You can challenge your friends to Duels for XP!" },
+      { title: "Pro Tip", message: "Keep a daily streak to maximize your level gains." },
+      { title: "Social", message: "Check out Recommended Athletes to find new friends." },
+      { title: "Personalize", message: "You can change your username in the settings page." }
+    ];
+
+    // Deterministic selection based on user ID and current day
+    const currentDay = Math.floor(Date.now() / 86400000);
+    const idHash = userId.split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0);
+    const tipIndex = (currentDay + idHash) % SYSTEM_TIPS.length;
+    const selectedTip = SYSTEM_TIPS[tipIndex];
+
+    notifications.push({
+      id: `system_tip_${currentDay}`,
+      type: 'system_tip',
+      title: selectedTip.title,
+      message: selectedTip.message,
+      status: 'unread',
+      createdAt: new Date().toISOString(),
+      avatarUrl: null
+    });
+
     // Sort by createdAt descending
     notifications.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 

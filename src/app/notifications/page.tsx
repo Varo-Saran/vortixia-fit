@@ -12,6 +12,7 @@ export default function NotificationsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"system" | "community">("system");
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [isPWA, setIsPWA] = useState(true);
 
   useEffect(() => {
     async function init() {
@@ -19,13 +20,16 @@ export default function NotificationsPage() {
       setIsLoading(false);
     }
     init();
+    setIsPWA(window.matchMedia('(display-mode: standalone)').matches);
   }, [fetchNotifications]);
 
   const getIcon = (type: string) => {
     switch (type) {
+      case "pwa_install": return <Zap className="w-5 h-5 text-blue-500" />;
       case "friend_request": return <UserPlus className="w-5 h-5 text-purple-400" />;
       case "duel_challenge": return <Swords className="w-5 h-5 text-accent-red" />;
       case "system_alert": return <Info className="w-5 h-5 text-gray-400" />;
+      case "system_tip": return <Info className="w-5 h-5 text-white/40" />;
       // Fallbacks
       case "like": return <Heart className="w-5 h-5 text-pink-500" />;
       case "comment": return <MessageSquare className="w-5 h-5 text-blue-400" />;
@@ -36,9 +40,11 @@ export default function NotificationsPage() {
 
   const getBgColor = (type: string) => {
     switch (type) {
+      case "pwa_install": return "bg-blue-500/10 border-blue-500/30";
       case "friend_request": return "bg-purple-400/10 border-purple-400/20";
       case "duel_challenge": return "bg-accent-red/10 border-accent-red/20";
       case "system_alert": return "bg-gray-400/10 border-gray-400/20";
+      case "system_tip": return "bg-white/[0.02] border-white/5";
       // Fallbacks
       case "like": return "bg-pink-500/10 border-pink-500/20";
       case "comment": return "bg-blue-400/10 border-blue-400/20";
@@ -86,6 +92,19 @@ export default function NotificationsPage() {
     return !["friend_request", "duel_challenge"].includes(n.type);
   });
 
+  const displayNotifications = [...filteredNotifications];
+  
+  if (activeTab === "system" && !isPWA) {
+    displayNotifications.unshift({
+      id: "pwa-install-prompt",
+      type: "pwa_install",
+      title: "Install Vortixia Fit",
+      message: "Add this app to your home screen for a better experience, faster access, and to receive notifications.",
+      status: "unread",
+      createdAt: new Date().toISOString(),
+    } as any);
+  }
+
   return (
     <div className="min-h-screen bg-black text-white pb-24 overflow-x-hidden">
       {/* Header */}
@@ -131,7 +150,7 @@ export default function NotificationsPage() {
             <h2 className="text-xl font-semibold mb-2">All caught up!</h2>
             <p className="text-text-muted">You don't have any new notifications right now.</p>
           </motion.div>
-        ) : filteredNotifications.length === 0 ? (
+        ) : displayNotifications.length === 0 ? (
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -146,7 +165,7 @@ export default function NotificationsPage() {
         ) : (
           <div className="flex flex-col gap-3">
             <AnimatePresence mode="popLayout">
-              {filteredNotifications.map((notif) => (
+              {displayNotifications.map((notif) => (
                 <motion.div
                   key={notif.id}
                   layout
@@ -173,7 +192,11 @@ export default function NotificationsPage() {
                     }}
                     onClick={() => notif.status === 'unread' && markAsRead(notif.id)}
                     className={`relative w-full p-4 rounded-2xl backdrop-blur-md border transition-colors ${
-                      notif.status === 'read'
+                      notif.type === 'pwa_install'
+                        ? 'bg-blue-500/10 border-blue-500/30 shadow-[0_0_20px_rgba(59,130,246,0.15)]'
+                        : notif.type === 'system_tip'
+                        ? 'bg-white/[0.02] border-white/5 opacity-80'
+                        : notif.status === 'read'
                         ? 'bg-white/[0.03] border-white/5' 
                         : 'bg-white/[0.08] border-white/15'
                     }`}
