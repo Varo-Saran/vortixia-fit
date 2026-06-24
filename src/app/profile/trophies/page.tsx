@@ -3,6 +3,7 @@
 import { ChevronLeft, Trophy, Sword, BrainCircuit, Flame, Zap, Crown, Timer, Wand2, Shield, Share2, Eye } from "lucide-react";
 import Link from "next/link";
 import { useTrophyStore } from "@/store/useTrophyStore";
+import { useProfileStore } from "@/store/useProfileStore";
 import trophiesData from "@/data/trophies.json";
 
 const ICON_MAP: Record<string, any> = {
@@ -19,7 +20,13 @@ const ICON_MAP: Record<string, any> = {
 };
 
 export default function TrophiesPage() {
-  const { unlockedTrophies, totalXP } = useTrophyStore();
+  const { unlockedTrophies } = useTrophyStore();
+  const profile = useProfileStore((state) => state.profile);
+  const totalXP = profile?.total_xp || 0;
+
+  const currentLevel = Math.floor(totalXP / 2000) + 1;
+  const currentLevelBaseXp = (currentLevel - 1) * 2000;
+  const progressPercentage = Math.round(((totalXP - currentLevelBaseXp) / 2000) * 100);
 
   return (
     <main className="flex min-h-screen flex-col pt-[calc(var(--notch-top)+1rem)] pb-28 px-4 bg-[#050505] relative overflow-x-hidden">
@@ -48,9 +55,9 @@ export default function TrophiesPage() {
           <span className="text-4xl font-black text-white relative z-10 shadow-black drop-shadow-lg">{totalXP.toLocaleString()} XP</span>
           
           <div className="mt-4 w-full bg-white/5 h-2 rounded-full overflow-hidden relative z-10">
-            <div className="bg-accent-green h-full w-[45%]" />
+            <div className="bg-accent-green h-full" style={{ width: `${progressPercentage}%` }} />
           </div>
-          <span className="text-[10px] text-text-muted mt-2 relative z-10">45% to Next Level</span>
+          <span className="text-[10px] text-text-muted mt-2 relative z-10">{progressPercentage}% to Next Level</span>
         </div>
       </section>
 
