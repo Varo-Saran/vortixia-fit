@@ -10,6 +10,8 @@ import { useRecoveryStore } from "@/store/useRecoveryStore";
 import { useSettingsStore } from "@/store/useSettingsStore";
 import { useWeather } from "@/hooks/useWeather";
 import { supabase } from "@/lib/supabase";
+import { useNotificationStore } from "@/store/useNotificationStore";
+import { CelebrationModal } from "@/components/ui/CelebrationModal";
 
 export default function Dashboard() {
   const [greeting, setGreeting] = useState("Hello");
@@ -36,6 +38,10 @@ export default function Dashboard() {
   const { readinessScore } = useRecoveryStore();
   const { heroGender, setHeroGender } = useSettingsStore();
   const weather = useWeather();
+  
+  const { unreadCount } = useNotificationStore();
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [showBanner, setShowBanner] = useState(false);
 
   const [recommendedAthletes, setRecommendedAthletes] = useState<any[]>([]);
 
@@ -63,6 +69,12 @@ export default function Dashboard() {
     else if (hour < 18) setGreeting("Good afternoon");
     else setGreeting("Good evening");
   }, [weeklyPlan, profile, fetchRoutine, fetchProfile]);
+
+  useEffect(() => {
+    if (profile?.unclaimed_rewards && profile.unclaimed_rewards > 0) {
+      setShowBanner(true);
+    }
+  }, [profile?.unclaimed_rewards]);
 
   useEffect(() => {
     const fetchStreak = async () => {
@@ -148,12 +160,11 @@ export default function Dashboard() {
         </div>
         
         <div className="flex flex-col items-end gap-3 animate-fade-in-down" style={{ animationDelay: '0.1s' }}>
-          <Link href="/profile">
-            <div className="relative w-14 h-14 rounded-full border-2 border-accent-green overflow-hidden shadow-[0_0_20px_rgba(74,222,128,0.4)] transition-transform active:scale-95 bg-black">
-              {profile?.avatar_url ? (
-                 <img src={profile.avatar_url} alt="Profile" className="w-full h-full object-cover" />
-              ) : (
-                 <UserCircle className="w-full h-full text-white/50" />
+          <Link href="/notifications">
+            <div className="relative w-12 h-12 rounded-full border border-white/20 bg-black/40 backdrop-blur-md flex items-center justify-center transition-transform active:scale-95 shadow-lg">
+              <Bell className="w-5 h-5 text-white" />
+              {unreadCount > 0 && (
+                <span className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.8)] border border-black" />
               )}
             </div>
           </Link>
@@ -188,6 +199,39 @@ export default function Dashboard() {
            ))}
         </div>
       </section>
+
+      {showBanner && (
+        <div 
+          onClick={() => {
+            setShowBanner(false);
+            setShowCelebration(true);
+            // mock claim logic in real app here
+          }}
+          className="relative z-10 w-[calc(100%-2rem)] mx-auto mb-6 p-4 rounded-2xl bg-gradient-to-r from-accent-green to-emerald-400 cursor-pointer shadow-[0_0_30px_rgba(74,222,128,0.4)] active:scale-95 transition-transform animate-fade-in-up"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-black/20 rounded-full flex items-center justify-center">
+                <span className="text-xl">🎁</span>
+              </div>
+              <div>
+                <h3 className="text-black font-black text-sm uppercase tracking-wider">Milestone Achieved!</h3>
+                <p className="text-black/80 text-xs font-bold">Tap to claim your reward</p>
+              </div>
+            </div>
+            <div className="w-8 h-8 rounded-full bg-black flex items-center justify-center">
+              <Check className="w-4 h-4 text-accent-green" strokeWidth={3} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Celebration Modal */}
+      <CelebrationModal 
+        isOpen={showCelebration} 
+        onClose={() => setShowCelebration(false)} 
+        rewardAmount={500}
+      />
 
       {/* Grid Bento Wrapper */}
       <section className="relative z-10 w-full px-4 grid grid-cols-2 gap-3 auto-rows-[minmax(110px,auto)] animate-fade-in-up" style={{ animationDelay: '0.3s' }}>

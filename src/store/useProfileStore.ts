@@ -7,6 +7,7 @@ export interface UserProfile {
   full_name: string;
   avatar_url: string;
   total_xp: number;
+  unclaimed_rewards?: number;
 }
 
 export interface UserMetrics {
@@ -95,7 +96,7 @@ export const useProfileStore = create<ProfileStore>((set) => ({
         console.error("Error fetching metrics", metricsErr);
       }
 
-      set({ profile: user, metrics: metrics || null, isLoading: false });
+      set({ profile: { ...user, unclaimed_rewards: 1 }, metrics: metrics || null, isLoading: false });
     } catch (err) {
       console.error("Error fetching profile", err);
       set({ isLoading: false });
