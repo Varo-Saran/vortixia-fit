@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, UserCircle, Settings, Bell, Swords, HeartPulse, Flame, Check, Moon, Utensils, CloudRain, Sun, Cloud, Snowflake, CloudLightning, MapPin } from "lucide-react";
+import { Plus, UserCircle, Settings, Bell, Swords, HeartPulse, Flame, Check, Moon, Utensils, CloudRain, Sun, Cloud, Snowflake, CloudLightning, MapPin, Users } from "lucide-react";
 import Link from "next/link";
 import { useRoutineStore } from "@/store/useRoutineStore";
 import { useProfileStore } from "@/store/useProfileStore";
@@ -36,6 +36,23 @@ export default function Dashboard() {
   const { readinessScore } = useRecoveryStore();
   const { heroGender, setHeroGender } = useSettingsStore();
   const weather = useWeather();
+
+  const [recommendedAthletes, setRecommendedAthletes] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchRecommendations = async () => {
+      try {
+        const res = await fetch(`/api/search?q=`);
+        if (res.ok) {
+          const data = await res.json();
+          setRecommendedAthletes(data);
+        }
+      } catch (e) {
+        console.error("Failed to fetch recommendations", e);
+      }
+    };
+    fetchRecommendations();
+  }, []);
 
   useEffect(() => {
     if (weeklyPlan.length === 0) fetchRoutine();
@@ -269,20 +286,35 @@ export default function Dashboard() {
           </div>
         </Link>
 
-        {/* 6. Friends Online (Square) */}
-        <Link href="/social/add-friends" className="col-span-1 row-span-1 relative p-4 rounded-[2rem] bg-[#111] border border-white/5 overflow-hidden flex flex-col justify-between group">
-          <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 w-24 h-24 bg-blue-500/10 blur-2xl rounded-full pointer-events-none group-hover:bg-blue-500/20 transition-all" />
-          <div className="z-10">
-            <span className="text-white text-xs font-bold opacity-80">Friends</span>
-            <div className="text-lg font-black text-white mt-1">{onlineFriends.length} <span className="text-xs text-text-muted font-bold">online</span></div>
-          </div>
-          <div className="flex -space-x-2 z-10 mt-2">
-             {onlineFriends.slice(0, 4).map((f, i) => (
-                <img key={f.id} src={f.avatar} alt="avatar" className={`w-8 h-8 rounded-full border-2 border-[#111] z-[${4-i}] object-cover`} />
-              ))}
-              <div className="w-8 h-8 rounded-full border-2 border-[#111] bg-white/10 flex items-center justify-center z-0">
-                <span className="text-[8px] font-bold text-white">+{friends.length}</span>
+        {/* 6. Friends Online & Recommendations (Wide) */}
+        <Link href="/social/add-friends" className="col-span-2 row-span-1 relative p-4 rounded-[2rem] bg-[#0c121e] border border-blue-500/10 overflow-hidden flex flex-col justify-between group active:scale-95 transition-transform">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-blue-500/10 blur-3xl pointer-events-none group-hover:bg-blue-500/20 transition-all" />
+          
+          <div className="flex justify-between items-start z-10 w-full">
+            <div className="flex flex-col">
+              <div className="flex items-center gap-1.5">
+                <span className="text-white text-xs font-bold opacity-80 flex items-center gap-1"><Users className="w-3 h-3 text-blue-400" /> Community</span>
+                <span className="bg-blue-500/20 text-blue-400 text-[9px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider border border-blue-500/20">{onlineFriends.length} Online</span>
               </div>
+            </div>
+            <div className="text-[10px] text-blue-400 font-bold uppercase tracking-widest bg-blue-500/10 px-2 py-1 rounded-lg">View All</div>
+          </div>
+
+          <div className="z-10 mt-3 flex items-center gap-3">
+            <div className="text-[10px] text-text-muted font-bold uppercase tracking-widest min-w-max">Recommended:</div>
+            <div className="flex -space-x-2">
+               {recommendedAthletes.slice(0, 5).map((user, i) => (
+                  <img key={user.id} src={user.avatar_url || "https://i.pravatar.cc/150"} alt="avatar" className="w-8 h-8 rounded-full border-2 border-[#0c121e] relative object-cover shadow-lg" style={{ zIndex: 5 - i }} />
+                ))}
+                {recommendedAthletes.length > 5 && (
+                  <div className="w-8 h-8 rounded-full border-2 border-[#0c121e] bg-blue-500/20 text-blue-400 flex items-center justify-center relative z-0 shadow-lg">
+                    <span className="text-[10px] font-black">+{recommendedAthletes.length - 5}</span>
+                  </div>
+                )}
+                {recommendedAthletes.length === 0 && (
+                  <div className="text-[10px] text-text-muted font-bold italic ml-2">Loading...</div>
+                )}
+            </div>
           </div>
         </Link>
 
