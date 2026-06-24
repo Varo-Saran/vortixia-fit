@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, X, Dumbbell, Activity, Info } from "lucide-react";
-import exerciseDataRaw from "@/data/exerciseLibrary.json";
+
 
 // The raw data might need typing
 interface ExerciseDef {
@@ -15,7 +15,7 @@ interface ExerciseDef {
   muscleGroup?: string;
 }
 
-const exerciseData: ExerciseDef[] = exerciseDataRaw as ExerciseDef[];
+
 
 interface ExerciseSelectionModalProps {
   isOpen: boolean;
@@ -41,6 +41,27 @@ const CATEGORIES = ["All", "chest", "back", "upper legs", "shoulders", "upper ar
 export function ExerciseSelectionModal({ isOpen, onClose, onSelect }: ExerciseSelectionModalProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+    if (isOpen) {
+      window.addEventListener("keydown", handleKeyDown);
+    }
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+  const [exerciseData, setExerciseData] = useState<ExerciseDef[]>([]);
+
+  useEffect(() => {
+    if (isOpen && exerciseData.length === 0) {
+      import("@/data/exerciseLibrary.json").then((module) => {
+        setExerciseData(module.default as ExerciseDef[]);
+      });
+    }
+  }, [isOpen, exerciseData.length]);
 
   const filteredExercises = useMemo(() => {
     let query = searchQuery.toLowerCase().trim();
@@ -91,7 +112,7 @@ export function ExerciseSelectionModal({ isOpen, onClose, onSelect }: ExerciseSe
               <Dumbbell className="w-5 h-5 text-accent-green" />
               Exercise Library
             </h2>
-            <button onClick={onClose} className="p-2 bg-white/5 rounded-full hover:bg-white/10 transition-colors">
+            <button onClick={onClose} className="p-2 bg-white/5 rounded-full hover:bg-white/10 transition-colors" aria-label="Close">
               <X className="w-5 h-5 text-white" />
             </button>
           </div>

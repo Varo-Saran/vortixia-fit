@@ -118,7 +118,7 @@ export default function WorkoutLogger() {
       <button 
         onClick={handleLogSet}
         disabled={!weight || !reps}
-        className="premium-btn w-full py-3.5 mt-2 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed z-10"
+        className="premium-btn w-full py-3.5 mt-2 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed z-10" aria-label="Add"
       >
         <Plus className="w-5 h-5" />
         Log Set & Earn XP

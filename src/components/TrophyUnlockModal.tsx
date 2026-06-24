@@ -43,6 +43,19 @@ export function TrophyUnlockModal() {
     }
   }, [recentUnlocks]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && activeTrophy) {
+        setActiveTrophy(null);
+        clearRecentUnlocks();
+      }
+    };
+    if (activeTrophy) {
+      window.addEventListener("keydown", handleKeyDown);
+    }
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [activeTrophy, clearRecentUnlocks]);
+
   if (!activeTrophy) return null;
 
   const IconComponent = ICON_MAP[activeTrophy.icon] || Trophy;
@@ -74,7 +87,7 @@ export function TrophyUnlockModal() {
         <div className="p-8 flex flex-col items-center text-center relative z-10">
           <button 
             onClick={handleClose}
-            className="absolute top-4 right-4 p-2 bg-white/5 rounded-full hover:bg-white/10 transition-colors"
+            className="absolute top-4 right-4 p-2 bg-white/5 rounded-full hover:bg-white/10 transition-colors" aria-label="Close"
           >
             <X className="w-4 h-4 text-white" />
           </button>

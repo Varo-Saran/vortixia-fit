@@ -195,7 +195,7 @@ export default function AnalyticsPage() {
       
       {/* Header */}
       <header className="w-full flex items-center mb-8 relative z-10 animate-fade-in-down">
-        <Link href="/profile" className="absolute left-0 p-2 bg-white/5 rounded-full hover:bg-white/10 transition-colors">
+        <Link href="/profile" className="absolute left-0 p-2 bg-white/5 rounded-full hover:bg-white/10 transition-colors" aria-label="Go back">
           <ChevronLeft className="w-6 h-6 text-white" />
         </Link>
         <div className="w-full flex justify-center">

@@ -29,6 +29,21 @@ export function SuccessCarousel({
   const [activeIndex, setActiveIndex] = useState(0);
   const carouselRef = useRef<HTMLDivElement>(null);
   
+  const [isOfflineSyncMissing, setIsOfflineSyncMissing] = useState(false);
+  useEffect(() => {
+    setIsOfflineSyncMissing(!navigator.onLine && !('sync' in navigator));
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onDone();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onDone]);
+  
   // Collect all cards to display
   const cards = [];
   
@@ -136,6 +151,14 @@ export function SuccessCarousel({
                <span className="text-2xl font-black text-[#2EEA82]">+{totalSets * 50}</span>
             </div>
           </div>
+          
+          {isOfflineSyncMissing && (
+            <div className="mt-4 bg-orange-500/10 border border-orange-500/30 rounded-lg p-3 relative z-10">
+              <p className="text-orange-400 text-xs text-center font-medium leading-relaxed">
+                Workout saved to local vault! Open the app next time you are online to sync your stats globally.
+              </p>
+            </div>
+          )}
           
           <div className="absolute bottom-4 left-0 w-full flex justify-center">
             <span className="text-[10px] text-white/30 font-bold tracking-widest uppercase">Vortixia Fit</span>

@@ -3,18 +3,25 @@
 import { useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "@/components/ui/Toast";
+import { useRouter } from "next/navigation";
 
 export function GlobalListeners() {
+  const router = useRouter();
+
   useEffect(() => {
     // 1. Auth state change listener
     const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         if (event === "SIGNED_OUT") {
           toast("You have been signed out");
+          caches.keys().then((names) => {
+            for (let name of names) caches.delete(name);
+          });
+          router.push('/login');
         } else if (event === "TOKEN_REFRESHED") {
           console.log("Token refreshed");
         } else if (event === "SIGNED_IN") {
-          // You could add a toast here if you wanted, but it might be annoying on every app open
+          // You could add a toast here if you wanted
         }
       }
     );
@@ -44,13 +51,78 @@ export function GlobalListeners() {
       }
     });
 
+    // 3. Foreground Sync Anchor for Offline Workouts
+    const syncWorkouts = async () => {
+      if (navigator.onLine) {
+        const unsynced = localStorage.getItem('unsynced_workouts');
+        if (unsynced) {
+          try {
+            const workouts = JSON.parse(unsynced);
+            if (workouts.length > 0) {
+              const { data: { session } } = await supabase.auth.getSession();
+              if (session?.user?.id) {
+                const userId = session.user.id;
+                for (const workout of workouts) {
+                  const { data: sessionRow } = await supabase
+                    .from('workout_sessions')
+                    .insert({
+                      user_id: userId,
+                      start_time: workout.startTime,
+                      end_time: workout.endTime,
+                      total_volume_kg: workout.totalVolume,
+                      prs_broken: 0,
+                    })
+                    .select('id')
+                    .single();
+
+                  if (sessionRow && workout.completedSets.length > 0) {
+                    const setsToInsert = workout.completedSets.map((s: any) => ({
+                      session_id: sessionRow.id,
+                      exercise_name: s.exerciseName,
+                      set_number: s.setNumber,
+                      weight: s.weight,
+                      reps: s.reps,
+                      weight_unit: 'kg',
+                      tracking_type: 'reps_weight',
+                    }));
+                    await supabase.from('workout_sets').insert(setsToInsert);
+                  }
+
+                  const { data: currentUser } = await supabase
+                    .from('users')
+                    .select('total_xp')
+                    .eq('id', userId)
+                    .single();
+
+                  if (currentUser) {
+                    await supabase
+                      .from('users')
+                      .update({ total_xp: (currentUser.total_xp || 0) + workout.xpEarned })
+                      .eq('id', userId);
+                  }
+                }
+                localStorage.removeItem('unsynced_workouts');
+                toast("Offline workouts synced successfully!");
+              }
+            }
+          } catch (e) {
+            console.error('Error syncing offline workouts', e);
+          }
+        }
+      }
+    };
+
+    window.addEventListener('online', syncWorkouts);
+    syncWorkouts();
+
     return () => {
       authSubscription.unsubscribe();
+      window.removeEventListener('online', syncWorkouts);
       if (friendRequestSubscription) {
         supabase.removeChannel(friendRequestSubscription);
       }
     };
-  }, []);
+  }, [router]);
 
   return null;
 }

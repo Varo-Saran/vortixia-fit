@@ -24,6 +24,18 @@ export function ChallengeFriendModal({ isOpen, onClose, onChallengeIssued }: Cha
     setWagerXP(0);
   }, [duration]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+    if (isOpen) {
+      window.addEventListener("keydown", handleKeyDown);
+    }
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const totalXP = profile?.total_xp || 0;
@@ -85,7 +97,7 @@ export function ChallengeFriendModal({ isOpen, onClose, onChallengeIssued }: Cha
             <Swords className="text-accent-red w-5 h-5" />
             Issue Challenge
           </h2>
-          <button onClick={onClose} className="p-2 bg-white/5 rounded-full text-text-muted hover:text-white transition">
+          <button onClick={onClose} className="p-2 bg-white/5 rounded-full text-text-muted hover:text-white transition" aria-label="Close">
             <X className="w-5 h-5" />
           </button>
         </div>

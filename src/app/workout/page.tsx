@@ -110,6 +110,20 @@ export default function ActiveWorkoutPage() {
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
+  // Offline State
+  const [isOffline, setIsOffline] = useState(false);
+  useEffect(() => {
+    setIsOffline(!navigator.onLine);
+    const handleOffline = () => setIsOffline(true);
+    const handleOnline = () => setIsOffline(false);
+    window.addEventListener('offline', handleOffline);
+    window.addEventListener('online', handleOnline);
+    return () => {
+      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('online', handleOnline);
+    };
+  }, []);
+
   if (showSummary) {
     // Calculate total volume for the mock data
     const totalVolume = exercises.reduce((total, ex) => {
@@ -150,6 +164,11 @@ export default function ActiveWorkoutPage() {
 
   return (
     <main className="flex min-h-screen flex-col bg-background relative pb-32">
+      {isOffline && (
+        <div className="w-full bg-orange-500/20 text-orange-400 text-xs font-bold text-center py-2 px-4 border-b border-orange-500/30">
+          Offline mode active. Progress is securely saved locally on this phone.
+        </div>
+      )}
       {/* Sticky Header */}
       <header className="sticky top-0 z-40 w-full bg-background/80 backdrop-blur-md border-b border-white/5 px-4 pt-[var(--notch-top)] pb-4 flex items-center justify-between">
         <div className="flex flex-col">
@@ -170,7 +189,7 @@ export default function ActiveWorkoutPage() {
           <div key={ex.id} className="glass-card flex flex-col overflow-hidden animate-fade-in-up" style={{ animationDelay: `${exIdx * 0.1}s` }}>
             <div className="p-4 bg-white/5 border-b border-white/5 flex justify-between items-center">
               <h2 className="text-lg font-black text-white">{ex.name}</h2>
-              <button className="text-text-muted hover:text-white"><Settings2 className="w-4 h-4" /></button>
+              <button aria-label="Exercise Settings" className="text-text-muted hover:text-white"><Settings2 className="w-4 h-4" /></button>
             </div>
             
             <div className="p-2 flex flex-col gap-1">

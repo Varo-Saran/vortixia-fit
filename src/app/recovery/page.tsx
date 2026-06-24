@@ -4,71 +4,17 @@ import { useEffect, useState, useRef } from "react";
 import { HeartPulse, Moon, Utensils, Activity, Settings2 } from "lucide-react";
 import { useRecoveryStore } from "@/store/useRecoveryStore";
 
-import { MuscleMapWidget, resolveColorScale, MuscleIntensity, Muscle } from "@/lib/MuscleMapJS/index";
+import dynamic from "next/dynamic";
 
+const MuscleMapCanvas = dynamic(() => import("@/components/MuscleMapCanvas"), { ssr: false });
+const MuscleDiagnostics = dynamic(() => import("@/components/MuscleDiagnostics"), { ssr: false });
 export default function RecoveryArena() {
   const { readinessScore, cnsStatus, muscles } = useRecoveryStore();
-  const mapContainerRef = useRef<HTMLDivElement>(null);
-  const widgetRef = useRef<MuscleMapWidget | null>(null);
 
   // View state
   const [viewSide, setViewSide] = useState<"front" | "back">("front");
 
-  // Map our generic muscle data to MuscleMapJS specific names
-  const getMappedIntensities = () => {
-    const data: MuscleIntensity[] = [];
-    muscles.forEach(m => {
-      // Convert recovery % to a 0.0 to 1.0 intensity (lower recovery = higher intensity/heat)
-      const heat = 1.0 - (m.recoveryPercentage / 100);
-      
-      if (m.id === 'chest') data.push({ muscle: 'chest' as Muscle, intensity: heat });
-      if (m.id === 'back') data.push({ muscle: 'upper-back' as Muscle, intensity: heat }, { muscle: 'lower-back' as Muscle, intensity: heat });
-      if (m.id === 'legs') data.push({ muscle: 'quadriceps' as Muscle, intensity: heat }, { muscle: 'calves' as Muscle, intensity: heat }, { muscle: 'hamstring' as Muscle, intensity: heat });
-      if (m.id === 'arms') data.push({ muscle: 'biceps' as Muscle, intensity: heat }, { muscle: 'triceps' as Muscle, intensity: heat }, { muscle: 'forearm' as Muscle, intensity: heat });
-      if (m.id === 'core') data.push({ muscle: 'abs' as Muscle, intensity: heat }, { muscle: 'obliques' as Muscle, intensity: heat });
-      if (m.id === 'shoulders') data.push({ muscle: 'deltoids' as Muscle, intensity: heat }, { muscle: 'trapezius' as Muscle, intensity: heat });
-    });
-    return data;
-  };
 
-  // Initialize and update MuscleMapJS widget
-  useEffect(() => {
-    if (!mapContainerRef.current || muscles.length === 0) return;
-
-    if (!widgetRef.current) {
-      // Initialize once
-      widgetRef.current = new MuscleMapWidget(mapContainerRef.current, {
-        gender: 'male',
-        side: viewSide,
-        style: 'neon',
-        interactive: false,
-        selectable: false,
-        multiSelect: false
-      });
-      // Tooltip to show muscle names
-      widgetRef.current.enableTooltip();
-    }
-
-    // Set heatmap data
-    widgetRef.current.setHeatmap(getMappedIntensities(), {
-      colorScale: 'thermal', // A good heatmap indicating soreness
-      threshold: 0.0,
-      gradientFill: true
-    });
-
-  }, [muscles]);
-
-  // Handle front/back toggle
-  useEffect(() => {
-    if (widgetRef.current) {
-      widgetRef.current.setSide(viewSide);
-      widgetRef.current.setHeatmap(getMappedIntensities(), {
-        colorScale: 'thermal',
-        threshold: 0.0,
-        gradientFill: true
-      });
-    }
-  }, [viewSide]);
 
   if (muscles.length === 0) return null;
 
@@ -90,7 +36,7 @@ export default function RecoveryArena() {
             +12h (Dev)
           </button>
           )}
-          <button className="p-2 bg-white/5 rounded-full text-text-muted hover:text-white transition">
+          <button aria-label="Recovery Settings" className="p-2 bg-white/5 rounded-full text-text-muted hover:text-white transition">
             <Settings2 className="w-5 h-5" />
           </button>
         </div>
@@ -131,7 +77,9 @@ export default function RecoveryArena() {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-accent-red/10 blur-[50px] rounded-full pointer-events-none" />
         
         {/* The container for MuscleMapJS Canvas */}
-        <div ref={mapContainerRef} className="w-full h-full relative z-10 drop-shadow-[0_0_15px_rgba(255,51,51,0.15)] pointer-events-none" />
+        <div className="w-full h-full absolute z-10">
+          <MuscleMapCanvas viewSide={viewSide} />
+        </div>
       </section>
 
       {/* Quick Log Buttons */}
@@ -158,42 +106,7 @@ export default function RecoveryArena() {
       </section>
 
       {/* Detailed Muscle Breakdown */}
-      <section className="w-full animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
-        <h2 className="text-xs font-bold text-text-muted mb-4 uppercase tracking-widest flex items-center gap-2">
-          <Activity className="w-4 h-4 text-white" />
-          Muscle Diagnostics
-        </h2>
-
-        <div className="flex flex-col gap-3">
-          {muscles.map((m) => {
-            const isRed = m.recoveryPercentage < 30;
-            const isYellow = m.recoveryPercentage >= 30 && m.recoveryPercentage < 70;
-            const label = isRed ? "Exhausted" : isYellow ? "Recovering" : "Fresh";
-
-            // Sync exact color from MuscleMapJS thermal scale
-            const heat = 1.0 - (m.recoveryPercentage / 100);
-            const thermalScale = resolveColorScale('thermal');
-            const exactColor = thermalScale.color(heat);
-
-            return (
-              <div key={m.id} className="glass-card p-4 flex flex-col gap-3 border border-white/5">
-                <div className="flex justify-between items-center">
-                  <span className="font-bold text-white">{m.name}</span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: exactColor }}>
-                      {label}
-                    </span>
-                    <span className="font-mono text-sm font-bold bg-white/10 px-2 py-1 rounded-md">{Math.round(m.recoveryPercentage)}%</span>
-                  </div>
-                </div>
-                <div className="w-full h-1.5 bg-black/80 rounded-full overflow-hidden">
-                  <div className="h-full transition-all duration-1000" style={{ width: `${m.recoveryPercentage}%`, backgroundColor: exactColor, boxShadow: `0 0 10px ${exactColor}80` }} />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
+      <MuscleDiagnostics />
 
     </main>
   );

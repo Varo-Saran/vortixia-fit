@@ -114,6 +114,31 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
       const totalVolume = completedSets.reduce((sum, s) => sum + (s.weight * s.reps), 0);
       const xpEarned = Math.round(totalSets * 50 + totalVolume * 0.1);
 
+      if (!navigator.onLine) {
+        const payload = {
+          startTime: startTime?.toISOString(),
+          endTime: endTime.toISOString(),
+          totalVolume,
+          xpEarned,
+          durationMins,
+          completedSets
+        };
+        const unsynced = JSON.parse(localStorage.getItem('unsynced_workouts') || '[]');
+        unsynced.push(payload);
+        localStorage.setItem('unsynced_workouts', JSON.stringify(unsynced));
+        
+        useTrophyStore.getState().checkAchievements({
+          totalVolume,
+          durationMins,
+        });
+
+        set({
+          isSaving: false,
+          lastWorkoutSummary: { totalSets, totalVolume, durationMins, xpEarned },
+        });
+        return;
+      }
+
       // 1. Insert workout_sessions row
       const { data: sessionRow, error: sessionErr } = await supabase
         .from('workout_sessions')

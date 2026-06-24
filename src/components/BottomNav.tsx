@@ -32,6 +32,7 @@ export default function BottomNav() {
             <Link 
               key={item.name} 
               href={item.href}
+              aria-label={item.name}
               className={`relative flex flex-col items-center justify-center w-12 h-10 transition-all duration-300 ${isActive ? 'text-accent-green drop-shadow-[0_0_8px_rgba(74,222,128,0.5)] scale-110' : 'text-text-muted hover:text-white'}`}
             >
               <Icon className={`w-6 h-6 z-10 transition-all duration-300 ${isActive ? 'stroke-[2.5px]' : 'stroke-2'}`} />

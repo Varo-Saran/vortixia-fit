@@ -68,7 +68,7 @@ export function PlateCalculator({ isOpen, onClose, targetWeight }: PlateCalculat
                     <p className="text-xs text-text-muted font-bold tracking-widest uppercase">Target: {targetWeight} lbs</p>
                   </div>
                 </div>
-                <button onClick={onClose} className="p-2 bg-white/5 rounded-full hover:bg-white/10">
+                <button onClick={onClose} className="p-2 bg-white/5 rounded-full hover:bg-white/10" aria-label="Close">
                   <X className="w-5 h-5 text-white" />
                 </button>
               </div>

@@ -68,7 +68,7 @@ export function RestTimer({ isActive, onClose, initialSeconds = 90 }: RestTimerP
           ) : (
             <div className="bg-[#0a0a0a] border border-white/10 rounded-3xl p-6 shadow-2xl flex flex-col items-center gap-4 relative overflow-hidden backdrop-blur-xl w-64">
               <div className="absolute top-0 right-0 p-3">
-                <button onClick={onClose} className="p-1 bg-white/5 rounded-full hover:bg-white/10 text-text-muted">
+                <button onClick={onClose} className="p-1 bg-white/5 rounded-full hover:bg-white/10 text-text-muted" aria-label="Close">
                   <X className="w-4 h-4" />
                 </button>
               </div>

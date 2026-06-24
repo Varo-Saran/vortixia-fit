@@ -58,7 +58,7 @@ export default function RoutinesPage() {
           <span className="text-text-muted text-sm font-bold uppercase tracking-widest">My Plans</span>
           <h1 className="text-3xl font-extrabold tracking-tight text-white">Routines</h1>
         </div>
-        <button className="w-10 h-10 rounded-full border border-white/10 bg-black/50 flex items-center justify-center shadow-[0_0_10px_rgba(255,255,255,0.05)]">
+        <button aria-label="Routines Settings" className="w-10 h-10 rounded-full border border-white/10 bg-black/50 flex items-center justify-center shadow-[0_0_10px_rgba(255,255,255,0.05)]">
           <Settings2 className="w-5 h-5 text-text-muted" />
         </button>
       </header>

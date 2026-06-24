@@ -356,7 +356,7 @@ export default function ActiveWorkout() {
 
       {/* Sticky Bottom Add Exercise */}
       <div className="fixed bottom-0 left-0 w-full bg-black/90 backdrop-blur-xl p-4 flex justify-center pb-[max(env(safe-area-inset-bottom),20px)] border-t border-white/10 z-50">
-        <button onClick={handleAddExercise} className="bg-white/10 hover:bg-white/20 border border-white/10 text-white font-black py-4 px-8 rounded-2xl shadow-lg w-full max-w-md flex items-center justify-center gap-2 transition-colors active:scale-95">
+        <button onClick={handleAddExercise} className="bg-white/10 hover:bg-white/20 border border-white/10 text-white font-black py-4 px-8 rounded-2xl shadow-lg w-full max-w-md flex items-center justify-center gap-2 transition-colors active:scale-95" aria-label="Add">
           <Plus className="w-5 h-5 text-accent-green" strokeWidth={3} />
           ADD EXERCISE
         </button>
