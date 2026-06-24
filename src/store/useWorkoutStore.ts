@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { PlannedExercise } from './useRoutineStore';
 import { useTrophyStore } from './useTrophyStore';
+import { supabase } from '@/lib/supabase';
 
 export interface WorkoutSet {
   id: string;
@@ -24,9 +25,12 @@ interface WorkoutStore {
   exercises: WorkoutExercise[];
   restTimeRemaining: number;
   isResting: boolean;
+  isSaving: boolean;
+  lastWorkoutSummary: { totalSets: number; totalVolume: number; durationMins: number; xpEarned: number } | null;
   
   startWorkout: (routineName: string, plannedExercises: PlannedExercise[]) => void;
   finishWorkout: () => void;
+  saveWorkoutToDb: () => Promise<void>;
   updateSet: (exerciseId: string, setId: string, weight: number | '', reps: number | '') => void;
   toggleSetComplete: (exerciseId: string, setId: string) => void;
   startRest: (seconds?: number) => void;
@@ -35,6 +39,7 @@ interface WorkoutStore {
   addRestTime: (seconds: number) => void;
   addSet: (exerciseId: string) => void;
   addExerciseToWorkout: (exerciseName: string) => void;
+  resetWorkout: () => void;
 }
 
 export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
@@ -44,16 +49,16 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
   exercises: [],
   restTimeRemaining: 0,
   isResting: false,
+  isSaving: false,
+  lastWorkoutSummary: null,
 
   startWorkout: (routineName, plannedExercises) => {
-    // Map planned exercises to active workout exercises with empty sets
     const activeExercises: WorkoutExercise[] = plannedExercises.map(ex => {
       const sets: WorkoutSet[] = Array.from({ length: ex.targetSets }).map((_, i) => ({
         id: `${ex.id}-set-${i}`,
         weight: '',
         reps: '',
         isCompleted: false,
-        // Mock previous performance
         previousWeight: 135 + Math.floor(Math.random() * 4) * 10,
         previousReps: 10
       }));
@@ -70,18 +75,127 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
       routineName,
       exercises: activeExercises,
       restTimeRemaining: 0,
-      isResting: false
+      isResting: false,
+      lastWorkoutSummary: null,
     });
   },
 
   finishWorkout: () => {
+    // Stop the workout but keep exercises for summary display
+    set({ isActive: false, isResting: false, restTimeRemaining: 0 });
+  },
+
+  saveWorkoutToDb: async () => {
+    const { exercises, startTime, routineName } = get();
+    set({ isSaving: true });
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        set({ isSaving: false });
+        return;
+      }
+
+      const userId = session.user.id;
+      const endTime = new Date();
+      const durationMins = startTime ? Math.round((endTime.getTime() - startTime.getTime()) / 60000) : 0;
+
+      // Calculate totals
+      const completedSets = exercises.flatMap(ex =>
+        ex.sets.filter(s => s.isCompleted).map(s => ({
+          exerciseName: ex.name,
+          setNumber: ex.sets.indexOf(s) + 1,
+          weight: typeof s.weight === 'number' ? s.weight : 0,
+          reps: typeof s.reps === 'number' ? s.reps : 0,
+        }))
+      );
+
+      const totalSets = completedSets.length;
+      const totalVolume = completedSets.reduce((sum, s) => sum + (s.weight * s.reps), 0);
+      const xpEarned = Math.round(totalSets * 50 + totalVolume * 0.1);
+
+      // 1. Insert workout_sessions row
+      const { data: sessionRow, error: sessionErr } = await supabase
+        .from('workout_sessions')
+        .insert({
+          user_id: userId,
+          start_time: startTime?.toISOString(),
+          end_time: endTime.toISOString(),
+          total_volume_kg: totalVolume,
+          prs_broken: 0,
+        })
+        .select('id')
+        .single();
+
+      if (sessionErr || !sessionRow) {
+        console.error('Failed to save workout session:', sessionErr);
+        set({ isSaving: false });
+        return;
+      }
+
+      // 2. Batch insert workout_sets
+      if (completedSets.length > 0) {
+        const setsToInsert = completedSets.map(s => ({
+          session_id: sessionRow.id,
+          exercise_name: s.exerciseName,
+          set_number: s.setNumber,
+          weight: s.weight,
+          reps: s.reps,
+          weight_unit: 'kg',
+          tracking_type: 'reps_weight',
+        }));
+
+        const { error: setsErr } = await supabase
+          .from('workout_sets')
+          .insert(setsToInsert);
+
+        if (setsErr) {
+          console.error('Failed to save workout sets:', setsErr);
+        }
+      }
+
+      // 3. Update user XP
+      const { data: currentUser } = await supabase
+        .from('users')
+        .select('total_xp')
+        .eq('id', userId)
+        .single();
+
+      if (currentUser) {
+        await supabase
+          .from('users')
+          .update({ total_xp: (currentUser.total_xp || 0) + xpEarned })
+          .eq('id', userId);
+      }
+
+      // 4. Check trophy achievements
+      useTrophyStore.getState().checkAchievements({
+        totalVolume,
+        durationMins,
+      });
+
+      // 5. Store summary for UI
+      set({
+        isSaving: false,
+        lastWorkoutSummary: { totalSets, totalVolume, durationMins, xpEarned },
+      });
+
+    } catch (err) {
+      console.error('Error saving workout:', err);
+      set({ isSaving: false });
+    }
+  },
+
+  resetWorkout: () => {
     set({
       isActive: false,
       startTime: null,
       routineName: "",
       exercises: [],
       restTimeRemaining: 0,
-      isResting: false
+      isResting: false,
+      isSaving: false,
+      lastWorkoutSummary: null,
     });
   },
 
@@ -117,7 +231,6 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
 
     set({ exercises: newExercises });
 
-    // Auto-start rest timer if a set was just completed (default 90s for hypertrophy)
     if (justCompleted) {
       get().startRest(90);
     }

@@ -82,12 +82,14 @@ export default function RecoveryArena() {
           Recovery
         </h1>
         <div className="flex items-center gap-2">
+          {process.env.NODE_ENV === 'development' && (
           <button 
             onClick={() => useRecoveryStore.getState().fastForward(12)} 
             className="text-[10px] bg-accent-green/20 text-accent-green px-2 py-1 rounded font-bold uppercase tracking-widest border border-accent-green/30 active:scale-95 transition-transform"
           >
             +12h (Dev)
           </button>
+          )}
           <button className="p-2 bg-white/5 rounded-full text-text-muted hover:text-white transition">
             <Settings2 className="w-5 h-5" />
           </button>

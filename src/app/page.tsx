@@ -9,9 +9,27 @@ import { useFriendsStore } from "@/store/useFriendsStore";
 import { useRecoveryStore } from "@/store/useRecoveryStore";
 import { useSettingsStore } from "@/store/useSettingsStore";
 import { useWeather } from "@/hooks/useWeather";
+import { supabase } from "@/lib/supabase";
 
 export default function Dashboard() {
   const [greeting, setGreeting] = useState("Hello");
+  const [streakDays, setStreakDays] = useState<{ day: string; date: string; active: boolean; today: boolean; timestamp: number }[]>(() => {
+    const days = [];
+    const today = new Date();
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      const dayStr = d.toLocaleDateString('en-US', { weekday: 'short' }).charAt(0);
+      days.push({
+        day: dayStr,
+        date: d.getDate().toString(),
+        active: false,
+        today: i === 0,
+        timestamp: new Date(d.setHours(0, 0, 0, 0)).getTime()
+      });
+    }
+    return days;
+  });
   const { weeklyPlan, fetchRoutine } = useRoutineStore();
   const { profile, fetchProfile } = useProfileStore();
   const { friends } = useFriendsStore();
@@ -29,15 +47,39 @@ export default function Dashboard() {
     else setGreeting("Good evening");
   }, [weeklyPlan, profile, fetchRoutine, fetchProfile]);
 
-  const streakDays = [
-    { day: "M", date: "19", active: true },
-    { day: "T", date: "20", active: true },
-    { day: "W", date: "21", active: false },
-    { day: "T", date: "22", active: true, today: true },
-    { day: "F", date: "23", active: false },
-    { day: "S", date: "24", active: false },
-    { day: "S", date: "25", active: false },
-  ];
+  useEffect(() => {
+    const fetchStreak = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+      sevenDaysAgo.setHours(0, 0, 0, 0);
+
+      const { data, error } = await supabase
+        .from('workout_sessions')
+        .select('start_time')
+        .eq('user_id', user.id)
+        .gte('start_time', sevenDaysAgo.toISOString());
+
+      if (!error && data) {
+        setStreakDays(prev => {
+          const newStreak = prev.map(s => ({ ...s }));
+          data.forEach(session => {
+            const sessionDate = new Date(session.start_time);
+            sessionDate.setHours(0, 0, 0, 0);
+            const idx = newStreak.findIndex(s => s.timestamp === sessionDate.getTime());
+            if (idx !== -1) {
+              newStreak[idx].active = true;
+            }
+          });
+          return newStreak;
+        });
+      }
+    };
+    
+    fetchStreak();
+  }, []);
 
   const onlineFriends = friends.filter(f => f.isOnline && f.status === 'friends');
 
@@ -137,10 +179,15 @@ export default function Dashboard() {
         <Link href="/workout" className="col-span-1 row-span-2 relative p-5 rounded-[2rem] overflow-hidden flex flex-col justify-between group bg-[#111] border border-white/5 shadow-2xl active:scale-95 transition-transform">
           <div className="absolute inset-0 bg-gradient-to-b from-accent-green/20 to-transparent opacity-50" />
           <div className="absolute -top-10 -right-10 w-32 h-32 bg-accent-green/30 blur-3xl rounded-full" />
-          <div className="z-10">
-            <h2 className="text-white font-bold text-lg leading-tight">Leg Day<br/>Crusher</h2>
-            <p className="text-text-muted text-[10px] mt-1 font-bold uppercase tracking-widest">Today's Plan</p>
-          </div>
+           <div className="z-10">
+             <h2 className="text-white font-bold text-lg leading-tight">{(() => {
+               const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+               const todayName = days[new Date().getDay()];
+               const todayPlan = weeklyPlan.find(p => p.day === todayName);
+               return todayPlan?.type === 'Rest' ? 'Rest Day' : (todayPlan?.title || 'Start');
+             })()}</h2>
+             <p className="text-text-muted text-[10px] mt-1 font-bold uppercase tracking-widest">Today's Plan</p>
+           </div>
           <div className="z-10 mt-auto">
             <div className="w-10 h-10 bg-accent-green text-black rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(74,222,128,0.5)] group-hover:scale-110 transition-transform">
               <Plus className="w-6 h-6" strokeWidth={3} />
@@ -246,7 +293,7 @@ export default function Dashboard() {
            </div>
            <div className="z-10 w-2/3">
               <h3 className="text-white font-black text-xl leading-tight">Keep it up!</h3>
-              <p className="text-text-muted text-[10px] mt-1 font-bold">35 days in a row you are here!</p>
+              <p className="text-text-muted text-[10px] mt-1 font-bold">You're building momentum!</p>
            </div>
         </div>
 

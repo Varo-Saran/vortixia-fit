@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { UserCircle, Edit3, BarChart3, Users, Swords, Settings, MessageSquarePlus, Info, Coffee, ChevronRight, User, LogOut } from "lucide-react";
 import Link from "next/link";
 import { useProfileStore } from "@/store/useProfileStore";
-import { useTrophyStore } from "@/store/useTrophyStore";
+
 
 export default function ProfileHub() {
   const { profile, fetchProfile, logout } = useProfileStore();
@@ -43,15 +43,15 @@ export default function ProfileHub() {
         <div className="flex bg-white/5 border border-white/10 rounded-2xl p-4 backdrop-blur-md shadow-lg divide-x divide-white/10 w-full max-w-sm">
           <div className="flex-1 flex flex-col items-center justify-center">
              <span className="text-[10px] text-text-muted uppercase font-bold tracking-widest mb-1">Level</span>
-             <span className="text-xl font-black text-white">8</span>
+             <span className="text-xl font-black text-white">{Math.floor((profile?.total_xp || 0) / 2000) + 1}</span>
           </div>
           <div className="flex-1 flex flex-col items-center justify-center">
              <span className="text-[10px] text-text-muted uppercase font-bold tracking-widest mb-1">Total XP</span>
-             <span className="text-xl font-black text-accent-green">{useTrophyStore().totalXP.toLocaleString() || "0"}</span>
+             <span className="text-xl font-black text-accent-green">{(profile?.total_xp || 0).toLocaleString()}</span>
           </div>
           <div className="flex-1 flex flex-col items-center justify-center">
-             <span className="text-[10px] text-text-muted uppercase font-bold tracking-widest mb-1">Goal</span>
-             <span className="text-sm font-black text-white">Hypertrophy</span>
+             <span className="text-[10px] text-text-muted uppercase font-bold tracking-widest mb-1">Workouts</span>
+             <span className="text-sm font-black text-white">{(profile?.total_xp || 0) > 0 ? Math.ceil((profile?.total_xp || 0) / 300) : 0}</span>
           </div>
         </div>
       </section>

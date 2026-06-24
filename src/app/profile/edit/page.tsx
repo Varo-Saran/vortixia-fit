@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { Calculator, ChevronLeft } from "lucide-react";
+import { Calculator, ChevronLeft, Save, Loader2 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import { useProfileStore } from "@/store/useProfileStore";
 
@@ -30,6 +31,8 @@ export default function EditProfile() {
 
   const [bodyFat, setBodyFat] = useState<string>("");
   const [goal, setGoal] = useState<string>("Hypertrophy");
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
   const stats = useMemo(() => {
     const w = parseFloat(weight);
@@ -49,15 +52,69 @@ export default function EditProfile() {
     return { bmi, bmr: Math.round(bmr), tdee };
   }, [weight, height, age, gender]);
 
+  const handleSave = async () => {
+    setIsSaving(true);
+    setSaveSuccess(false);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const userId = session.user.id;
+
+      // Update user_metrics
+      const w = parseFloat(weight);
+      const h = parseFloat(height);
+      const a = parseInt(age);
+      const heightInMeters = h / 100;
+      const bmi = parseFloat((w / (heightInMeters * heightInMeters)).toFixed(1));
+      let bmr = (10 * w) + (6.25 * h) - (5 * a);
+      bmr += gender === 'Male' ? 5 : -161;
+      const tdee = Math.round(bmr * 1.55);
+
+      await supabase
+        .from('user_metrics')
+        .upsert({
+          id: userId,
+          gender,
+          age: a,
+          weight_kg: w,
+          height_cm: h,
+          bmi,
+          bmr: Math.round(bmr),
+          tdee,
+        }, { onConflict: 'id' });
+
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 2000);
+    } catch (err) {
+      console.error('Save error:', err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <main className="flex min-h-screen flex-col pt-[var(--notch-top)] pb-24 px-6 bg-[#050505] relative overflow-x-hidden">
       
       {/* Header */}
-      <header className="w-full flex items-center gap-4 py-4 mb-6 sticky top-[var(--notch-top)] z-20 bg-[#050505]/80 backdrop-blur-lg">
-        <Link href="/profile" className="p-2 bg-white/5 rounded-full border border-white/10 hover:bg-white/10 transition-colors">
-          <ChevronLeft className="w-5 h-5 text-white" />
-        </Link>
-        <h1 className="text-2xl font-extrabold tracking-tight text-white">Edit Profile</h1>
+      <header className="w-full flex items-center justify-between py-4 mb-6 sticky top-[var(--notch-top)] z-20 bg-[#050505]/80 backdrop-blur-lg">
+        <div className="flex items-center gap-4">
+          <Link href="/profile" className="p-2 bg-white/5 rounded-full border border-white/10 hover:bg-white/10 transition-colors">
+            <ChevronLeft className="w-5 h-5 text-white" />
+          </Link>
+          <h1 className="text-2xl font-extrabold tracking-tight text-white">Edit Profile</h1>
+        </div>
+        <button
+          onClick={handleSave}
+          disabled={isSaving}
+          className={`flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-sm transition-all active:scale-95 ${
+            saveSuccess
+              ? 'bg-accent-green text-black'
+              : 'bg-accent-green/20 text-accent-green border border-accent-green/30'
+          }`}
+        >
+          {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+          {saveSuccess ? 'Saved!' : 'Save'}
+        </button>
       </header>
         
       <section className="w-full mb-6 flex flex-col gap-4 animate-fade-in-up">

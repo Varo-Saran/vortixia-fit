@@ -89,7 +89,9 @@ export default function RoutinesPage() {
            <div className="flex gap-2 w-full z-10">
              <button 
                onClick={() => {
-                 const todayPlan = weeklyPlan.find(p => p.day === "Saturday");
+                  const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+                  const todayName = days[new Date().getDay()];
+                  const todayPlan = weeklyPlan.find(p => p.day === todayName);
                  if (todayPlan) {
                    startWorkout(todayPlan.title, todayPlan.mainLifts);
                    router.push("/workout");

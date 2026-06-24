@@ -129,13 +129,15 @@ export default function SocialArena() {
                         {typeLabel} ({totalNeeded.toLocaleString()})
                      </span>
                      <div className="flex items-center gap-2">
-                       <button 
-                         onClick={() => simulateOpponent(duel.id, duel.type === 'volume' ? 500 : duel.type === 'war' ? 100 : 1)}
-                         className="text-[8px] bg-white/5 border border-white/10 px-2 py-1 rounded text-text-muted hover:text-white flex items-center gap-1 active:scale-95"
-                         title="Simulate Opponent Progress (Dev)"
-                       >
-                         <RefreshCw className="w-3 h-3" /> Opponent +
-                       </button>
+                        {process.env.NODE_ENV === 'development' && (
+                        <button 
+                          onClick={() => simulateOpponent(duel.id, duel.type === 'volume' ? 500 : duel.type === 'war' ? 100 : 1)}
+                          className="text-[8px] bg-white/5 border border-white/10 px-2 py-1 rounded text-text-muted hover:text-white flex items-center gap-1 active:scale-95"
+                          title="Simulate Opponent Progress (Dev)"
+                        >
+                          <RefreshCw className="w-3 h-3" /> Opponent +
+                        </button>
+                        )}
                        <span className="text-[10px] text-text-muted uppercase tracking-widest font-bold">
                           {durationLabel}
                        </span>

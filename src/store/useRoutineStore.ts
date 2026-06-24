@@ -120,12 +120,93 @@ export const useRoutineStore = create<RoutineStore>((set, get) => ({
   templates: PREDEFINED_TEMPLATES,
   
   fetchRoutine: async () => {
-    // For prototyping we load the default template instead of DB
-    const state = get();
-    if (state.weeklyPlan.length === 0) {
-       set({ weeklyPlan: PREDEFINED_TEMPLATES[0].plan, isLoading: false });
-    } else {
-       set({ isLoading: false });
+    set({ isLoading: true });
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        set({ weeklyPlan: PREDEFINED_TEMPLATES[0].plan, isLoading: false });
+        return;
+      }
+
+      const userId = session.user.id;
+
+      // Try to fetch the user's active routine from Supabase
+      const { data: routine, error: routineErr } = await supabase
+        .from('routines')
+        .select('id, name')
+        .eq('user_id', userId)
+        .eq('is_active', true)
+        .single();
+
+      if (routineErr || !routine) {
+        // No routine in DB - use default template
+        set({ weeklyPlan: PREDEFINED_TEMPLATES[0].plan, isLoading: false });
+        return;
+      }
+
+      // Fetch routine days
+      const { data: days, error: daysErr } = await supabase
+        .from('routine_days')
+        .select('id, day_name, short_day, type, title')
+        .eq('routine_id', routine.id)
+        .order('created_at');
+
+      if (daysErr || !days || days.length === 0) {
+        set({ weeklyPlan: PREDEFINED_TEMPLATES[0].plan, isLoading: false });
+        return;
+      }
+
+      // Fetch all planned exercises for these days
+      const dayIds = days.map(d => d.id);
+      const { data: exercises, error: exErr } = await supabase
+        .from('planned_exercises')
+        .select('*')
+        .in('routine_day_id', dayIds)
+        .order('order_index');
+
+      // Build the weekly plan
+      const weeklyPlan: DayPlan[] = days.map(day => {
+        const dayExercises = (exercises || []).filter(ex => ex.routine_day_id === day.id);
+        const mainLifts: PlannedExercise[] = dayExercises
+          .filter(ex => !ex.is_warmup)
+          .map(ex => ({
+            id: ex.id,
+            name: ex.name,
+            targetMuscle: ex.type || 'unknown',
+            trackingType: (ex.tracking_style || 'reps_weight') as TrackingType,
+            weightUnit: 'kg' as WeightUnit,
+            targetSets: ex.target_sets,
+            targetValue: ex.target_reps,
+            note: ex.note || undefined,
+            isWarmup: false,
+          }));
+        const warmups: PlannedExercise[] = dayExercises
+          .filter(ex => ex.is_warmup)
+          .map(ex => ({
+            id: ex.id,
+            name: ex.name,
+            targetMuscle: ex.type || 'unknown',
+            trackingType: (ex.tracking_style || 'reps_weight') as TrackingType,
+            weightUnit: 'kg' as WeightUnit,
+            targetSets: ex.target_sets,
+            targetValue: ex.target_reps,
+            isWarmup: true,
+          }));
+
+        return {
+          day: day.day_name,
+          shortDay: day.short_day,
+          type: day.type,
+          title: day.title,
+          warmups,
+          mainLifts,
+        };
+      });
+
+      set({ weeklyPlan, isLoading: false });
+    } catch (err) {
+      console.error('Error fetching routine:', err);
+      set({ weeklyPlan: PREDEFINED_TEMPLATES[0].plan, isLoading: false });
     }
   },
 
