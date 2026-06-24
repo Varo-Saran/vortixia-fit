@@ -19,7 +19,7 @@ export async function GET(req: Request) {
         id, 
         created_at, 
         user_id, 
-        users!user_friends_user_id_fkey(username)
+        users!user_friends_user_id_fkey(username, avatar_url)
       `)
       .eq('friend_id', userId)
       .eq('status', 'pending');
@@ -35,7 +35,7 @@ export async function GET(req: Request) {
         id, 
         created_at, 
         user_id_1, 
-        users!duels_user_id_1_fkey(username), 
+        users!duels_user_id_1_fkey(username, avatar_url), 
         wager_xp, 
         duration_days
       `)
@@ -53,6 +53,7 @@ export async function GET(req: Request) {
         // Handle case where users is an array or object depending on foreign key
         const userObj = Array.isArray(req.users) ? req.users[0] : req.users;
         const username = userObj?.username || 'Someone';
+        const avatarUrl = userObj?.avatar_url || null;
         
         notifications.push({
           id: req.id,
@@ -60,7 +61,8 @@ export async function GET(req: Request) {
           title: 'New Friend Request',
           message: `${username} wants to connect with you.`,
           status: 'unread',
-          createdAt: req.created_at || new Date().toISOString()
+          createdAt: req.created_at || new Date().toISOString(),
+          avatarUrl
         });
       });
     }
@@ -69,6 +71,7 @@ export async function GET(req: Request) {
       duelChallenges.forEach((duel: any) => {
         const userObj = Array.isArray(duel.users) ? duel.users[0] : duel.users;
         const username = userObj?.username || 'Someone';
+        const avatarUrl = userObj?.avatar_url || null;
 
         notifications.push({
           id: duel.id,
@@ -76,7 +79,8 @@ export async function GET(req: Request) {
           title: 'Duel Challenge!',
           message: `${username} challenged you to a ${duel.duration_days}-day duel for ${duel.wager_xp} XP!`,
           status: 'unread',
-          createdAt: duel.created_at || new Date().toISOString()
+          createdAt: duel.created_at || new Date().toISOString(),
+          avatarUrl
         });
       });
     }

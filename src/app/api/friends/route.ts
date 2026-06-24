@@ -25,10 +25,31 @@ export async function POST(req: Request) {
       .from('user_friends')
       .select('*')
       .or(`and(user_id.eq.${session.user.id},friend_id.eq.${friendId}),and(user_id.eq.${friendId},friend_id.eq.${session.user.id})`)
-      .single();
+      .maybeSingle();
+
+    if (existingError) {
+      console.error("Error checking existing friend request:", existingError);
+      return NextResponse.json({ error: 'Database error while checking existing request' }, { status: 500 });
+    }
 
     if (existing) {
-       return NextResponse.json({ error: 'Friend request already exists or already friends' }, { status: 400 });
+      // If the opposite request exists and is pending, automatically accept it
+      if (existing.user_id === friendId && existing.status === 'pending') {
+        const { data: updateData, error: updateError } = await supabase
+          .from('user_friends')
+          .update({ status: 'accepted' })
+          .eq('id', existing.id)
+          .select()
+          .single();
+
+        if (updateError) {
+          console.error("Error auto-accepting friend request:", updateError);
+          return NextResponse.json({ error: 'Failed to auto-accept friend request' }, { status: 500 });
+        }
+        return NextResponse.json(updateData);
+      }
+
+      return NextResponse.json({ error: 'Friend request already exists or already friends' }, { status: 400 });
     }
 
     const { data, error } = await supabase.from('user_friends').insert({
@@ -37,10 +58,14 @@ export async function POST(req: Request) {
       status: 'pending'
     }).select().single();
 
-    if (error) throw error;
+    if (error) {
+      console.error("Error creating friend request:", error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
 
     return NextResponse.json(data);
   } catch (error: any) {
+    console.error("Unexpected error in friends POST:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
@@ -98,10 +123,14 @@ export async function DELETE(req: Request) {
       .eq('id', requestId)
       .or(`user_id.eq.${session.user.id},friend_id.eq.${session.user.id}`);
 
-    if (error) throw error;
+    if (error) {
+      console.error("Error deleting friend request:", error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
+    console.error("Unexpected error in friends DELETE:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

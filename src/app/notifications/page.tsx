@@ -5,10 +5,13 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Heart, MessageSquare, UserPlus, Zap, Info, ArrowLeft, Trash2, CheckCircle2, Swords } from "lucide-react";
 import Link from "next/link";
 import { useNotificationStore } from "@/store/useNotificationStore";
+import { toast } from "@/components/ui/Toast";
 
 export default function NotificationsPage() {
   const { notifications, fetchNotifications, markAsRead } = useNotificationStore();
   const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<"system" | "community">("system");
+  const [processingId, setProcessingId] = useState<string | null>(null);
 
   useEffect(() => {
     async function init() {
@@ -56,6 +59,33 @@ export default function NotificationsPage() {
     return `${Math.floor(diffInSeconds / 86400)}d ago`;
   };
 
+  const handleFriendRequest = async (requestId: string, status: 'accepted' | 'rejected') => {
+    setProcessingId(requestId);
+    try {
+      const res = await fetch('/api/friends', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requestId, status }),
+      });
+      if (!res.ok) {
+        throw new Error('Failed to update request');
+      }
+      toast.success(status === 'accepted' ? 'Friend request accepted' : 'Friend request declined');
+      await fetchNotifications(); // Refresh notifications
+    } catch (error) {
+      toast.error('An error occurred');
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const filteredNotifications = notifications.filter(n => {
+    if (activeTab === "community") {
+      return ["friend_request", "duel_challenge"].includes(n.type);
+    }
+    return !["friend_request", "duel_challenge"].includes(n.type);
+  });
+
   return (
     <div className="min-h-screen bg-black text-white pb-24 overflow-x-hidden">
       {/* Header */}
@@ -66,6 +96,20 @@ export default function NotificationsPage() {
           </Link>
           <h1 className="text-xl font-bold tracking-tight">Notifications</h1>
           <div className="w-10"></div> {/* Spacer for center alignment */}
+        </div>
+        <div className="flex px-6 gap-6 max-w-2xl mx-auto">
+          <button 
+            onClick={() => setActiveTab('system')}
+            className={`pb-3 text-sm font-semibold border-b-2 transition-colors ${activeTab === 'system' ? 'border-accent-green text-white' : 'border-transparent text-text-muted hover:text-white/80'}`}
+          >
+            System
+          </button>
+          <button 
+            onClick={() => setActiveTab('community')}
+            className={`pb-3 text-sm font-semibold border-b-2 transition-colors ${activeTab === 'community' ? 'border-accent-green text-white' : 'border-transparent text-text-muted hover:text-white/80'}`}
+          >
+            Community
+          </button>
         </div>
       </header>
 
@@ -87,10 +131,22 @@ export default function NotificationsPage() {
             <h2 className="text-xl font-semibold mb-2">All caught up!</h2>
             <p className="text-text-muted">You don't have any new notifications right now.</p>
           </motion.div>
+        ) : filteredNotifications.length === 0 ? (
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex flex-col items-center justify-center h-64 text-center"
+          >
+            <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mb-4">
+              <CheckCircle2 className="w-10 h-10 text-white/20" />
+            </div>
+            <h2 className="text-xl font-semibold mb-2">All caught up!</h2>
+            <p className="text-text-muted">No {activeTab} notifications right now.</p>
+          </motion.div>
         ) : (
           <div className="flex flex-col gap-3">
             <AnimatePresence mode="popLayout">
-              {notifications.map((notif) => (
+              {filteredNotifications.map((notif) => (
                 <motion.div
                   key={notif.id}
                   layout
@@ -125,9 +181,13 @@ export default function NotificationsPage() {
                     <div className="flex gap-4 items-start">
                       {/* Icon/Avatar */}
                       <div className="relative shrink-0">
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center border ${getBgColor(notif.type)}`}>
-                          {getIcon(notif.type)}
-                        </div>
+                        {notif.avatar_url ? (
+                          <img src={notif.avatar_url} alt="avatar" className="w-12 h-12 rounded-full object-cover border border-white/20" />
+                        ) : (
+                          <div className={`w-12 h-12 rounded-full flex items-center justify-center border ${getBgColor(notif.type)}`}>
+                            {getIcon(notif.type)}
+                          </div>
+                        )}
                         {/* Status dot for unread */}
                         {notif.status === 'unread' && (
                           <div className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-accent-green shadow-[0_0_10px_rgba(74,222,128,0.8)] border-2 border-black" />
@@ -147,6 +207,24 @@ export default function NotificationsPage() {
                         <p className={`text-sm line-clamp-2 ${notif.status === 'read' ? 'text-text-muted/80' : 'text-text-muted'}`}>
                           {notif.message}
                         </p>
+                        {notif.type === 'friend_request' && (
+                          <div className="flex gap-2 mt-3">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleFriendRequest(notif.id, 'accepted'); }}
+                              disabled={processingId === notif.id}
+                              className="px-4 py-1.5 bg-accent-green text-black text-sm font-bold rounded-lg active:scale-95 transition-transform disabled:opacity-50"
+                            >
+                              Accept
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleFriendRequest(notif.id, 'rejected'); }}
+                              disabled={processingId === notif.id}
+                              className="px-4 py-1.5 bg-white/10 text-white text-sm font-bold rounded-lg active:scale-95 transition-transform disabled:opacity-50"
+                            >
+                              Decline
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </motion.div>

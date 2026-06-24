@@ -8,6 +8,7 @@ export interface NotificationItem {
   message: string;
   status: 'unread' | 'read';
   createdAt: string;
+  avatar_url?: string;
 }
 
 export interface NotificationStore {

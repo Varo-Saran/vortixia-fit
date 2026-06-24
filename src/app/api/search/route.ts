@@ -26,9 +26,32 @@ export async function GET(request: Request) {
   const { data: { session } } = await supabase.auth.getSession();
   const currentUserId = session?.user?.id;
   
+  let excludeIds: string[] = [];
+  if (currentUserId) {
+    excludeIds.push(currentUserId);
+    
+    // Fetch user's friends and pending requests
+    const { data: friends } = await supabase
+      .from('user_friends')
+      .select('user_id, friend_id')
+      .or(`user_id.eq.${currentUserId},friend_id.eq.${currentUserId}`);
+      
+    if (friends) {
+      friends.forEach(f => {
+        if (f.user_id !== currentUserId) excludeIds.push(f.user_id);
+        if (f.friend_id !== currentUserId) excludeIds.push(f.friend_id);
+      });
+    }
+  }
+
+  // Ensure unique IDs
+  excludeIds = Array.from(new Set(excludeIds));
+
   if (!q) {
     let query = supabase.from('users').select('*').order('total_xp', { ascending: false }).limit(50);
-    if (currentUserId) query = query.neq('id', currentUserId);
+    if (excludeIds.length > 0) {
+      query = query.not('id', 'in', `(${excludeIds.join(',')})`);
+    }
       
     const { data, error } = await query;
     if (error) {
@@ -37,7 +60,9 @@ export async function GET(request: Request) {
     return NextResponse.json(data);
   } else {
     let query = supabase.from('users').select('*').ilike('username', `%${q}%`).limit(50);
-    if (currentUserId) query = query.neq('id', currentUserId);
+    if (excludeIds.length > 0) {
+      query = query.not('id', 'in', `(${excludeIds.join(',')})`);
+    }
       
     const { data, error } = await query;
     if (error) {

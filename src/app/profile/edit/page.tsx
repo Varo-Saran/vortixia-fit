@@ -44,6 +44,40 @@ export default function EditProfile() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
+  const [usernameSuggestions, setUsernameSuggestions] = useState<string[]>([]);
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
+  const [checkingUsername, setCheckingUsername] = useState(false);
+
+  useEffect(() => {
+    if (!username || username === profile?.username) {
+      setUsernameAvailable(null);
+      setUsernameSuggestions([]);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setCheckingUsername(true);
+      try {
+        const res = await fetch(`/api/username-check?q=${encodeURIComponent(username)}`);
+        const data = await res.json();
+        if (res.ok) {
+          setUsernameAvailable(data.available);
+          setUsernameSuggestions(data.suggestions || []);
+        } else {
+          setUsernameAvailable(null);
+          setUsernameSuggestions([]);
+        }
+      } catch (err) {
+        setUsernameAvailable(null);
+        setUsernameSuggestions([]);
+      } finally {
+        setCheckingUsername(false);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [username, profile?.username]);
+
   const stats = useMemo(() => {
     const w = parseFloat(weight);
     const h = parseFloat(height);
@@ -135,11 +169,11 @@ export default function EditProfile() {
         </div>
         <button
           onClick={handleSave}
-          disabled={isSaving}
+          disabled={isSaving || usernameAvailable === false}
           className={`flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-sm transition-all active:scale-95 ${
             saveSuccess
               ? 'bg-accent-green text-black'
-              : 'bg-accent-green/20 text-accent-green border border-accent-green/30'
+              : 'bg-accent-green/20 text-accent-green border border-accent-green/30 disabled:opacity-50 disabled:cursor-not-allowed'
           }`}
         >
           {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
@@ -164,8 +198,30 @@ export default function EditProfile() {
             <label className="text-[10px] uppercase text-text-muted font-bold">Username</label>
             <input 
               type="text" value={username} onChange={(e) => setUsername(e.target.value)}
-              className="bg-black/50 border border-white/10 rounded-lg p-3 text-white outline-none text-sm w-full min-w-0"
+              className={`bg-black/50 border rounded-lg p-3 text-white outline-none text-sm w-full min-w-0 ${usernameAvailable === false ? 'border-red-500/50 focus:border-red-500' : usernameAvailable === true ? 'border-accent-green/50 focus:border-accent-green' : 'border-white/10 focus:border-white/20'}`}
             />
+            {checkingUsername && <span className="text-xs text-text-muted mt-1">Checking availability...</span>}
+            {usernameAvailable === false && !checkingUsername && (
+              <div className="mt-1 flex flex-col gap-2">
+                <span className="text-xs text-red-400 font-medium">Username is already taken.</span>
+                {usernameSuggestions.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {usernameSuggestions.map(suggestion => (
+                      <button
+                        key={suggestion}
+                        onClick={() => setUsername(suggestion)}
+                        className="text-xs bg-white/5 border border-white/10 rounded-full px-3 py-1.5 hover:bg-white/10 transition-colors text-white"
+                      >
+                        {suggestion}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            {usernameAvailable === true && !checkingUsername && (
+              <span className="text-xs text-accent-green font-medium mt-1">Username is available!</span>
+            )}
           </div>
         </div>
       </section>

@@ -11,51 +11,80 @@ import { toast } from "@/components/ui/Toast";
 export default function SocialArena() {
   const { leaderboard, fetchSocialData, isLoading, simulateOpponent } = useSocialStore();
   const { profile } = useProfileStore();
-  const [activeTab, setActiveTab] = useState<"leaderboard" | "duels">("leaderboard");
+  const [activeTab, setActiveTab] = useState<"leaderboard" | "duels" | "friends">("leaderboard");
   const [isChallengeModalOpen, setIsChallengeModalOpen] = useState(false);
   const [dbDuels, setDbDuels] = useState<any[]>([]);
   const [loadingDuels, setLoadingDuels] = useState(false);
-  const [pendingRequests, setPendingRequests] = useState<any[]>([]);
+  const [friendsList, setFriendsList] = useState<any[]>([]);
+  const [friendsWorkedOutToday, setFriendsWorkedOutToday] = useState<Set<string>>(new Set());
+  const [friendToRemove, setFriendToRemove] = useState<{ id: string; name: string } | null>(null);
 
-  const fetchPendingRequests = async () => {
+  const fetchFriends = async () => {
     if (!profile) return;
-    const { data: reqs, error } = await supabase
+    const { data: rels, error } = await supabase
       .from('user_friends')
-      .select('id, user_id, status')
-      .eq('friend_id', profile.id)
-      .eq('status', 'pending');
+      .select('*')
+      .or(`user_id.eq.${profile.id},friend_id.eq.${profile.id}`)
+      .eq('status', 'accepted');
 
-    if (reqs && reqs.length > 0) {
-      const userIds = reqs.map(r => r.user_id);
-      const { data: users } = await supabase.from('users').select('*').in('id', userIds);
+    if (rels && rels.length > 0) {
+      const friendIds = rels.map(r => r.user_id === profile.id ? r.friend_id : r.user_id);
+      const { data: users } = await supabase.from('users').select('*').in('id', friendIds);
       
-      const enriched = reqs.map(r => ({
-        ...r,
-        sender: users?.find(u => u.id === r.user_id)
-      }));
-      setPendingRequests(enriched);
+      const enriched = users?.map(u => {
+        const rel = rels.find(r => r.user_id === u.id || r.friend_id === u.id);
+        return { user: u, requestId: rel?.id };
+      });
+      setFriendsList(enriched || []);
+
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      const { data: sessions } = await supabase
+        .from('workout_sessions')
+        .select('user_id')
+        .in('user_id', friendIds)
+        .gte('start_time', today.toISOString());
+
+      if (sessions) {
+        setFriendsWorkedOutToday(new Set(sessions.map(s => s.user_id)));
+      }
     } else {
-      setPendingRequests([]);
+      setFriendsList([]);
+      setFriendsWorkedOutToday(new Set());
     }
   };
 
-  const handleRequestAction = async (requestId: string, action: 'accepted' | 'rejected') => {
+  const handleRemoveFriend = async () => {
+    if (!friendToRemove) return;
     try {
-      const res = await fetch('/api/friends', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ requestId, status: action })
-      });
+      const res = await fetch(`/api/friends?id=${friendToRemove.id}`, { method: 'DELETE' });
       if (res.ok) {
-        setPendingRequests(prev => prev.filter(r => r.id !== requestId));
+        setFriendsList(prev => prev.filter(f => f.requestId !== friendToRemove.id));
+        toast.success("Friend removed");
       } else {
         const err = await res.json();
         toast.error(`Error: ${err.error}`);
       }
     } catch (err) {
       console.error(err);
+    } finally {
+      setFriendToRemove(null);
     }
   };
+
+  const handleDismissBubble = (friendId: string) => {
+    const date = new Date().toISOString().split('T')[0];
+    localStorage.setItem(`bubble_dismissed_${friendId}_${date}`, 'true');
+    // Force re-render by updating state
+    setFriendsWorkedOutToday(prev => {
+      const next = new Set(prev);
+      // We don't remove them from the set because they still worked out today,
+      // but we handle dismissal via localStorage check during render.
+      return next;
+    });
+  };
+
+
 
   const fetchDuels = async () => {
     if (!profile) return;
@@ -77,14 +106,10 @@ export default function SocialArena() {
   useEffect(() => {
     if (activeTab === "duels") {
       fetchDuels();
+    } else if (activeTab === "friends") {
+      fetchFriends();
     }
   }, [activeTab, profile]);
-
-  useEffect(() => {
-    if (profile) {
-      fetchPendingRequests();
-    }
-  }, [profile]);
 
   useEffect(() => {
     if (leaderboard.length === 0) {
@@ -114,6 +139,12 @@ export default function SocialArena() {
           Leaderboard
         </button>
         <button 
+          onClick={() => setActiveTab("friends")}
+          className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${activeTab === "friends" ? "bg-white/10 text-white shadow-sm" : "text-text-muted hover:text-white"}`}
+        >
+          My Friends
+        </button>
+        <button 
           onClick={() => setActiveTab("duels")}
           className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${activeTab === "duels" ? "bg-white/10 text-white shadow-sm" : "text-text-muted hover:text-white"}`}
         >
@@ -121,34 +152,7 @@ export default function SocialArena() {
         </button>
       </div>
 
-      {pendingRequests.length > 0 && (
-        <section className="w-full mb-6 animate-fade-in-up">
-          <h2 className="text-sm font-bold text-text-muted mb-3 uppercase tracking-widest">Pending Requests</h2>
-          <div className="flex flex-col gap-3">
-            {pendingRequests.map(req => (
-              <div key={req.id} className="flex items-center justify-between p-4 rounded-2xl glass-card border border-white/5">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full bg-black overflow-hidden border border-white/10">
-                    {req.sender?.avatar_url ? (
-                      <img src={req.sender.avatar_url} alt={req.sender.username} className="w-full h-full object-cover" />
-                    ) : (
-                      <UserCircle className="w-full h-full text-text-muted" strokeWidth={1} />
-                    )}
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="font-bold text-white">{req.sender?.full_name || req.sender?.username}</span>
-                    <span className="text-[10px] text-text-muted font-bold uppercase tracking-wider">@{req.sender?.username}</span>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={() => handleRequestAction(req.id, 'accepted')} className="px-3 py-1.5 bg-accent-green text-black text-xs font-bold rounded-lg hover:opacity-80 transition-opacity">Accept</button>
-                  <button onClick={() => handleRequestAction(req.id, 'rejected')} className="px-3 py-1.5 bg-white/10 text-white text-xs font-bold rounded-lg hover:bg-white/20 transition-opacity">Decline</button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
+
 
       {isLoading && leaderboard.length === 0 ? (
         <div className="flex-1 flex items-center justify-center">
@@ -194,6 +198,56 @@ export default function SocialArena() {
                 </div>
               );
             })}
+          </div>
+        </section>
+      ) : activeTab === "friends" ? (
+        /* Friends Tab */
+        <section className="w-full animate-fade-in-up">
+          <div className="flex flex-col gap-4">
+            {friendsList.length === 0 ? (
+              <div className="text-center text-text-muted text-sm py-10">No friends yet. Add some!</div>
+            ) : (
+              friendsList.map(f => {
+                const isWorkedOutToday = friendsWorkedOutToday.has(f.user.id);
+                const date = new Date().toISOString().split('T')[0];
+                const bubbleDismissed = typeof window !== 'undefined' ? localStorage.getItem(`bubble_dismissed_${f.user.id}_${date}`) === 'true' : false;
+                const showBubble = isWorkedOutToday && !bubbleDismissed;
+
+                return (
+                  <div key={f.requestId} className="flex items-center justify-between p-4 rounded-2xl glass-card border border-white/5 relative">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-full bg-black overflow-hidden border border-white/10 relative">
+                        {f.user.avatar_url ? (
+                          <img src={f.user.avatar_url} alt={f.user.username} className="w-full h-full object-cover" />
+                        ) : (
+                          <UserCircle className="w-full h-full text-text-muted" strokeWidth={1} />
+                        )}
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="font-bold text-white">{f.user.full_name || f.user.username}</span>
+                        <span className="text-[10px] text-text-muted font-bold uppercase tracking-wider">@{f.user.username}</span>
+                      </div>
+                    </div>
+                    
+                    {showBubble && (
+                      <div 
+                        onClick={() => handleDismissBubble(f.user.id)}
+                        className="absolute -top-3 left-16 bg-accent-green text-black text-[10px] font-bold px-3 py-1.5 rounded-2xl rounded-bl-none shadow-lg cursor-pointer hover:scale-105 transition-transform z-10 animate-bounce"
+                      >
+                        I've completed my today's workout! 🎉
+                      </div>
+                    )}
+
+                    <button 
+                      onClick={() => setFriendToRemove({ id: f.requestId, name: f.user.username })}
+                      className="px-3 py-1.5 bg-red-500/10 text-red-500 text-xs font-bold rounded-lg hover:bg-red-500/20 transition-colors"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                );
+              })
+            )}
           </div>
         </section>
       ) : (
@@ -301,6 +355,32 @@ export default function SocialArena() {
         onClose={() => setIsChallengeModalOpen(false)} 
         onChallengeIssued={fetchDuels}
       />
+
+      {/* Remove Friend Confirmation Modal */}
+      {friendToRemove && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-6 animate-fade-in">
+          <div className="bg-[#111] border border-white/10 rounded-2xl p-6 w-full max-w-sm flex flex-col gap-4">
+            <h3 className="text-xl font-black text-white">Remove Friend?</h3>
+            <p className="text-sm text-text-muted">
+              Are you sure you want to remove <span className="font-bold text-white">@{friendToRemove.name}</span> from your friends list?
+            </p>
+            <div className="flex gap-3 mt-2">
+              <button 
+                onClick={() => setFriendToRemove(null)}
+                className="flex-1 py-3 rounded-xl font-bold text-sm bg-white/10 text-white hover:bg-white/20 transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleRemoveFriend}
+                className="flex-1 py-3 rounded-xl font-bold text-sm bg-red-500 text-white hover:bg-red-600 transition-colors"
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </main>
   );
