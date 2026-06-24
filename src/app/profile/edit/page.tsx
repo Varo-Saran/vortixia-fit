@@ -19,6 +19,15 @@ export default function EditProfile() {
   const [age, setAge] = useState<string>(metrics?.age?.toString() || "25");
   const [weight, setWeight] = useState<string>(metrics?.weight_kg?.toString() || "75");
   const [height, setHeight] = useState<string>(metrics?.height_cm?.toString() || "175");
+  const [fullName, setFullName] = useState<string>(profile?.full_name || "");
+  const [username, setUsername] = useState<string>(profile?.username || "");
+
+  useEffect(() => {
+    if (profile) {
+      setFullName(profile.full_name || "");
+      setUsername(profile.username || "");
+    }
+  }, [profile]);
 
   useEffect(() => {
     if (metrics) {
@@ -83,6 +92,26 @@ export default function EditProfile() {
           tdee,
         }, { onConflict: 'id' });
 
+      if (fullName !== profile?.full_name || username !== profile?.username) {
+        const { error } = await supabase
+          .from('users')
+          .update({
+            full_name: fullName,
+            username: username
+          })
+          .eq('id', userId);
+          
+        if (error) {
+          if (error.code === '23505') {
+            alert('Username is already taken');
+            return;
+          }
+          console.error("Error updating user:", error);
+        } else {
+          fetchProfile(); // Refresh store
+        }
+      }
+
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 2000);
     } catch (err) {
@@ -117,6 +146,29 @@ export default function EditProfile() {
         </button>
       </header>
         
+      <section className="w-full mb-6 flex flex-col gap-4 animate-fade-in-up">
+        <h2 className="text-xs font-bold text-text-muted uppercase tracking-widest">
+          Personal Info
+        </h2>
+        
+        <div className="glass-card p-4 flex flex-col gap-4 border border-white/5">
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] uppercase text-text-muted font-bold">Full Name</label>
+            <input 
+              type="text" value={fullName} onChange={(e) => setFullName(e.target.value)}
+              className="bg-black/50 border border-white/10 rounded-lg p-3 text-white outline-none text-sm w-full min-w-0"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] uppercase text-text-muted font-bold">Username</label>
+            <input 
+              type="text" value={username} onChange={(e) => setUsername(e.target.value)}
+              className="bg-black/50 border border-white/10 rounded-lg p-3 text-white outline-none text-sm w-full min-w-0"
+            />
+          </div>
+        </div>
+      </section>
+
       <section className="w-full mb-6 flex flex-col gap-4 animate-fade-in-up">
         <h2 className="text-xs font-bold text-text-muted uppercase tracking-widest">
           Body Metrics

@@ -134,7 +134,6 @@ export default function AddFriendsPage() {
       <section className="w-full px-6 mt-8 z-10 animate-fade-in-up" style={{ animationDelay: '0.4s' }}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-black text-white">{query ? "Search Results" : "Recommended Athletes"}</h2>
-          {!query && <button className="text-xs font-bold text-purple-400 bg-purple-400/10 px-3 py-1 rounded-full">View all &rarr;</button>}
         </div>
 
         {loading ? (

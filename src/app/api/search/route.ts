@@ -23,25 +23,23 @@ export async function GET(request: Request) {
   const q = searchParams.get('q') || '';
   
   const supabase = await createSupabaseServer();
+  const { data: { session } } = await supabase.auth.getSession();
+  const currentUserId = session?.user?.id;
   
   if (!q) {
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .order('total_xp', { ascending: false })
-      .limit(5);
+    let query = supabase.from('users').select('*').order('total_xp', { ascending: false }).limit(50);
+    if (currentUserId) query = query.neq('id', currentUserId);
       
+    const { data, error } = await query;
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
     return NextResponse.json(data);
   } else {
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .ilike('username', `%${q}%`)
-      .limit(20);
+    let query = supabase.from('users').select('*').ilike('username', `%${q}%`).limit(50);
+    if (currentUserId) query = query.neq('id', currentUserId);
       
+    const { data, error } = await query;
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
