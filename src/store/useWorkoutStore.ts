@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { PlannedExercise } from './useRoutineStore';
+import { PlannedExercise, TrackingType, WeightUnit } from './useRoutineStore';
 import { useTrophyStore } from './useTrophyStore';
 import { supabase } from '@/lib/supabase';
 
@@ -17,6 +17,8 @@ export interface WorkoutExercise {
   id: string;
   name: string;
   sets: WorkoutSet[];
+  trackingType?: TrackingType;
+  weightUnit?: WeightUnit;
 }
 
 interface WorkoutStore {
@@ -40,6 +42,7 @@ interface WorkoutStore {
   addRestTime: (seconds: number) => void;
   addSet: (exerciseId: string) => void;
   addExerciseToWorkout: (exerciseName: string) => void;
+  changeExerciseTracking: (exerciseId: string, trackingType: TrackingType, weightUnit: WeightUnit) => void;
   resetWorkout: () => void;
 }
 
@@ -68,7 +71,9 @@ export const useWorkoutStore = create<WorkoutStore>()(
       return {
         id: ex.id,
         name: ex.name,
-        sets
+        sets,
+        trackingType: ex.trackingType,
+        weightUnit: ex.weightUnit
       };
     });
 
@@ -110,6 +115,8 @@ export const useWorkoutStore = create<WorkoutStore>()(
           setNumber: ex.sets.indexOf(s) + 1,
           weight: typeof s.weight === 'number' ? s.weight : 0,
           reps: typeof s.reps === 'number' ? s.reps : 0,
+          trackingType: ex.trackingType,
+          weightUnit: ex.weightUnit,
         }))
       );
 
@@ -169,8 +176,8 @@ export const useWorkoutStore = create<WorkoutStore>()(
           set_number: s.setNumber,
           weight: s.weight,
           reps: s.reps,
-          weight_unit: 'kg',
-          tracking_type: 'reps_weight',
+          weight_unit: s.weightUnit || 'kg',
+          tracking_type: s.trackingType || 'reps_weight',
         }));
 
         const { error: setsErr } = await supabase
@@ -336,10 +343,25 @@ export const useWorkoutStore = create<WorkoutStore>()(
           isCompleted: false,
           previousWeight: 0,
           previousReps: 0
-        }]
+        }],
+        trackingType: 'reps_weight',
+        weightUnit: 'lbs'
       };
       return { exercises: [...state.exercises, newExercise] };
     });
+  },
+
+  changeExerciseTracking: (exerciseId, trackingType, weightUnit) => {
+    set(state => ({
+      exercises: state.exercises.map(ex => {
+        if (ex.id !== exerciseId) return ex;
+        return {
+          ...ex,
+          trackingType,
+          weightUnit
+        };
+      })
+    }));
   }
     }),
     {

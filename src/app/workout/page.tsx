@@ -12,6 +12,25 @@ import { useRecoveryStore, MuscleGroup } from "@/store/useRecoveryStore";
 import { useSocialStore } from "@/store/useSocialStore";
 import { toast } from "react-hot-toast";
 
+// Add runtime implementation of changeExerciseTracking to the store if it doesn't exist
+if (typeof window !== "undefined") {
+  const store = useWorkoutStore as any;
+  if (store && !store.getState().changeExerciseTracking) {
+    store.getState().changeExerciseTracking = (exerciseId: string, trackingType: string, weightUnit: string) => {
+      store.setState((state: any) => ({
+        exercises: state.exercises.map((ex: any) => {
+          if (ex.id !== exerciseId) return ex;
+          return {
+            ...ex,
+            trackingType,
+            weightUnit
+          };
+        })
+      }));
+    };
+  }
+}
+
 export default function ActiveWorkoutPage() {
   const router = useRouter();
   const { 
@@ -19,8 +38,9 @@ export default function ActiveWorkoutPage() {
     isSaving,
     finishWorkout, updateSet, toggleSetComplete, 
     addSet, addExerciseToWorkout,
-    saveWorkoutToDb, resetWorkout
-  } = useWorkoutStore();
+    saveWorkoutToDb, resetWorkout,
+    changeExerciseTracking
+  } = useWorkoutStore() as any;
 
   const [elapsed, setElapsed] = useState("00:00");
   const [showSummary, setShowSummary] = useState(false);
@@ -28,6 +48,10 @@ export default function ActiveWorkoutPage() {
   // Plate Calculator State
   const [isPlateCalcOpen, setIsPlateCalcOpen] = useState(false);
   const [plateCalcWeight, setPlateCalcWeight] = useState(0);
+  const [plateCalcContext, setPlateCalcContext] = useState<{ exerciseId: string; setId: string; reps: number | '' } | null>(null);
+
+  // Exercise Settings Modal State
+  const [activeSettingsExerciseId, setActiveSettingsExerciseId] = useState<string | null>(null);
 
   // Exercise Modal State
   const [isExerciseModalOpen, setIsExerciseModalOpen] = useState(false);
@@ -50,8 +74,8 @@ export default function ActiveWorkoutPage() {
 
   const handleFinish = async () => {
     // Calculate volume for Gamification and Duels
-    const totalVolume = exercises.reduce((total, ex) => {
-      return total + ex.sets.reduce((setTotal, set) => {
+    const totalVolume = exercises.reduce((total: number, ex: any) => {
+      return total + ex.sets.reduce((setTotal: number, set: any) => {
         if (set.isCompleted && typeof set.weight === 'number' && typeof set.reps === 'number') {
           return setTotal + (set.weight * set.reps);
         }
@@ -65,8 +89,8 @@ export default function ActiveWorkoutPage() {
     const isAiGenerated = routineName.startsWith('AI') || routineName.includes('AI');
 
     // Calculate XP aligned with useWorkoutStore.ts saveWorkoutToDb
-    const totalSets = exercises.reduce((total, ex) => {
-      return total + ex.sets.filter(s => s.isCompleted).length;
+    const totalSets = exercises.reduce((total: number, ex: any) => {
+      return total + ex.sets.filter((s: any) => s.isCompleted).length;
     }, 0);
     const earnedXP = Math.round(totalSets * 50 + totalVolume * 0.1);
 
@@ -74,8 +98,8 @@ export default function ActiveWorkoutPage() {
     useSocialStore.getState().updateDuelProgress(totalVolume, earnedXP);
 
     // Apply fatigue based on completed sets
-    exercises.forEach(ex => {
-      const completedSetsCount = ex.sets.filter(s => s.isCompleted).length;
+    exercises.forEach((ex: any) => {
+      const completedSetsCount = ex.sets.filter((s: any) => s.isCompleted).length;
       if (completedSetsCount > 0) {
         let muscle: MuscleGroup = 'core';
         const name = ex.name.toLowerCase();
@@ -125,6 +149,31 @@ export default function ActiveWorkoutPage() {
     }
   };
 
+  // Format the previous logs dynamically based on the tracking type
+  const formatPrevious = (set: any, trackingType: string, weightUnit: string) => {
+    const weightVal = set.previousWeight || 0;
+    const repsVal = set.previousReps || 0;
+    
+    if (weightVal === 0 && repsVal === 0) return '-';
+
+    switch (trackingType) {
+      case 'reps_weight':
+        return `${weightVal} ${weightUnit.toLowerCase()} × ${repsVal} reps`;
+      case 'reps_only':
+        return `${repsVal} reps`;
+      case 'time_weight':
+        return `${weightVal} ${weightUnit.toLowerCase()} × ${repsVal} secs`;
+      case 'time_only':
+        const mins = Math.floor(repsVal / 60);
+        const secs = repsVal % 60;
+        return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+      case 'cardio_hr':
+        return `${weightVal} mins × ${repsVal} bpm`;
+      default:
+        return `${weightVal} × ${repsVal}`;
+    }
+  };
+
   // Offline State
   const [isOffline, setIsOffline] = useState(false);
   useEffect(() => {
@@ -140,8 +189,8 @@ export default function ActiveWorkoutPage() {
   }, []);
 
   if (showSummary) {
-    const totalVolume = exercises.reduce((total, ex) => {
-      return total + ex.sets.reduce((setTotal, set) => {
+    const totalVolume = exercises.reduce((total: number, ex: any) => {
+      return total + ex.sets.reduce((setTotal: number, set: any) => {
         if (set.isCompleted && typeof set.weight === 'number' && typeof set.reps === 'number') {
           return setTotal + (set.weight * set.reps);
         }
@@ -149,8 +198,8 @@ export default function ActiveWorkoutPage() {
       }, 0);
     }, 0);
 
-    const totalSets = exercises.reduce((total, ex) => {
-      return total + ex.sets.filter(s => s.isCompleted).length;
+    const totalSets = exercises.reduce((total: number, ex: any) => {
+      return total + ex.sets.filter((s: any) => s.isCompleted).length;
     }, 0);
 
     return (
@@ -210,79 +259,248 @@ export default function ActiveWorkoutPage() {
 
       {/* Exercises */}
       <div className="flex flex-col gap-6 p-4">
-        {exercises.map((ex, exIdx) => (
-          <div key={ex.id} className="glass-card flex flex-col overflow-hidden animate-fade-in-up" style={{ animationDelay: `${exIdx * 0.1}s` }}>
-            <div className="p-4 bg-white/5 border-b border-white/5 flex justify-between items-center">
-              <h2 className="text-lg font-black text-white">{ex.name}</h2>
-              <button aria-label="Exercise Settings" className="text-text-muted hover:text-white"><Settings2 className="w-4 h-4" /></button>
-            </div>
-            
-            <div className="p-2 flex flex-col gap-1">
-              {/* Table Header */}
-              <div className="flex items-center px-2 py-1 text-[10px] uppercase font-bold text-text-muted tracking-widest">
-                <div className="w-8 text-center">Set</div>
-                <div className="flex-1 text-center">Previous</div>
-                <div className="w-16 flex items-center justify-center gap-1">
-                  LBS
-                  <button onClick={() => {
-                    const lastWeight = ex.sets.findLast(s => typeof s.weight === 'number' && s.weight > 0)?.weight || 135;
-                    setPlateCalcWeight(Number(lastWeight));
-                    setIsPlateCalcOpen(true);
-                  }} className="text-accent-green hover:bg-accent-green/20 p-1 rounded-md transition-colors">
-                    <Calculator className="w-3 h-3" />
-                  </button>
-                </div>
-                <div className="w-16 text-center">Reps</div>
-                <div className="w-10 text-center"><Check className="w-3 h-3 mx-auto" /></div>
+        {exercises.map((ex: any, exIdx: number) => {
+          const trackingType = ex.trackingType || 'reps_weight';
+          const weightUnit = ex.weightUnit || 'LBS';
+          return (
+            <div key={ex.id} className="glass-card flex flex-col overflow-hidden animate-fade-in-up" style={{ animationDelay: `${exIdx * 0.1}s` }}>
+              <div className="p-4 bg-white/5 border-b border-white/5 flex justify-between items-center">
+                <h2 className="text-lg font-black text-white">{ex.name}</h2>
+                <button 
+                  onClick={() => setActiveSettingsExerciseId(ex.id)}
+                  aria-label="Exercise Settings" 
+                  className="text-text-muted hover:text-white"
+                >
+                  <Settings2 className="w-4 h-4" />
+                </button>
               </div>
-
-              {/* Sets */}
-              {ex.sets.map((set, i) => (
-                <div key={set.id} className={`flex items-center px-2 py-2 rounded-lg transition-colors ${set.isCompleted ? 'bg-accent-green/5' : ''}`}>
-                  <div className="w-8 text-center text-xs font-bold text-text-muted">{i + 1}</div>
-                  <div className="flex-1 text-center text-xs text-text-muted/50 font-medium truncate">
-                    {set.previousWeight > 0 ? `${set.previousWeight}lbs × ${set.previousReps}` : '-'}
-                  </div>
-                  <div className="w-16 px-1">
-                    <input 
-                      type="number"
-                      min="0"
-                      value={set.weight}
-                      onChange={(e) => updateSet(ex.id, set.id, e.target.value === '' ? '' : Math.max(0, Number(e.target.value)), set.reps)}
-                      className={`w-full bg-black/50 border rounded-md text-center text-base font-bold py-1 outline-none transition-colors ${set.isCompleted ? 'border-transparent text-white/50' : 'border-white/10 text-white focus:border-accent-green focus:bg-accent-green/10'}`}
-                      placeholder="-"
-                    />
-                  </div>
-                  <div className="w-16 px-1">
-                    <input 
-                      type="number"
-                      min="0"
-                      value={set.reps}
-                      onChange={(e) => updateSet(ex.id, set.id, set.weight, e.target.value === '' ? '' : Math.max(0, Number(e.target.value)))}
-                      className={`w-full bg-black/50 border rounded-md text-center text-base font-bold py-1 outline-none transition-colors ${set.isCompleted ? 'border-transparent text-white/50' : 'border-white/10 text-white focus:border-accent-green focus:bg-accent-green/10'}`}
-                      placeholder="-"
-                    />
-                  </div>
-                  <div className="w-10 flex justify-center">
-                    <button 
-                      onClick={() => toggleSetComplete(ex.id, set.id)}
-                      className={`w-7 h-7 rounded-md flex items-center justify-center transition-all ${set.isCompleted ? 'bg-accent-green text-black shadow-[0_0_10px_rgba(74,222,128,0.4)]' : 'bg-white/10 text-white/30 hover:bg-white/20'}`}
-                    >
-                      <Check className="w-4 h-4 stroke-[3]" />
-                    </button>
-                  </div>
-                </div>
-              ))}
               
-              <button 
-                onClick={() => addSet(ex.id)}
-                className="mt-2 py-2 text-xs font-bold uppercase tracking-widest text-text-muted hover:text-white hover:bg-white/5 rounded-lg transition-colors"
-              >
-                + Add Set
-              </button>
+              <div className="p-2 flex flex-col gap-1">
+                {/* Table Header */}
+                <div className="flex items-center px-2 py-1 text-[10px] uppercase font-bold text-text-muted tracking-widest">
+                  <div className="w-8 text-center">Set</div>
+                  <div className="flex-1 text-center">Previous</div>
+                  
+                  {/* Dynamic Headers based on trackingType */}
+                  {trackingType === 'reps_weight' && (
+                    <>
+                      <div className="w-20 flex items-center justify-center gap-1">
+                        {weightUnit}
+                        {(weightUnit === 'LBS' || weightUnit === 'KG') && (
+                          <button onClick={() => {
+                            const lastWeight = ex.sets.findLast((s: any) => typeof s.weight === 'number' && s.weight > 0)?.weight || 135;
+                            setPlateCalcWeight(Number(lastWeight));
+                            setPlateCalcContext({ exerciseId: ex.id, setId: ex.sets[ex.sets.length - 1]?.id || '', reps: ex.sets[ex.sets.length - 1]?.reps || '' });
+                            setIsPlateCalcOpen(true);
+                          }} className="text-accent-green hover:bg-accent-green/20 p-1 rounded-md transition-colors">
+                            <Calculator className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                      <div className="w-16 text-center">Reps</div>
+                    </>
+                  )}
+
+                  {trackingType === 'reps_only' && (
+                    <div className="w-16 text-center">Reps</div>
+                  )}
+
+                  {trackingType === 'time_weight' && (
+                    <>
+                      <div className="w-20 flex items-center justify-center gap-1">
+                        {weightUnit}
+                        {(weightUnit === 'LBS' || weightUnit === 'KG') && (
+                          <button onClick={() => {
+                            const lastWeight = ex.sets.findLast((s: any) => typeof s.weight === 'number' && s.weight > 0)?.weight || 135;
+                            setPlateCalcWeight(Number(lastWeight));
+                            setPlateCalcContext({ exerciseId: ex.id, setId: ex.sets[ex.sets.length - 1]?.id || '', reps: ex.sets[ex.sets.length - 1]?.reps || '' });
+                            setIsPlateCalcOpen(true);
+                          }} className="text-accent-green hover:bg-accent-green/20 p-1 rounded-md transition-colors">
+                            <Calculator className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                      <div className="w-16 text-center">Secs</div>
+                    </>
+                  )}
+
+                  {trackingType === 'time_only' && (
+                    <div className="w-20 text-center">Secs</div>
+                  )}
+
+                  {trackingType === 'cardio_hr' && (
+                    <>
+                      <div className="w-16 text-center">Mins</div>
+                      <div className="w-16 text-center">BPM</div>
+                    </>
+                  )}
+
+                  <div className="w-10 text-center"><Check className="w-3 h-3 mx-auto" /></div>
+                </div>
+
+                {/* Sets */}
+                {ex.sets.map((set: any, i: number) => (
+                  <div key={set.id} className={`flex items-center px-2 py-2 rounded-lg transition-colors ${set.isCompleted ? 'bg-accent-green/5' : ''}`}>
+                    <div className="w-8 text-center text-xs font-bold text-text-muted">{i + 1}</div>
+                    <div className="flex-1 text-center text-xs text-text-muted/50 font-medium truncate">
+                      {formatPrevious(set, trackingType, weightUnit)}
+                    </div>
+
+                    {/* Inputs depending on trackingType */}
+                    {trackingType === 'reps_weight' && (
+                      <>
+                        {/* Weight input with calculator icon */}
+                        <div className="w-20 px-1 relative flex items-center">
+                          <input 
+                            type="number"
+                            min="0"
+                            value={set.weight}
+                            onChange={(e) => updateSet(ex.id, set.id, e.target.value === '' ? '' : Math.max(0, Number(e.target.value)), set.reps)}
+                            className={`w-full bg-black/50 border rounded-md text-center text-base font-bold py-1 pr-6 outline-none transition-colors ${set.isCompleted ? 'border-transparent text-white/50' : 'border-white/10 text-white focus:border-accent-green focus:bg-accent-green/10'}`}
+                            placeholder={weightUnit.toLowerCase()}
+                          />
+                          {(weightUnit === 'LBS' || weightUnit === 'KG') && (
+                            <button 
+                              onClick={() => {
+                                setPlateCalcContext({ exerciseId: ex.id, setId: set.id, reps: set.reps });
+                                setPlateCalcWeight(Number(set.weight) || 135);
+                                setIsPlateCalcOpen(true);
+                              }}
+                              className="absolute right-1.5 text-accent-green hover:text-accent-green/80 p-0.5"
+                              title="Plate Calculator"
+                            >
+                              <Calculator className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                        {/* Reps input */}
+                        <div className="w-16 px-1">
+                          <input 
+                            type="number"
+                            min="0"
+                            value={set.reps}
+                            onChange={(e) => updateSet(ex.id, set.id, set.weight, e.target.value === '' ? '' : Math.max(0, Number(e.target.value)))}
+                            className={`w-full bg-black/50 border rounded-md text-center text-base font-bold py-1 outline-none transition-colors ${set.isCompleted ? 'border-transparent text-white/50' : 'border-white/10 text-white focus:border-accent-green focus:bg-accent-green/10'}`}
+                            placeholder="reps"
+                          />
+                        </div>
+                      </>
+                    )}
+
+                    {trackingType === 'reps_only' && (
+                      <div className="w-16 px-1">
+                        <input 
+                          type="number"
+                          min="0"
+                          value={set.reps}
+                          onChange={(e) => updateSet(ex.id, set.id, '', e.target.value === '' ? '' : Math.max(0, Number(e.target.value)))}
+                          className={`w-full bg-black/50 border rounded-md text-center text-base font-bold py-1 outline-none transition-colors ${set.isCompleted ? 'border-transparent text-white/50' : 'border-white/10 text-white focus:border-accent-green focus:bg-accent-green/10'}`}
+                          placeholder="reps"
+                        />
+                      </div>
+                    )}
+
+                    {trackingType === 'time_weight' && (
+                      <>
+                        {/* Weight input with calculator icon */}
+                        <div className="w-20 px-1 relative flex items-center">
+                          <input 
+                            type="number"
+                            min="0"
+                            value={set.weight}
+                            onChange={(e) => updateSet(ex.id, set.id, e.target.value === '' ? '' : Math.max(0, Number(e.target.value)), set.reps)}
+                            className={`w-full bg-black/50 border rounded-md text-center text-base font-bold py-1 pr-6 outline-none transition-colors ${set.isCompleted ? 'border-transparent text-white/50' : 'border-white/10 text-white focus:border-accent-green focus:bg-accent-green/10'}`}
+                            placeholder={weightUnit.toLowerCase()}
+                          />
+                          {(weightUnit === 'LBS' || weightUnit === 'KG') && (
+                            <button 
+                              onClick={() => {
+                                setPlateCalcContext({ exerciseId: ex.id, setId: set.id, reps: set.reps });
+                                setPlateCalcWeight(Number(set.weight) || 135);
+                                setIsPlateCalcOpen(true);
+                              }}
+                              className="absolute right-1.5 text-accent-green hover:text-accent-green/80 p-0.5"
+                              title="Plate Calculator"
+                            >
+                              <Calculator className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                        {/* Time input (Secs) */}
+                        <div className="w-16 px-1">
+                          <input 
+                            type="number"
+                            min="0"
+                            value={set.reps}
+                            onChange={(e) => updateSet(ex.id, set.id, set.weight, e.target.value === '' ? '' : Math.max(0, Number(e.target.value)))}
+                            className={`w-full bg-black/50 border rounded-md text-center text-base font-bold py-1 outline-none transition-colors ${set.isCompleted ? 'border-transparent text-white/50' : 'border-white/10 text-white focus:border-accent-green focus:bg-accent-green/10'}`}
+                            placeholder="secs"
+                          />
+                        </div>
+                      </>
+                    )}
+
+                    {trackingType === 'time_only' && (
+                      <div className="w-20 px-1">
+                        <input 
+                          type="number"
+                          min="0"
+                          value={set.reps}
+                          onChange={(e) => updateSet(ex.id, set.id, '', e.target.value === '' ? '' : Math.max(0, Number(e.target.value)))}
+                          className={`w-full bg-black/50 border rounded-md text-center text-base font-bold py-1 outline-none transition-colors ${set.isCompleted ? 'border-transparent text-white/50' : 'border-white/10 text-white focus:border-accent-green focus:bg-accent-green/10'}`}
+                          placeholder="secs"
+                        />
+                      </div>
+                    )}
+
+                    {trackingType === 'cardio_hr' && (
+                      <>
+                        {/* Time (Mins) input */}
+                        <div className="w-16 px-1">
+                          <input 
+                            type="number"
+                            min="0"
+                            value={set.weight}
+                            onChange={(e) => updateSet(ex.id, set.id, e.target.value === '' ? '' : Math.max(0, Number(e.target.value)), set.reps)}
+                            className={`w-full bg-black/50 border rounded-md text-center text-base font-bold py-1 outline-none transition-colors ${set.isCompleted ? 'border-transparent text-white/50' : 'border-white/10 text-white focus:border-accent-green focus:bg-accent-green/10'}`}
+                            placeholder="mins"
+                          />
+                        </div>
+                        {/* HR (BPM) input */}
+                        <div className="w-16 px-1">
+                          <input 
+                            type="number"
+                            min="0"
+                            value={set.reps}
+                            onChange={(e) => updateSet(ex.id, set.id, set.weight, e.target.value === '' ? '' : Math.max(0, Number(e.target.value)))}
+                            className={`w-full bg-black/50 border rounded-md text-center text-base font-bold py-1 outline-none transition-colors ${set.isCompleted ? 'border-transparent text-white/50' : 'border-white/10 text-white focus:border-accent-green focus:bg-accent-green/10'}`}
+                            placeholder="bpm"
+                          />
+                        </div>
+                      </>
+                    )}
+
+                    <div className="w-10 flex justify-center">
+                      <button 
+                        onClick={() => toggleSetComplete(ex.id, set.id)}
+                        className={`w-7 h-7 rounded-md flex items-center justify-center transition-all ${set.isCompleted ? 'bg-accent-green text-black shadow-[0_0_10px_rgba(74,222,128,0.4)]' : 'bg-white/10 text-white/30 hover:bg-white/20'}`}
+                      >
+                        <Check className="w-4 h-4 stroke-[3]" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                
+                <button 
+                  onClick={() => addSet(ex.id)}
+                  className="mt-2 py-2 text-xs font-bold uppercase tracking-widest text-text-muted hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+                >
+                  + Add Set
+                </button>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
         
         <button 
           onClick={() => setIsExerciseModalOpen(true)}
@@ -294,8 +512,23 @@ export default function ActiveWorkoutPage() {
 
       <PlateCalculator 
         isOpen={isPlateCalcOpen} 
-        onClose={() => setIsPlateCalcOpen(false)} 
+        onClose={() => {
+          setIsPlateCalcOpen(false);
+          setPlateCalcContext(null);
+        }} 
         targetWeight={plateCalcWeight} 
+        onApplyWeight={(weight) => {
+          if (plateCalcContext) {
+            updateSet(plateCalcContext.exerciseId, plateCalcContext.setId, weight, plateCalcContext.reps);
+          } else {
+            // Fallback for header calculator
+            const activeEx = exercises[exercises.length - 1];
+            if (activeEx && activeEx.sets.length > 0) {
+              const lastSet = activeEx.sets[activeEx.sets.length - 1];
+              updateSet(activeEx.id, lastSet.id, weight, lastSet.reps);
+            }
+          }
+        }}
       />
 
       <ExerciseSelectionModal
@@ -305,6 +538,93 @@ export default function ActiveWorkoutPage() {
           addExerciseToWorkout(exercise.name);
         }}
       />
+
+      {/* Exercise Settings Modal */}
+      {activeSettingsExerciseId && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-[#111] border border-white/10 rounded-2xl w-full max-w-sm p-6 flex flex-col gap-6 shadow-2xl">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-black text-white">Exercise Settings</h3>
+              <button 
+                onClick={() => setActiveSettingsExerciseId(null)}
+                className="p-1 bg-white/5 rounded-full hover:bg-white/10 text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Tracking Mode Selection */}
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-bold text-text-muted uppercase tracking-widest">Tracking Mode</label>
+              <div className="flex flex-col gap-1.5">
+                {[
+                  { id: 'reps_weight', label: 'Weight & Reps' },
+                  { id: 'reps_only', label: 'Reps Only' },
+                  { id: 'time_weight', label: 'Time & Weight' },
+                  { id: 'time_only', label: 'Time Only' },
+                  { id: 'cardio_hr', label: 'Cardio & HR' }
+                ].map((mode) => {
+                  const currentEx = exercises.find((e: any) => e.id === activeSettingsExerciseId);
+                  const isSelected = (currentEx?.trackingType || 'reps_weight') === mode.id;
+                  return (
+                    <button
+                      key={mode.id}
+                      onClick={() => {
+                        const currentEx = exercises.find((e: any) => e.id === activeSettingsExerciseId);
+                        const currentUnit = currentEx?.weightUnit || 'LBS';
+                        changeExerciseTracking(activeSettingsExerciseId, mode.id, currentUnit);
+                      }}
+                      className={`w-full py-2.5 px-4 rounded-xl border text-left font-bold text-sm transition-all flex justify-between items-center ${
+                        isSelected 
+                          ? 'bg-accent-green/10 text-accent-green border-accent-green/30' 
+                          : 'bg-white/5 text-white/70 border-white/5 hover:bg-white/10'
+                      }`}
+                    >
+                      <span>{mode.label}</span>
+                      {isSelected && <Check className="w-4 h-4 stroke-[3]" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Weight Unit Selection */}
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-bold text-text-muted uppercase tracking-widest">Weight Unit</label>
+              <div className="grid grid-cols-4 gap-1.5">
+                {['LBS', 'KG', 'Plates', 'Unitless'].map((unit) => {
+                  const currentEx = exercises.find((e: any) => e.id === activeSettingsExerciseId);
+                  const isSelected = (currentEx?.weightUnit || 'LBS') === unit;
+                  return (
+                    <button
+                      key={unit}
+                      onClick={() => {
+                        const currentEx = exercises.find((e: any) => e.id === activeSettingsExerciseId);
+                        const currentMode = currentEx?.trackingType || 'reps_weight';
+                        changeExerciseTracking(activeSettingsExerciseId, currentMode, unit);
+                      }}
+                      className={`py-2 px-1 rounded-xl border text-center font-bold text-xs transition-all ${
+                        isSelected 
+                          ? 'bg-accent-green/10 text-accent-green border-accent-green/30' 
+                          : 'bg-white/5 text-white/70 border-white/5 hover:bg-white/10'
+                      }`}
+                    >
+                      {unit}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <button 
+              onClick={() => setActiveSettingsExerciseId(null)}
+              className="w-full bg-accent-green text-black font-black uppercase tracking-widest py-3 rounded-xl hover:opacity-90 transition-all text-xs"
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
