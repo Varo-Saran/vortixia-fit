@@ -74,8 +74,16 @@ export function GlobalListeners() {
               const { data: { session } } = await supabase.auth.getSession();
               if (session?.user?.id) {
                 const userId = session.user.id;
-                for (const workout of workouts) {
-                  const { data: sessionRow } = await supabase
+                
+                while (true) {
+                  const currentUnsynced = localStorage.getItem('unsynced_workouts');
+                  if (!currentUnsynced) break;
+                  const currentWorkouts = JSON.parse(currentUnsynced);
+                  if (currentWorkouts.length === 0) break;
+
+                  const workout = currentWorkouts[0];
+
+                  const { data: sessionRow, error: sessionErr } = await supabase
                     .from('workout_sessions')
                     .insert({
                       user_id: userId,
@@ -87,7 +95,12 @@ export function GlobalListeners() {
                     .select('id')
                     .single();
 
-                  if (sessionRow && workout.completedSets.length > 0) {
+                  if (sessionErr || !sessionRow) {
+                    console.error('Failed to sync workout session', sessionErr);
+                    break;
+                  }
+
+                  if (workout.completedSets.length > 0) {
                     const setsToInsert = workout.completedSets.map((s: any) => ({
                       session_id: sessionRow.id,
                       exercise_name: s.exerciseName,
@@ -97,14 +110,58 @@ export function GlobalListeners() {
                       weight_unit: 'kg',
                       tracking_type: 'reps_weight',
                     }));
-                    await supabase.from('workout_sets').insert(setsToInsert);
+                    const { error: setsErr } = await supabase.from('workout_sets').insert(setsToInsert);
+                    if (setsErr) {
+                      console.error('Failed to insert sets for synced session', setsErr);
+                    }
                   }
 
                   // Update user XP atomically via RPC
-                  await supabase.rpc('increment_user_xp', { user_id: userId, xp_to_add: workout.xpEarned });
+                  const { error: xpErr } = await supabase.rpc('increment_user_xp', { user_id: userId, xp_to_add: workout.xpEarned });
+                  if (xpErr) {
+                    console.error('Failed to update XP for synced session', xpErr);
+                  }
+
+                  // Update active duels in Supabase
+                  try {
+                    const { data: duels } = await supabase
+                      .from('duels')
+                      .select('id, challenger_id, opponent_id, user_1_score, user_2_score')
+                      .or(`challenger_id.eq.${userId},opponent_id.eq.${userId}`)
+                      .eq('status', 'active');
+
+                    if (duels && duels.length > 0) {
+                      for (const duel of duels) {
+                        const isChallenger = duel.challenger_id === userId;
+                        if (isChallenger) {
+                          await supabase
+                            .from('duels')
+                            .update({ user_1_score: (duel.user_1_score || 0) + workout.xpEarned })
+                            .eq('id', duel.id);
+                        } else {
+                          await supabase
+                            .from('duels')
+                            .update({ user_2_score: (duel.user_2_score || 0) + workout.xpEarned })
+                            .eq('id', duel.id);
+                        }
+                      }
+                    }
+                  } catch (duelErr) {
+                    console.error('Failed to update active duels on sync:', duelErr);
+                  }
+
+                  const remainingWorkouts = currentWorkouts.slice(1);
+                  if (remainingWorkouts.length > 0) {
+                    localStorage.setItem('unsynced_workouts', JSON.stringify(remainingWorkouts));
+                  } else {
+                    localStorage.removeItem('unsynced_workouts');
+                  }
                 }
-                localStorage.removeItem('unsynced_workouts');
-                toast("Offline workouts synced successfully!");
+
+                const checkRemaining = localStorage.getItem('unsynced_workouts');
+                if (!checkRemaining || JSON.parse(checkRemaining).length === 0) {
+                  toast("Offline workouts synced successfully!");
+                }
               }
             }
           } catch (e) {

@@ -9,10 +9,11 @@ import exerciseLibrary from "@/data/exerciseLibrary.json";
 import { ExerciseSelectionModal } from "@/components/ExerciseSelectionModal";
 
 export default function RoutineEditorPage() {
-  const { weeklyPlan, updateDayPlan } = useRoutineStore();
+  const { weeklyPlan, updateDayPlan, saveRoutineToDb } = useRoutineStore();
   const router = useRouter();
 
   const [expandedDay, setExpandedDay] = useState<string | null>("Monday");
+  const [isSaving, setIsSaving] = useState(false);
   const [localPlan, setLocalPlan] = useState(weeklyPlan);
 
   // Modal States
@@ -37,11 +38,19 @@ export default function RoutineEditorPage() {
     ).slice(0, 50);
   }, [searchQuery]);
 
-  const handleSaveAll = () => {
-    localPlan.forEach(day => {
-      updateDayPlan(day.day, day.mainLifts);
-    });
-    router.push("/routines");
+  const handleSaveAll = async () => {
+    setIsSaving(true);
+    try {
+      localPlan.forEach(day => {
+        updateDayPlan(day.day, day.mainLifts);
+      });
+      await saveRoutineToDb();
+      router.push("/routines");
+    } catch (e) {
+      console.error("Error saving routine edits:", e);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleRemoveExercise = (dayName: string, exId: string) => {
@@ -119,9 +128,15 @@ export default function RoutineEditorPage() {
             <span className="text-[10px] text-accent-green uppercase font-bold tracking-widest">Master Planner</span>
           </div>
         </div>
-        <button onClick={handleSaveAll} className="flex items-center gap-1 bg-accent-green/20 text-accent-green px-3 py-1.5 rounded-lg border border-accent-green/30 active:scale-95 transition-transform">
+        <button 
+          onClick={handleSaveAll} 
+          disabled={isSaving}
+          className="flex items-center gap-1 bg-accent-green/20 text-accent-green px-3 py-1.5 rounded-lg border border-accent-green/30 active:scale-95 transition-transform disabled:opacity-50"
+        >
           <Save className="w-4 h-4" />
-          <span className="text-xs font-bold uppercase tracking-wider">Save</span>
+          <span className="text-xs font-bold uppercase tracking-wider">
+            {isSaving ? "Saving..." : "Save"}
+          </span>
         </button>
       </header>
 

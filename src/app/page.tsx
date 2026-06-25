@@ -1,49 +1,54 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, UserCircle, Settings, Bell, Swords, HeartPulse, Flame, Check, Moon, Utensils, CloudRain, Sun, Cloud, Snowflake, CloudLightning, MapPin, Users } from "lucide-react";
+import { Plus, UserCircle, Settings, Bell, Swords, HeartPulse, Flame, Check, Moon, Utensils, CloudRain, Sun, Cloud, Snowflake, CloudLightning, MapPin, Users, Activity } from "lucide-react";
 import Link from "next/link";
 import { useRoutineStore } from "@/store/useRoutineStore";
 import { useProfileStore } from "@/store/useProfileStore";
 import { useFriendsStore } from "@/store/useFriendsStore";
 import { useRecoveryStore } from "@/store/useRecoveryStore";
 import { useSettingsStore } from "@/store/useSettingsStore";
+import { useWorkoutStore } from "@/store/useWorkoutStore";
 import { useWeather } from "@/hooks/useWeather";
 import { supabase } from "@/lib/supabase";
 import { useNotificationStore } from "@/store/useNotificationStore";
 import { CelebrationModal } from "@/components/ui/CelebrationModal";
+import { toast } from "react-hot-toast";
+import { useRouter } from "next/navigation";
 
 export default function Dashboard() {
+  const router = useRouter();
   const [greeting, setGreeting] = useState("Hello");
-  const [streakDays, setStreakDays] = useState<{ day: string; date: string; active: boolean; today: boolean; timestamp: number }[]>(() => {
-    const days = [];
-    const today = new Date();
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(today.getDate() - i);
-      const dayStr = d.toLocaleDateString('en-US', { weekday: 'short' }).charAt(0);
-      days.push({
-        day: dayStr,
-        date: d.getDate().toString(),
-        active: false,
-        today: i === 0,
-        timestamp: new Date(d.setHours(0, 0, 0, 0)).getTime()
-      });
-    }
-    return days;
-  });
+  const [streakDays, setStreakDays] = useState<{ day: string; date: string; active: boolean; today: boolean; timestamp: number }[]>([]);
+  
   const { weeklyPlan, fetchRoutine } = useRoutineStore();
   const { profile, fetchProfile } = useProfileStore();
-  const { friends } = useFriendsStore();
-  const { readinessScore } = useRecoveryStore();
+  const { friends, fetchFriends } = useFriendsStore();
+  const { readinessScore, cnsStatus, muscles } = useRecoveryStore();
   const { heroGender, setHeroGender } = useSettingsStore();
+  const { isActive, startTime, routineName, startWorkout } = useWorkoutStore();
   const weather = useWeather();
+
+  useEffect(() => {
+    fetchFriends();
+  }, [fetchFriends]);
   
   const { unreadCount } = useNotificationStore();
   const [showCelebration, setShowCelebration] = useState(false);
   const [showBanner, setShowBanner] = useState(false);
 
   const [recommendedAthletes, setRecommendedAthletes] = useState<any[]>([]);
+  
+  // Hydration-safe Today Plan Name and Recovery Recommendations
+  const [todayPlanName, setTodayPlanName] = useState("Loading plan...");
+  const [fatiguedMuscleRecommendation, setFatiguedMuscleRecommendation] = useState("");
+
+  // Active workout timer state
+  const [elapsed, setElapsed] = useState("00:00");
+
+  // Dynamic active duel & friend completions count
+  const [activeDuelData, setActiveDuelData] = useState<any>(null);
+  const [friendWorkoutsCount, setFriendWorkoutsCount] = useState(0);
 
   useEffect(() => {
     const fetchRecommendations = async () => {
@@ -70,12 +75,45 @@ export default function Dashboard() {
     else setGreeting("Good evening");
   }, [weeklyPlan, profile, fetchRoutine, fetchProfile]);
 
+  // Streak calculation and Today's plan name (Hydration-safe)
   useEffect(() => {
-    if (profile?.unclaimed_rewards && profile.unclaimed_rewards > 0) {
-      setShowBanner(true);
+    // A. Generate Streak Days
+    const days = [];
+    const today = new Date();
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      const dayStr = d.toLocaleDateString('en-US', { weekday: 'short' }).charAt(0);
+      days.push({
+        day: dayStr,
+        date: d.getDate().toString(),
+        active: false,
+        today: i === 0,
+        timestamp: new Date(d.setHours(0, 0, 0, 0)).getTime()
+      });
     }
-  }, [profile?.unclaimed_rewards]);
+    setStreakDays(days);
 
+    // B. Calculate Today's plan name safely
+    if (weeklyPlan.length > 0) {
+      const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+      const todayName = daysOfWeek[new Date().getDay()];
+      const todayPlan = weeklyPlan.find(p => p.day === todayName);
+      setTodayPlanName(todayPlan?.type === 'Rest' ? 'Rest Day' : (todayPlan?.title || 'Start Workout'));
+    }
+  }, [weeklyPlan]);
+
+  // Verify milestone banner claim state
+  useEffect(() => {
+    if (profile?.id && profile?.unclaimed_rewards && profile.unclaimed_rewards > 0) {
+      const isClaimed = localStorage.getItem(`milestone_claimed_${profile.id}`) === 'true';
+      if (!isClaimed) {
+        setShowBanner(true);
+      }
+    }
+  }, [profile]);
+
+  // Streak Query
   useEffect(() => {
     const fetchStreak = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -110,6 +148,93 @@ export default function Dashboard() {
     fetchStreak();
   }, []);
 
+  // Active workout timer ticking
+  useEffect(() => {
+    if (!isActive || !startTime) return;
+    const interval = setInterval(() => {
+      const now = new Date();
+      const diff = Math.floor((now.getTime() - new Date(startTime).getTime()) / 1000);
+      const minutes = Math.floor(diff / 60).toString().padStart(2, '0');
+      const seconds = (diff % 60).toString().padStart(2, '0');
+      setElapsed(`${minutes}:${seconds}`);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isActive, startTime]);
+
+  // Fetch Recovery Recommendations
+  useEffect(() => {
+    if (muscles && muscles.length > 0) {
+      const tiredMuscles = [...muscles]
+        .filter(m => m.recoveryPercentage < 50)
+        .sort((a, b) => a.recoveryPercentage - b.recoveryPercentage);
+      if (tiredMuscles.length > 0) {
+        setFatiguedMuscleRecommendation(`${tiredMuscles[0].name} is fatigued (${Math.round(tiredMuscles[0].recoveryPercentage)}%). Avoid training it today.`);
+      } else {
+        setFatiguedMuscleRecommendation("All muscles recovered. Ready to crush your targets!");
+      }
+    }
+  }, [muscles]);
+
+  // Fetch Active Duel & Friend Activity
+  useEffect(() => {
+    const fetchSocialInfo = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        // Active Duel Info
+        const { data: duels } = await supabase
+          .from('duels')
+          .select('*')
+          .or(`challenger_id.eq.${user.id},opponent_id.eq.${user.id}`)
+          .eq('status', 'active')
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (duels && duels.length > 0) {
+          const duel = duels[0];
+          const isChallenger = duel.challenger_id === user.id;
+          const oppId = isChallenger ? duel.opponent_id : duel.challenger_id;
+
+          const { data: opp } = await supabase.from('users').select('username').eq('id', oppId).single();
+          const myScore = isChallenger ? (duel.user_1_score || 0) : (duel.user_2_score || 0);
+          const oppScore = isChallenger ? (duel.user_2_score || 0) : (duel.user_1_score || 0);
+
+          setActiveDuelData({
+            opponent: opp?.username || 'Opponent',
+            myScore,
+            oppScore,
+            status: myScore > oppScore ? 'winning' : myScore < oppScore ? 'losing' : 'tied',
+            wager: duel.wager_xp
+          });
+        }
+
+        // Friend Activity Today count
+        const { data: friendships } = await supabase
+          .from('user_friends')
+          .select('user_id, friend_id')
+          .eq('status', 'accepted')
+          .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`);
+
+        if (friendships && friendships.length > 0) {
+          const friendIds = friendships.map(r => r.user_id === user.id ? r.friend_id : r.user_id);
+          const todayStr = new Date().toLocaleDateString('en-CA');
+          const { data: sessions } = await supabase
+            .from('workout_sessions')
+            .select('user_id')
+            .in('user_id', friendIds)
+            .gte('start_time', new Date(`${todayStr}T00:00:00`).toISOString());
+          if (sessions) {
+            setFriendWorkoutsCount(sessions.length);
+          }
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    fetchSocialInfo();
+  }, []);
+
   const onlineFriends = friends.filter(f => f.isOnline && f.status === 'friends');
 
   const WeatherIcon = () => {
@@ -119,6 +244,42 @@ export default function Dashboard() {
     if (weather.icon === 'snow') return <Snowflake className="w-4 h-4 text-blue-200" />;
     if (weather.icon === 'storm') return <CloudLightning className="w-4 h-4 text-purple-400" />;
     return <MapPin className="w-4 h-4 text-text-muted" />;
+  };
+
+  const handleClaimReward = async () => {
+    if (!profile) return;
+    setShowBanner(false);
+    setShowCelebration(true);
+    localStorage.setItem(`milestone_claimed_${profile.id}`, 'true');
+    try {
+      // Atoms updating via Supabase RPC
+      await supabase.rpc('increment_user_xp', { user_id: profile.id, xp_to_add: 500 });
+      fetchProfile(); // Refresh profile state to dynamically update level
+    } catch (e) {
+      console.error("Failed to claim milestone rewards:", e);
+    }
+  };
+
+  const handleWorkoutTileClick = () => {
+    if (isActive) {
+      router.push("/workout");
+      return;
+    }
+
+    const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    const todayName = daysOfWeek[new Date().getDay()];
+    const todayPlan = weeklyPlan.find(p => p.day === todayName);
+
+    if (todayPlan && todayPlan.type !== 'Rest' && todayPlan.mainLifts && todayPlan.mainLifts.length > 0) {
+      startWorkout(todayPlan.title, todayPlan.mainLifts);
+      toast.success(`Started workout: ${todayPlan.title}`);
+      router.push("/workout");
+    } else {
+      toast("Today is a Rest Day! Let's choose another workout or template.", {
+        icon: 'ℹ️',
+      });
+      router.push("/routines");
+    }
   };
 
   return (
@@ -159,54 +320,111 @@ export default function Dashboard() {
           </div>
         </div>
         
-        <div className="flex flex-col items-end gap-3 animate-fade-in-down" style={{ animationDelay: '0.1s' }}>
-          <Link href="/notifications">
-            <div className="relative w-12 h-12 rounded-full border border-white/20 bg-black/40 backdrop-blur-md flex items-center justify-center transition-transform active:scale-95 shadow-lg">
+        {/* Header Action shortcuts */}
+        <div className="flex items-center gap-3 animate-fade-in-down" style={{ animationDelay: '0.1s' }}>
+          <Link href="/notifications" aria-label="Notifications">
+            <div className="relative w-11 h-11 rounded-full border border-white/15 bg-black/40 backdrop-blur-md flex items-center justify-center transition-all active:scale-95 shadow-lg">
               <Bell className="w-5 h-5 text-white" />
               {unreadCount > 0 && (
                 <span className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.8)] border border-black" />
               )}
             </div>
           </Link>
-          <button 
-            onClick={() => setHeroGender(heroGender === 'male' ? 'female' : 'male')} 
-            className="text-[9px] uppercase tracking-widest font-bold bg-white/10 backdrop-blur-md px-2 py-1.5 rounded-md border border-white/20 text-white hover:bg-white/20 transition-colors"
-          >
-            Switch to {heroGender === 'male' ? 'Female' : 'Male'}
-          </button>
+          
+          <Link href="/profile" aria-label="Profile">
+            <div className="w-11 h-11 rounded-full border border-white/15 bg-black/40 backdrop-blur-md flex items-center justify-center overflow-hidden transition-all active:scale-95 shadow-lg">
+              {profile?.avatar_url ? (
+                <img src={profile.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+              ) : (
+                <UserCircle className="w-6 h-6 text-white/70" />
+              )}
+            </div>
+          </Link>
+
+          <Link href="/settings" aria-label="Settings">
+            <div className="w-9 h-9 rounded-full border border-white/10 bg-black/20 backdrop-blur-md flex items-center justify-center transition-all active:scale-95 shadow-lg text-text-muted hover:text-white">
+              <Settings className="w-4 h-4" />
+            </div>
+          </Link>
         </div>
       </header>
 
+      {/* Level Progress Card */}
+      {profile && (
+        <div className="relative z-10 w-full px-6 mt-4 flex flex-col gap-1.5 animate-fade-in-up" style={{ animationDelay: '0.15s' }}>
+          <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-wider text-text-muted">
+            <span className="text-accent-green">Level {Math.floor((profile.total_xp || 0) / 2000) + 1}</span>
+            <span>{(profile.total_xp || 0) % 2000} / 2000 XP</span>
+          </div>
+          <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden border border-white/5 shadow-inner">
+            <div 
+              className="h-full bg-gradient-to-r from-accent-green to-emerald-400 shadow-[0_0_10px_rgba(74,222,128,0.5)] rounded-full transition-all duration-500" 
+              style={{ width: `${Math.min(100, Math.round(((profile.total_xp || 0) % 2000) / 2000 * 100))}%` }}
+            />
+          </div>
+          {/* Subtle Gender Hero Switch Pill */}
+          <button 
+            onClick={() => setHeroGender(heroGender === 'male' ? 'female' : 'male')} 
+            className="text-[8px] uppercase tracking-widest font-bold text-text-muted/65 hover:text-white transition-colors text-left mt-0.5 w-max"
+          >
+            Switch to {heroGender === 'male' ? 'Female' : 'Male'} Visuals
+          </button>
+        </div>
+      )}
+
       {/* Floating Weekly Streak Panel (Row 2) */}
-      <section className="relative z-10 w-full px-4 mt-[12vh] mb-6 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+      <section className="relative z-10 w-full px-4 mt-[8vh] mb-6 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
         <h2 className="text-white text-xs font-bold mb-3 pl-2 opacity-90 drop-shadow-md">My Activity</h2>
         <div className="w-full bg-white/5 backdrop-blur-xl border border-white/10 p-4 rounded-[2rem] flex justify-between items-center shadow-2xl">
-           {streakDays.map((d, i) => (
-              <div key={i} className="flex flex-col items-center gap-2">
-                <div 
-                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-                    d.active 
-                      ? 'bg-accent-green shadow-[0_0_15px_rgba(74,222,128,0.4)] text-black scale-110 border border-transparent' 
-                      : d.today 
-                        ? 'bg-white/10 border-2 border-accent-green/50 text-accent-green' 
-                        : 'bg-black/50 border border-white/10 text-text-muted'
-                  }`}
-                >
-                  <Flame className={`w-4 h-4 ${d.active ? 'fill-current' : ''}`} />
-                </div>
-                <span className={`text-[10px] font-bold ${d.today ? 'text-accent-green' : 'text-text-muted'}`}>{d.day}</span>
-              </div>
-           ))}
+           {streakDays.length === 0 ? (
+             <div className="w-full text-center py-2 text-xs text-text-muted italic">Loading streak...</div>
+           ) : (
+             streakDays.map((d, i) => (
+               <div key={i} className="flex flex-col items-center gap-2">
+                 <div 
+                   className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+                     d.active 
+                       ? 'bg-accent-green shadow-[0_0_15px_rgba(74,222,128,0.4)] text-black scale-110 border border-transparent' 
+                       : d.today 
+                         ? 'bg-white/10 border-2 border-accent-green/50 text-accent-green' 
+                         : 'bg-black/50 border border-white/10 text-text-muted'
+                   }`}
+                 >
+                   <Flame className={`w-4 h-4 ${d.active ? 'fill-current' : ''}`} />
+                 </div>
+                 <span className={`text-[10px] font-bold ${d.today ? 'text-accent-green' : 'text-text-muted'}`}>{d.day}</span>
+               </div>
+             ))
+           )}
         </div>
       </section>
 
+      {/* Active Workout Resume Banner */}
+      {isActive && (
+        <div className="relative z-10 w-[calc(100%-2rem)] mx-auto mb-6 p-4 rounded-2xl bg-gradient-to-r from-accent-red/20 to-red-500/10 border border-accent-red/30 shadow-[0_0_20px_rgba(255,59,48,0.15)] animate-pulse">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-accent-red/20 rounded-full flex items-center justify-center">
+                <Activity className="w-5 h-5 text-accent-red animate-pulse" />
+              </div>
+              <div className="flex flex-col">
+                <h3 className="text-white font-black text-sm uppercase tracking-wider">Workout In Progress</h3>
+                <span className="text-text-muted text-[10px] font-bold uppercase">{routineName}</span>
+                <span className="text-accent-red text-xs font-mono font-bold mt-0.5">Elapsed: {elapsed}</span>
+              </div>
+            </div>
+            <Link href="/workout">
+              <button className="bg-accent-red text-white text-xs font-black uppercase tracking-widest px-4 py-2 rounded-lg hover:bg-red-600 transition-colors shadow-lg active:scale-95 transition-transform">
+                Resume
+              </button>
+            </Link>
+          </div>
+        </div>
+      )}
+
       {showBanner && (
         <div 
-          onClick={() => {
-            setShowBanner(false);
-            setShowCelebration(true);
-            // mock claim logic in real app here
-          }}
+          onClick={handleClaimReward}
           className="relative z-10 w-[calc(100%-2rem)] mx-auto mb-6 p-4 rounded-2xl bg-gradient-to-r from-accent-green to-emerald-400 cursor-pointer shadow-[0_0_30px_rgba(74,222,128,0.4)] active:scale-95 transition-transform animate-fade-in-up"
         >
           <div className="flex items-center justify-between">
@@ -216,7 +434,7 @@ export default function Dashboard() {
               </div>
               <div>
                 <h3 className="text-black font-black text-sm uppercase tracking-wider">Milestone Achieved!</h3>
-                <p className="text-black/80 text-xs font-bold">Tap to claim your reward</p>
+                <p className="text-black/80 text-xs font-bold">Tap to claim your 500 XP reward</p>
               </div>
             </div>
             <div className="w-8 h-8 rounded-full bg-black flex items-center justify-center">
@@ -234,38 +452,55 @@ export default function Dashboard() {
       />
 
       {/* Grid Bento Wrapper */}
-      <section className="relative z-10 w-full px-4 grid grid-cols-2 gap-3 auto-rows-[minmax(110px,auto)] animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
+      <section className="relative z-10 w-full px-4 grid grid-cols-2 gap-3 auto-rows-[minmax(115px,auto)] animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
         
-        {/* 1. Start Workout (Tall) */}
-        <Link href="/workout" className="col-span-1 row-span-2 relative p-5 rounded-[2rem] overflow-hidden flex flex-col justify-between group bg-[#111] border border-white/5 shadow-2xl active:scale-95 transition-transform">
-          <div className="absolute inset-0 bg-gradient-to-b from-accent-green/20 to-transparent opacity-50" />
-          <div className="absolute -top-10 -right-10 w-32 h-32 bg-accent-green/30 blur-3xl rounded-full" />
-           <div className="z-10">
-             <h2 className="text-white font-bold text-lg leading-tight">{(() => {
-               const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-               const todayName = days[new Date().getDay()];
-               const todayPlan = weeklyPlan.find(p => p.day === todayName);
-               return todayPlan?.type === 'Rest' ? 'Rest Day' : (todayPlan?.title || 'Start');
-             })()}</h2>
-             <p className="text-text-muted text-[10px] mt-1 font-bold uppercase tracking-widest">Today's Plan</p>
-           </div>
+        {/* 1. Start/Resume Workout (Tall) */}
+        <button 
+          onClick={handleWorkoutTileClick}
+          className={`col-span-1 row-span-2 relative p-5 rounded-[2rem] overflow-hidden flex flex-col justify-between group border shadow-2xl active:scale-95 transition-transform text-left w-full ${
+            isActive 
+              ? 'bg-[#1a0f0f] border-accent-red/30 shadow-[0_0_20px_rgba(255,59,48,0.1)]' 
+              : 'bg-[#111] border-white/5'
+          }`}
+        >
+          <div className={`absolute inset-0 bg-gradient-to-b opacity-50 ${isActive ? 'from-accent-red/20' : 'from-accent-green/20'} to-transparent`} />
+          <div className={`absolute -top-10 -right-10 w-32 h-32 blur-3xl rounded-full ${isActive ? 'bg-accent-red/30' : 'bg-accent-green/30'}`} />
+          
+          <div className="z-10">
+             <h2 className="text-white font-black text-lg leading-tight">
+               {isActive ? "Workout Active" : todayPlanName}
+             </h2>
+             <p className="text-text-muted text-[9px] mt-1 font-bold uppercase tracking-widest">
+               {isActive ? `Elapsed: ${elapsed}` : "Today's Plan"}
+             </p>
+          </div>
+          
           <div className="z-10 mt-auto">
-            <div className="w-10 h-10 bg-accent-green text-black rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(74,222,128,0.5)] group-hover:scale-110 transition-transform">
-              <Plus className="w-6 h-6" strokeWidth={3} />
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-transform group-hover:scale-110 shadow-lg ${
+              isActive ? 'bg-accent-red text-white' : 'bg-accent-green text-black'
+            }`}>
+              {isActive ? <Activity className="w-5 h-5 animate-pulse" /> : <Plus className="w-6 h-6 stroke-[3px]" />}
             </div>
           </div>
-        </Link>
+        </button>
 
         {/* 2. CNS Readiness */}
-        <Link href="/recovery" className="col-span-1 row-span-1 relative p-4 rounded-[2rem] bg-[#1a0f0f] border border-red-500/10 overflow-hidden flex flex-col justify-between">
+        <Link href="/recovery" className="col-span-1 row-span-1 relative p-4 rounded-[2rem] bg-[#1a0f0f] border border-red-500/10 overflow-hidden flex flex-col justify-between group active:scale-95 transition-all">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 bg-red-500/30 blur-2xl rounded-full pointer-events-none" />
           <div className="flex items-center justify-between z-10">
             <span className="text-white text-xs font-bold opacity-80">Readiness</span>
             <HeartPulse className="w-4 h-4 text-red-500" />
           </div>
           <div className="z-10">
-            <div className="text-3xl font-black text-white">{readinessScore || 54}<span className="text-sm">%</span></div>
-            <p className="text-red-400 text-[10px] font-bold uppercase mt-1">Fatigued</p>
+            <div className="text-3xl font-black text-white">{readinessScore || 100}<span className="text-sm">%</span></div>
+            <p className={`text-[10px] font-bold uppercase mt-0.5 ${
+              readinessScore >= 80 ? 'text-accent-green' : readinessScore >= 50 ? 'text-yellow-500' : 'text-accent-red'
+            }`}>
+              {cnsStatus || "Fresh CNS"}
+            </p>
+            <div className="text-[7px] text-text-muted leading-tight font-bold mt-1 line-clamp-2">
+              {fatiguedMuscleRecommendation}
+            </div>
           </div>
         </Link>
 
@@ -283,8 +518,8 @@ export default function Dashboard() {
           
           <div className="relative w-16 h-16 z-10 flex items-center justify-center">
              <svg viewBox="0 0 36 36" className="w-full h-full transform -rotate-90 overflow-visible">
-               <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="rgba(255,165,0,0.2)" strokeWidth="4" />
-               <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#f97316" strokeWidth="4" strokeDasharray="60, 100" className="drop-shadow-[0_0_5px_rgba(249,115,22,0.8)]" />
+                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="rgba(255,165,0,0.2)" strokeWidth="4" />
+                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#f97316" strokeWidth="4" strokeDasharray="60, 100" className="drop-shadow-[0_0_5px_rgba(249,115,22,0.8)]" />
              </svg>
              <div className="absolute text-white font-black text-xs">1.7k</div>
           </div>
@@ -318,15 +553,27 @@ export default function Dashboard() {
         </div>
 
         {/* 5. Active Duel (Square) */}
-        <Link href="/social" className="col-span-1 row-span-1 relative p-4 rounded-[2rem] bg-[#140a1a] border border-purple-500/10 overflow-hidden flex flex-col justify-between">
+        <Link href="/social" className="col-span-1 row-span-1 relative p-4 rounded-[2rem] bg-[#140a1a] border border-purple-500/10 overflow-hidden flex flex-col justify-between group active:scale-95 transition-all">
           <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/20 blur-2xl rounded-full pointer-events-none" />
           <div className="flex items-center justify-between z-10">
             <span className="text-white text-xs font-bold opacity-80">Active Duel</span>
             <Swords className="w-4 h-4 text-purple-400" />
           </div>
-          <div className="z-10">
-            <div className="text-3xl font-black text-white">1st</div>
-            <p className="text-purple-400 text-[10px] font-bold uppercase mt-1">+2,150 XP</p>
+          <div className="z-10 flex flex-col gap-0.5">
+            {activeDuelData ? (
+              <>
+                <div className="text-lg font-black text-white truncate">vs @{activeDuelData.opponent}</div>
+                <p className="text-purple-400 text-[10px] font-black uppercase flex items-center gap-1">
+                  {activeDuelData.status === 'winning' ? '🥇 winning' : activeDuelData.status === 'losing' ? '🥈 losing' : '🤝 tied'}
+                </p>
+                <span className="text-[8px] text-text-muted font-mono">{activeDuelData.myScore} vs {activeDuelData.oppScore} XP</span>
+              </>
+            ) : (
+              <>
+                <div className="text-2xl font-black text-white">No Duel</div>
+                <p className="text-purple-400 text-[10px] font-bold uppercase mt-1">Challenge now</p>
+              </>
+            )}
           </div>
         </Link>
 
@@ -344,26 +591,36 @@ export default function Dashboard() {
             <div className="text-[10px] text-blue-400 font-bold uppercase tracking-widest bg-blue-500/10 px-2 py-1 rounded-lg">View All</div>
           </div>
 
-          <div className="z-10 mt-3 flex items-center gap-3">
-            <div className="text-[10px] text-text-muted font-bold uppercase tracking-widest min-w-max">Recommended:</div>
-            <div className="flex -space-x-2">
-               {recommendedAthletes.slice(0, 5).map((user, i) => (
-                  <img key={user.id} src={user.avatar_url || "https://i.pravatar.cc/150"} alt="avatar" className="w-8 h-8 rounded-full border-2 border-[#0c121e] relative object-cover shadow-lg" style={{ zIndex: 5 - i }} />
-                ))}
-                {recommendedAthletes.length > 5 && (
-                  <div className="w-8 h-8 rounded-full border-2 border-[#0c121e] bg-blue-500/20 text-blue-400 flex items-center justify-center relative z-0 shadow-lg">
-                    <span className="text-[10px] font-black">+{recommendedAthletes.length - 5}</span>
-                  </div>
-                )}
-                {recommendedAthletes.length === 0 && (
-                  <div className="text-[10px] text-text-muted font-bold italic ml-2">Loading...</div>
-                )}
+          <div className="z-10 mt-3 flex items-center justify-between w-full">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-text-muted font-bold uppercase tracking-widest min-w-max">Recommended:</span>
+              <div className="flex -space-x-2">
+                 {recommendedAthletes.slice(0, 5).map((user, i) => (
+                    <img key={user.id} src={user.avatar_url || "https://i.pravatar.cc/150"} alt="avatar" className="w-7 h-7 rounded-full border-2 border-[#0c121e] relative object-cover shadow-lg" style={{ zIndex: 5 - i }} />
+                  ))}
+                  {recommendedAthletes.length > 5 && (
+                    <div className="w-7 h-7 rounded-full border-2 border-[#0c121e] bg-blue-500/20 text-blue-400 flex items-center justify-center relative z-0 shadow-lg">
+                      <span className="text-[9px] font-black">+{recommendedAthletes.length - 5}</span>
+                    </div>
+                  )}
+                  {recommendedAthletes.length === 0 && (
+                    <div className="text-[9px] text-text-muted font-bold italic ml-2">Loading...</div>
+                  )}
+              </div>
             </div>
+            
+            {friendWorkoutsCount > 0 ? (
+              <span className="text-[9px] bg-accent-green/20 text-accent-green px-2 py-1 rounded-md font-black uppercase tracking-widest animate-pulse border border-accent-green/20">
+                🔥 {friendWorkoutsCount} friends done!
+              </span>
+            ) : (
+              <span className="text-[9px] text-text-muted font-bold uppercase tracking-wider">No completions today</span>
+            )}
           </div>
         </Link>
 
         {/* 7. Keep it up Trophy (Wide Rectangle) */}
-        <div className="col-span-2 row-span-1 p-5 rounded-[2rem] bg-gradient-to-r from-[#111] to-[#1a1710] border border-yellow-500/10 flex items-center relative overflow-hidden">
+        <Link href="/profile" className="col-span-2 row-span-1 p-5 rounded-[2rem] bg-gradient-to-r from-[#111] to-[#1a1710] border border-yellow-500/10 flex items-center relative overflow-hidden active:scale-95 transition-transform">
            <div className="absolute right-[-20px] top-1/2 -translate-y-1/2 w-32 h-32 pointer-events-none opacity-90">
               <img src="/mockups/trophy.png" alt="Trophy" className="w-full h-full object-contain drop-shadow-2xl" />
            </div>
@@ -371,7 +628,7 @@ export default function Dashboard() {
               <h3 className="text-white font-black text-xl leading-tight">Keep it up!</h3>
               <p className="text-text-muted text-[10px] mt-1 font-bold">You're building momentum!</p>
            </div>
-        </div>
+        </Link>
 
         {/* 8. Complete Tasks (Wide Rectangle) */}
         <div className="col-span-2 row-span-1 p-5 rounded-[2rem] bg-gradient-to-r from-[#1a1f1a] to-[#111] border border-accent-green/10 flex items-center relative overflow-hidden">

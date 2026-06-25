@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Swords, Crown, UserCircle, Trophy, Plus, RefreshCw } from "lucide-react";
 import { useSocialStore } from "@/store/useSocialStore";
 import { useProfileStore } from "@/store/useProfileStore";
+import { useFriendsStore } from "@/store/useFriendsStore";
 import { ChallengeFriendModal } from "@/components/ChallengeFriendModal";
 import { supabase } from "@/lib/supabase";
 import { toast } from "@/components/ui/Toast";
@@ -11,46 +12,35 @@ import { toast } from "@/components/ui/Toast";
 export default function SocialArena() {
   const { leaderboard, fetchSocialData, isLoading, simulateOpponent } = useSocialStore();
   const { profile } = useProfileStore();
+  const { friends, fetchFriends: fetchFriendsStore } = useFriendsStore();
   const [activeTab, setActiveTab] = useState<"leaderboard" | "duels" | "friends">("leaderboard");
   const [isChallengeModalOpen, setIsChallengeModalOpen] = useState(false);
   const [dbDuels, setDbDuels] = useState<any[]>([]);
   const [loadingDuels, setLoadingDuels] = useState(false);
-  const [friendsList, setFriendsList] = useState<any[]>([]);
   const [friendsWorkedOutToday, setFriendsWorkedOutToday] = useState<Set<string>>(new Set());
   const [friendToRemove, setFriendToRemove] = useState<{ id: string; userId: string; name: string } | null>(null);
   const [dismissedBubbles, setDismissedBubbles] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    if (friendsList.length > 0) {
+    if (friends.length > 0) {
       const date = new Date().toLocaleDateString('en-CA');
       const dismissed = new Set<string>();
-      friendsList.forEach(f => {
-        if (localStorage.getItem(`bubble_dismissed_${f.user.id}_${date}`) === 'true') {
-          dismissed.add(f.user.id);
+      friends.forEach(f => {
+        if (localStorage.getItem(`bubble_dismissed_${f.id}_${date}`) === 'true') {
+          dismissed.add(f.id);
         }
       });
       setDismissedBubbles(dismissed);
     }
-  }, [friendsList]);
+  }, [friends]);
 
   const fetchFriends = async () => {
     if (!profile) return;
-    const { data: rels, error } = await supabase
-      .from('user_friends')
-      .select('*')
-      .or(`user_id.eq.${profile.id},friend_id.eq.${profile.id}`)
-      .eq('status', 'accepted');
+    await fetchFriendsStore();
 
-    if (rels && rels.length > 0) {
-      const friendIds = rels.map(r => r.user_id === profile.id ? r.friend_id : r.user_id);
-      const { data: users } = await supabase.from('users').select('*').in('id', friendIds);
-      
-      const enriched = users?.map(u => {
-        const rel = rels.find(r => r.user_id === u.id || r.friend_id === u.id);
-        return { user: u, requestId: rel?.id };
-      });
-      setFriendsList(enriched || []);
-
+    const currentFriends = useFriendsStore.getState().friends;
+    if (currentFriends && currentFriends.length > 0) {
+      const friendIds = currentFriends.map(f => f.id);
       const todayLocalStr = new Date().toLocaleDateString('en-CA');
       const localTodayStart = new Date(`${todayLocalStr}T00:00:00`);
       const { data: sessions } = await supabase
@@ -61,9 +51,10 @@ export default function SocialArena() {
 
       if (sessions) {
         setFriendsWorkedOutToday(new Set(sessions.map(s => s.user_id)));
+      } else {
+        setFriendsWorkedOutToday(new Set());
       }
     } else {
-      setFriendsList([]);
       setFriendsWorkedOutToday(new Set());
     }
   };
@@ -73,7 +64,7 @@ export default function SocialArena() {
     try {
       const res = await fetch(`/api/friends?friendId=${friendToRemove.userId}`, { method: 'DELETE' });
       if (res.ok) {
-        setFriendsList(prev => prev.filter(f => f.requestId !== friendToRemove.id));
+        await fetchFriendsStore();
         fetchSocialData(); // Sync the leaderboard immediately
         toast.success("Friend removed");
       } else {
@@ -215,33 +206,41 @@ export default function SocialArena() {
         /* Friends Tab */
         <section className="w-full animate-fade-in-up">
           <div className="flex flex-col gap-4">
-            {friendsList.length === 0 ? (
+            {friends.length === 0 ? (
               <div className="text-center text-text-muted text-sm py-10">No friends yet. Add some!</div>
             ) : (
-              friendsList.map(f => {
-                const isWorkedOutToday = friendsWorkedOutToday.has(f.user.id);
-                const bubbleDismissed = dismissedBubbles.has(f.user.id);
+              friends.map(f => {
+                const isWorkedOutToday = friendsWorkedOutToday.has(f.id);
+                const bubbleDismissed = dismissedBubbles.has(f.id);
                 const showBubble = isWorkedOutToday && !bubbleDismissed;
 
                 return (
-                  <div key={f.requestId} className="flex items-center justify-between p-4 rounded-2xl glass-card border border-white/5 relative">
+                  <div key={f.id} className="flex items-center justify-between p-4 rounded-2xl glass-card border border-white/5 relative">
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 rounded-full bg-black overflow-hidden border border-white/10 relative">
-                        {f.user.avatar_url ? (
-                          <img src={f.user.avatar_url} alt={f.user.username} className="w-full h-full object-cover" />
+                        {f.avatar ? (
+                          <img src={f.avatar} alt={f.username} className="w-full h-full object-cover" />
                         ) : (
                           <UserCircle className="w-full h-full text-text-muted" strokeWidth={1} />
                         )}
+                        {f.isOnline && (
+                          <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-accent-green ring-2 ring-black" />
+                        )}
                       </div>
                       <div className="flex flex-col">
-                        <span className="font-bold text-white">{f.user.full_name || f.user.username}</span>
-                        <span className="text-[10px] text-text-muted font-bold uppercase tracking-wider">@{f.user.username}</span>
+                        <span className="font-bold text-white">{f.name}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] text-text-muted font-bold uppercase tracking-wider">@{f.username}</span>
+                          {f.activeRoutine && (
+                            <span className="text-[9px] bg-accent-green/20 text-accent-green px-1.5 py-0.5 rounded font-semibold">{f.activeRoutine}</span>
+                          )}
+                        </div>
                       </div>
                     </div>
                     
                     {showBubble && (
                       <div 
-                        onClick={() => handleDismissBubble(f.user.id)}
+                        onClick={() => handleDismissBubble(f.id)}
                         className="absolute -top-3 left-16 bg-accent-green text-black text-[10px] font-bold px-3 py-1.5 rounded-2xl rounded-bl-none shadow-lg cursor-pointer hover:scale-105 transition-transform z-10 animate-bounce"
                       >
                         I've completed my today's workout! 🎉
@@ -249,7 +248,7 @@ export default function SocialArena() {
                     )}
 
                     <button 
-                      onClick={() => setFriendToRemove({ id: f.requestId, userId: f.user.id, name: f.user.username })}
+                      onClick={() => setFriendToRemove({ id: f.id, userId: f.id, name: f.username })}
                       className="px-3 py-1.5 bg-red-500/10 text-red-500 text-xs font-bold rounded-lg hover:bg-red-500/20 transition-colors"
                     >
                       Remove
@@ -407,7 +406,13 @@ export default function SocialArena() {
         isOpen={isChallengeModalOpen} 
         onClose={() => setIsChallengeModalOpen(false)} 
         onChallengeIssued={fetchDuels}
-        friends={friendsList.map(f => f.user)}
+        friends={friends.map(f => ({
+          id: f.id,
+          username: f.username,
+          full_name: f.name,
+          avatar_url: f.avatar,
+          total_xp: 0
+        }))}
       />
 
       {/* Remove Friend Confirmation Modal */}

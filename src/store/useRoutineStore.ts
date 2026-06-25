@@ -110,6 +110,7 @@ export interface RoutineStore {
   customTemplates: RoutineTemplate[];
   fetchRoutine: () => Promise<void>;
   updateDayPlan: (dayName: string, exercises: PlannedExercise[]) => void;
+  saveRoutineToDb: () => Promise<void>;
   loadTemplate: (templateId: string) => void;
   exportRoutine: () => string;
   importRoutine: (base64Str: string) => boolean;
@@ -133,7 +134,12 @@ export const useRoutineStore = create<RoutineStore>()(
         try {
           const { data: { session } } = await supabase.auth.getSession();
           if (!session) {
-            set({ weeklyPlan: PREDEFINED_TEMPLATES[0].plan, isLoading: false });
+            const localPlan = get().weeklyPlan;
+            if (localPlan && localPlan.length > 0) {
+              set({ weeklyPlan: localPlan, isLoading: false });
+            } else {
+              set({ weeklyPlan: PREDEFINED_TEMPLATES[0].plan, isLoading: false });
+            }
             return;
           }
 
@@ -145,11 +151,16 @@ export const useRoutineStore = create<RoutineStore>()(
             .select('id, name')
             .eq('user_id', userId)
             .eq('is_active', true)
-            .single();
+            .maybeSingle();
 
           if (routineErr || !routine) {
-            // No routine in DB - use default template
-            set({ weeklyPlan: PREDEFINED_TEMPLATES[0].plan, isLoading: false });
+            // No routine in DB - fallback to local plan or default
+            const localPlan = get().weeklyPlan;
+            if (localPlan && localPlan.length > 0) {
+              set({ weeklyPlan: localPlan, isLoading: false });
+            } else {
+              set({ weeklyPlan: PREDEFINED_TEMPLATES[0].plan, isLoading: false });
+            }
             return;
           }
 
@@ -161,7 +172,12 @@ export const useRoutineStore = create<RoutineStore>()(
             .order('created_at');
 
           if (daysErr || !days || days.length === 0) {
-            set({ weeklyPlan: PREDEFINED_TEMPLATES[0].plan, isLoading: false });
+            const localPlan = get().weeklyPlan;
+            if (localPlan && localPlan.length > 0) {
+              set({ weeklyPlan: localPlan, isLoading: false });
+            } else {
+              set({ weeklyPlan: PREDEFINED_TEMPLATES[0].plan, isLoading: false });
+            }
             return;
           }
 
@@ -212,10 +228,27 @@ export const useRoutineStore = create<RoutineStore>()(
             };
           });
 
+          // Sort weeklyPlan by standard day order
+          const DAY_ORDER: Record<string, number> = {
+            Monday: 0,
+            Tuesday: 1,
+            Wednesday: 2,
+            Thursday: 3,
+            Friday: 4,
+            Saturday: 5,
+            Sunday: 6
+          };
+          weeklyPlan.sort((a, b) => (DAY_ORDER[a.day] ?? 0) - (DAY_ORDER[b.day] ?? 0));
+
           set({ weeklyPlan, isLoading: false });
         } catch (err) {
           console.error('Error fetching routine:', err);
-          set({ weeklyPlan: PREDEFINED_TEMPLATES[0].plan, isLoading: false });
+          const localPlan = get().weeklyPlan;
+          if (localPlan && localPlan.length > 0) {
+            set({ weeklyPlan: localPlan, isLoading: false });
+          } else {
+            set({ weeklyPlan: PREDEFINED_TEMPLATES[0].plan, isLoading: false });
+          }
         }
       },
 
@@ -227,6 +260,145 @@ export const useRoutineStore = create<RoutineStore>()(
         }
         return { weeklyPlan: newPlan };
       }),
+
+      saveRoutineToDb: async () => {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session) return;
+          const userId = session.user.id;
+          const weeklyPlan = get().weeklyPlan;
+
+          // 1. Get or create active routine
+          let { data: routine, error: routineErr } = await supabase
+            .from('routines')
+            .select('id')
+            .eq('user_id', userId)
+            .eq('is_active', true)
+            .maybeSingle();
+
+          if (routineErr) {
+            console.error('Error fetching routine for sync:', routineErr);
+            return;
+          }
+
+          if (!routine) {
+            const { data: newRoutine, error: createErr } = await supabase
+              .from('routines')
+              .insert({
+                user_id: userId,
+                name: 'My Routine',
+                is_active: true
+              })
+              .select('id')
+              .single();
+
+            if (createErr || !newRoutine) {
+              console.error('Error creating routine for sync:', createErr);
+              return;
+            }
+            routine = newRoutine;
+          }
+
+          // 2. Fetch existing days to clean them up
+          const { data: existingDays, error: fetchDaysErr } = await supabase
+            .from('routine_days')
+            .select('id')
+            .eq('routine_id', routine.id);
+
+          if (fetchDaysErr) {
+            console.error('Error fetching existing days:', fetchDaysErr);
+            return;
+          }
+
+          if (existingDays && existingDays.length > 0) {
+            const dayIds = existingDays.map(d => d.id);
+            // Delete exercises first
+            const { error: delExErr } = await supabase
+              .from('planned_exercises')
+              .delete()
+              .in('routine_day_id', dayIds);
+            
+            if (delExErr) {
+              console.error('Error deleting old planned exercises:', delExErr);
+              return;
+            }
+          }
+
+          // Delete routine days
+          const { error: delDaysErr } = await supabase
+            .from('routine_days')
+            .delete()
+            .eq('routine_id', routine.id);
+
+          if (delDaysErr) {
+            console.error('Error deleting old routine days:', delDaysErr);
+            return;
+          }
+
+          // 3. Bulk insert new days
+          const daysToInsert = weeklyPlan.map(day => ({
+            routine_id: routine.id,
+            day_name: day.day,
+            short_day: day.shortDay,
+            type: day.type,
+            title: day.title
+          }));
+
+          const { data: insertedDays, error: daysErr } = await supabase
+            .from('routine_days')
+            .insert(daysToInsert)
+            .select('id, day_name');
+
+          if (daysErr || !insertedDays) {
+            console.error('Error inserting routine days:', daysErr);
+            return;
+          }
+
+          // 4. Bulk insert planned exercises
+          const exercisesToInsert: any[] = [];
+          insertedDays.forEach(dayRow => {
+            const localDay = weeklyPlan.find(d => d.day === dayRow.day_name);
+            if (!localDay) return;
+
+            const warmups = (localDay.warmups || []).map((ex, index) => ({
+              routine_day_id: dayRow.id,
+              name: ex.name,
+              type: ex.targetMuscle,
+              tracking_style: ex.trackingType,
+              target_sets: ex.targetSets,
+              target_reps: ex.targetValue,
+              note: ex.note || null,
+              is_warmup: true,
+              order_index: index
+            }));
+
+            const mainLifts = (localDay.mainLifts || []).map((ex, index) => ({
+              routine_day_id: dayRow.id,
+              name: ex.name,
+              type: ex.targetMuscle,
+              tracking_style: ex.trackingType,
+              target_sets: ex.targetSets,
+              target_reps: ex.targetValue,
+              note: ex.note || null,
+              is_warmup: false,
+              order_index: (localDay.warmups || []).length + index
+            }));
+
+            exercisesToInsert.push(...warmups, ...mainLifts);
+          });
+
+          if (exercisesToInsert.length > 0) {
+            const { error: exErr } = await supabase
+              .from('planned_exercises')
+              .insert(exercisesToInsert);
+            if (exErr) {
+              console.error('Error inserting planned exercises:', exErr);
+            }
+          }
+        } catch (err) {
+          console.error('Unhandled error in saveRoutineToDb:', err);
+        }
+      },
 
       loadTemplate: (templateId: string) => {
         const template = get().templates.find(t => t.id === templateId) || get().customTemplates.find(t => t.id === templateId);
@@ -296,7 +468,10 @@ export const useRoutineStore = create<RoutineStore>()(
     }),
     {
       name: 'vortixia-custom-templates-storage',
-      partialize: (state) => ({ customTemplates: state.customTemplates }),
+      partialize: (state) => ({
+        customTemplates: state.customTemplates,
+        weeklyPlan: state.weeklyPlan,
+      }),
     }
   )
 );

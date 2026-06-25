@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { PlannedExercise } from './useRoutineStore';
 import { useTrophyStore } from './useTrophyStore';
 import { supabase } from '@/lib/supabase';
@@ -20,7 +21,7 @@ export interface WorkoutExercise {
 
 interface WorkoutStore {
   isActive: boolean;
-  startTime: Date | null;
+  startTime: string | null;
   routineName: string;
   exercises: WorkoutExercise[];
   restTimeRemaining: number;
@@ -42,9 +43,11 @@ interface WorkoutStore {
   resetWorkout: () => void;
 }
 
-export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
-  isActive: false,
-  startTime: null,
+export const useWorkoutStore = create<WorkoutStore>()(
+  persist(
+    (set, get) => ({
+      isActive: false,
+      startTime: null,
   routineName: "",
   exercises: [],
   restTimeRemaining: 0,
@@ -71,7 +74,7 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
 
     set({
       isActive: true,
-      startTime: new Date(),
+      startTime: new Date().toISOString(),
       routineName,
       exercises: activeExercises,
       restTimeRemaining: 0,
@@ -98,7 +101,7 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
 
       const userId = session.user.id;
       const endTime = new Date();
-      const durationMins = startTime ? Math.round((endTime.getTime() - startTime.getTime()) / 60000) : 0;
+      const durationMins = startTime ? Math.round((endTime.getTime() - new Date(startTime).getTime()) / 60000) : 0;
 
       // Calculate totals
       const completedSets = exercises.flatMap(ex =>
@@ -116,7 +119,7 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
 
       if (!navigator.onLine) {
         const payload = {
-          startTime: startTime?.toISOString(),
+          startTime: startTime || undefined,
           endTime: endTime.toISOString(),
           totalVolume,
           xpEarned,
@@ -144,7 +147,7 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
         .from('workout_sessions')
         .insert({
           user_id: userId,
-          start_time: startTime?.toISOString(),
+          start_time: startTime || null,
           end_time: endTime.toISOString(),
           total_volume_kg: totalVolume,
           prs_broken: 0,
@@ -181,6 +184,34 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
 
       // 3. Update user XP atomically via RPC
       await supabase.rpc('increment_user_xp', { user_id: userId, xp_to_add: xpEarned });
+
+      // Update active duels in Supabase
+      try {
+        const { data: duels } = await supabase
+          .from('duels')
+          .select('id, challenger_id, opponent_id, user_1_score, user_2_score')
+          .or(`challenger_id.eq.${userId},opponent_id.eq.${userId}`)
+          .eq('status', 'active');
+
+        if (duels && duels.length > 0) {
+          for (const duel of duels) {
+            const isChallenger = duel.challenger_id === userId;
+            if (isChallenger) {
+              await supabase
+                .from('duels')
+                .update({ user_1_score: (duel.user_1_score || 0) + xpEarned })
+                .eq('id', duel.id);
+            } else {
+              await supabase
+                .from('duels')
+                .update({ user_2_score: (duel.user_2_score || 0) + xpEarned })
+                .eq('id', duel.id);
+            }
+          }
+        }
+      } catch (duelErr) {
+        console.error('Failed to update active duels:', duelErr);
+      }
 
       // 4. Check trophy achievements
       useTrophyStore.getState().checkAchievements({
@@ -310,4 +341,9 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
       return { exercises: [...state.exercises, newExercise] };
     });
   }
-}));
+    }),
+    {
+      name: 'vortixia-workout-storage',
+    }
+  )
+);
