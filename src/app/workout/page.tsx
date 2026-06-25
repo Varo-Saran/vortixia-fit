@@ -64,8 +64,11 @@ export default function ActiveWorkoutPage() {
     const durationMins = Math.max(0, Math.floor(diff / 60));
     const isAiGenerated = routineName.startsWith('AI') || routineName.includes('AI');
 
-    // Calculate XP roughly as 1 XP per 100 volume + 10 XP per minute
-    const earnedXP = Math.floor(totalVolume / 100) + (durationMins * 10);
+    // Calculate XP aligned with useWorkoutStore.ts saveWorkoutToDb
+    const totalSets = exercises.reduce((total, ex) => {
+      return total + ex.sets.filter(s => s.isCompleted).length;
+    }, 0);
+    const earnedXP = Math.round(totalSets * 50 + totalVolume * 0.1);
 
     // Push progress to Social Active Duels
     useSocialStore.getState().updateDuelProgress(totalVolume, earnedXP);

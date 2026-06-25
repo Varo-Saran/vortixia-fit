@@ -657,22 +657,24 @@ export default function TemplatesPage() {
       {/* View Workout Details Modal */}
       {selectedViewTemplate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-lg bg-[#111] border border-white/10 rounded-[2rem] p-6 relative flex flex-col max-h-[80vh] animate-fade-in-up shadow-2xl">
+          <div className="w-full max-w-lg bg-[#111] border border-white/10 rounded-[2rem] p-6 relative flex flex-col max-h-[85vh] animate-fade-in-up shadow-2xl">
             
-            {/* Header */}
-            <button 
-              onClick={() => setSelectedViewTemplate(null)}
-              className="absolute top-4 right-4 p-2 bg-white/5 rounded-full hover:bg-white/10 text-text-muted hover:text-white"
-            >
-              <X className="w-4 h-4" />
-            </button>
+            {/* Header info - flex-shrink-0 keeps it from squishing day tabs and exercises list */}
+            <div className="flex flex-col flex-shrink-0 relative mb-2">
+              <button 
+                onClick={() => setSelectedViewTemplate(null)}
+                className="absolute top-0 right-0 p-2 bg-white/5 rounded-full hover:bg-white/10 text-text-muted hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+              
+              <h3 className="text-lg font-black text-white pr-8">{selectedViewTemplate.name}</h3>
+              <span className="text-[10px] text-accent-green uppercase font-bold tracking-widest mt-1 mb-2">{selectedViewTemplate.frequency}</span>
+              <p className="text-xs text-text-muted mb-2 leading-relaxed">{selectedViewTemplate.description}</p>
+            </div>
             
-            <h3 className="text-lg font-black text-white pr-8">{selectedViewTemplate.name}</h3>
-            <span className="text-[10px] text-accent-green uppercase font-bold tracking-widest mt-1 mb-2">{selectedViewTemplate.frequency}</span>
-            <p className="text-xs text-text-muted mb-4 leading-relaxed">{selectedViewTemplate.description}</p>
-            
-            {/* Horizontal Scrollable Day selector tabs */}
-            <div className="flex gap-2 overflow-x-auto pb-3 mb-4 scrollbar-thin border-b border-white/5">
+            {/* Horizontal Scrollable Day selector tabs - flex-shrink-0 protects layout structure */}
+            <div className="flex gap-2 overflow-x-auto pb-3 mb-4 scrollbar-thin border-b border-white/5 flex-shrink-0">
               {selectedViewTemplate.plan.map((dayPlan) => (
                 <button
                   key={dayPlan.day}
@@ -746,8 +748,8 @@ export default function TemplatesPage() {
               })()}
             </div>
             
-            {/* Modal Actions */}
-            <div className="mt-6 pt-4 border-t border-white/5 flex gap-3">
+            {/* Modal Actions - flex-shrink-0 keeps it visible at bottom */}
+            <div className="mt-6 pt-4 border-t border-white/5 flex gap-3 flex-shrink-0">
               <button
                 onClick={() => setSelectedViewTemplate(null)}
                 className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white font-bold text-xs uppercase tracking-widest rounded-xl transition-all border border-white/5"
