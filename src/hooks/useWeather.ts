@@ -27,8 +27,8 @@ export function useWeather() {
 
     const fetchWeather = async (lat: number, lon: number, providedCity?: string | null) => {
       try {
-        // 1. Get Weather from Open-Meteo (highly accurate meteorological forecast models)
-        const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
+        // 1. Get Weather from our local proxy API
+        const weatherRes = await fetch(`/api/weather?lat=${lat}&lon=${lon}`);
         if (!weatherRes.ok) throw new Error("Weather request failed");
         const weatherData = await weatherRes.json();
         
@@ -50,9 +50,9 @@ export function useWeather() {
           city = "My Location";
         }
 
-        const current = weatherData.current_weather;
-        const temp = Math.round(current.temperature);
-        const code = current.weathercode;
+        if (!weatherData.success) throw new Error("Weather proxy returned success=false");
+        const temp = Math.round(weatherData.temperature);
+        const code = weatherData.weathercode;
 
         // Map WMO Weather Codes to our UI state
         let condition = "Clear";
