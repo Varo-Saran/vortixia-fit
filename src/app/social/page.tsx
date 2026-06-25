@@ -22,7 +22,7 @@ export default function SocialArena() {
 
   useEffect(() => {
     if (friendsList.length > 0) {
-      const date = new Date().toISOString().split('T')[0];
+      const date = new Date().toLocaleDateString('en-CA');
       const dismissed = new Set<string>();
       friendsList.forEach(f => {
         if (localStorage.getItem(`bubble_dismissed_${f.user.id}_${date}`) === 'true') {
@@ -51,13 +51,13 @@ export default function SocialArena() {
       });
       setFriendsList(enriched || []);
 
-      const today = new Date();
-      today.setHours(0,0,0,0);
+      const todayLocalStr = new Date().toLocaleDateString('en-CA');
+      const localTodayStart = new Date(`${todayLocalStr}T00:00:00`);
       const { data: sessions } = await supabase
         .from('workout_sessions')
         .select('user_id')
         .in('user_id', friendIds)
-        .gte('start_time', today.toISOString());
+        .gte('start_time', localTodayStart.toISOString());
 
       if (sessions) {
         setFriendsWorkedOutToday(new Set(sessions.map(s => s.user_id)));
@@ -88,7 +88,7 @@ export default function SocialArena() {
   };
 
   const handleDismissBubble = (friendId: string) => {
-    const date = new Date().toISOString().split('T')[0];
+    const date = new Date().toLocaleDateString('en-CA');
     localStorage.setItem(`bubble_dismissed_${friendId}_${date}`, 'true');
     setDismissedBubbles(prev => {
       const next = new Set(prev);

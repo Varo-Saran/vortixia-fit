@@ -100,18 +100,8 @@ export function GlobalListeners() {
                     await supabase.from('workout_sets').insert(setsToInsert);
                   }
 
-                  const { data: currentUser } = await supabase
-                    .from('users')
-                    .select('total_xp')
-                    .eq('id', userId)
-                    .single();
-
-                  if (currentUser) {
-                    await supabase
-                      .from('users')
-                      .update({ total_xp: (currentUser.total_xp || 0) + workout.xpEarned })
-                      .eq('id', userId);
-                  }
+                  // Update user XP atomically via RPC
+                  await supabase.rpc('increment_user_xp', { user_id: userId, xp_to_add: workout.xpEarned });
                 }
                 localStorage.removeItem('unsynced_workouts');
                 toast("Offline workouts synced successfully!");

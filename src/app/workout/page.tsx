@@ -11,14 +11,16 @@ import { RestTimer } from "@/components/RestTimer";
 import { ExerciseSelectionModal } from "@/components/ExerciseSelectionModal";
 import { useRecoveryStore, MuscleGroup } from "@/store/useRecoveryStore";
 import { useSocialStore } from "@/store/useSocialStore";
+import { toast } from "react-hot-toast";
 
 export default function ActiveWorkoutPage() {
   const router = useRouter();
   const { 
     isActive, startTime, routineName, exercises, 
-    restTimeRemaining, isResting, 
+    restTimeRemaining, isResting, isSaving,
     finishWorkout, updateSet, toggleSetComplete, 
-    stopRest, addRestTime, tickRest, addSet, addExerciseToWorkout
+    stopRest, addRestTime, tickRest, addSet, addExerciseToWorkout,
+    saveWorkoutToDb, resetWorkout
   } = useWorkoutStore();
 
   const [elapsed, setElapsed] = useState("00:00");
@@ -36,9 +38,9 @@ export default function ActiveWorkoutPage() {
     if (!isActive || !startTime || showSummary) return;
     
     const interval = setInterval(() => {
-      // Calculate elapsed time
+      // Calculate elapsed time safely
       const now = new Date();
-      const diff = Math.floor((now.getTime() - startTime.getTime()) / 1000);
+      const diff = Math.floor((now.getTime() - new Date(startTime).getTime()) / 1000);
       const minutes = Math.floor(diff / 60).toString().padStart(2, '0');
       const seconds = (diff % 60).toString().padStart(2, '0');
       setElapsed(`${minutes}:${seconds}`);
@@ -48,9 +50,9 @@ export default function ActiveWorkoutPage() {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [isActive, startTime, tickRest]);
+  }, [isActive, startTime, tickRest, showSummary]);
 
-  const handleFinish = () => {
+  const handleFinish = async () => {
     // Calculate volume for Gamification and Duels
     const totalVolume = exercises.reduce((total, ex) => {
       return total + ex.sets.reduce((setTotal, set) => {
@@ -61,8 +63,9 @@ export default function ActiveWorkoutPage() {
       }, 0);
     }, 0);
 
-    const diff = Math.floor((new Date().getTime() - startTime!.getTime()) / 1000);
-    const durationMins = Math.floor(diff / 60);
+    const startTimeMs = startTime ? new Date(startTime).getTime() : Date.now();
+    const diff = Math.floor((Date.now() - startTimeMs) / 1000);
+    const durationMins = Math.max(0, Math.floor(diff / 60));
     const isAiGenerated = routineName.startsWith('AI') || routineName.includes('AI');
 
     // Calculate XP roughly as 1 XP per 100 volume + 10 XP per minute
@@ -75,7 +78,6 @@ export default function ActiveWorkoutPage() {
     exercises.forEach(ex => {
       const completedSetsCount = ex.sets.filter(s => s.isCompleted).length;
       if (completedSetsCount > 0) {
-        // Very basic mapping of exercise name to MuscleGroup
         let muscle: MuscleGroup = 'core';
         const name = ex.name.toLowerCase();
         if (name.includes('bench') || name.includes('push') || name.includes('chest') || name.includes('fly')) muscle = 'chest';
@@ -97,17 +99,31 @@ export default function ActiveWorkoutPage() {
     });
 
     setShowSummary(true);
+
+    // Persist workout to Supabase / LocalStorage (handling offline queue automatically)
+    try {
+      await saveWorkoutToDb();
+    } catch (e) {
+      console.error("Failed to save workout session:", e);
+      toast.error("Error saving workout to database.");
+    }
   };
 
   const handleCloseSummary = (href: string) => {
+    if (isSaving) {
+      toast("Still saving your workout progress. Please wait a moment...", { icon: "⏳" });
+      return;
+    }
     finishWorkout();
     router.push(href);
   };
 
-  const formatRest = (secs: number) => {
-    const m = Math.floor(secs / 60);
-    const s = secs % 60;
-    return `${m}:${s.toString().padStart(2, '0')}`;
+  const handleCancelWorkout = () => {
+    if (confirm("Discard this workout session? Your progress will not be saved.")) {
+      resetWorkout();
+      toast("Workout discarded.");
+      router.push("/routines");
+    }
   };
 
   // Offline State
@@ -125,7 +141,6 @@ export default function ActiveWorkoutPage() {
   }, []);
 
   if (showSummary) {
-    // Calculate total volume for the mock data
     const totalVolume = exercises.reduce((total, ex) => {
       return total + ex.sets.reduce((setTotal, set) => {
         if (set.isCompleted && typeof set.weight === 'number' && typeof set.reps === 'number') {
@@ -169,17 +184,28 @@ export default function ActiveWorkoutPage() {
           Offline mode active. Progress is securely saved locally on this phone.
         </div>
       )}
+      
       {/* Sticky Header */}
       <header className="sticky top-0 z-40 w-full bg-background/80 backdrop-blur-md border-b border-white/5 px-4 pt-[var(--notch-top)] pb-4 flex items-center justify-between">
-        <div className="flex flex-col">
-          <span className="text-[10px] text-accent-green font-bold uppercase tracking-widest">{routineName}</span>
-          <span className="text-2xl font-black text-white font-mono">{elapsed}</span>
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={handleCancelWorkout}
+            aria-label="Discard Workout"
+            className="p-2 bg-white/5 hover:bg-white/10 rounded-full border border-white/10 transition-colors"
+          >
+            <X className="w-5 h-5 text-white" />
+          </button>
+          <div className="flex flex-col">
+            <span className="text-[10px] text-accent-green font-bold uppercase tracking-widest">{routineName}</span>
+            <span className="text-2xl font-black text-white font-mono">{elapsed}</span>
+          </div>
         </div>
         <button 
           onClick={handleFinish}
-          className="bg-accent-red/20 text-accent-red border border-accent-red/30 px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest active:scale-95 transition-transform"
+          disabled={isSaving}
+          className="bg-accent-red/20 text-accent-red border border-accent-red/30 px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest active:scale-95 transition-transform disabled:opacity-50"
         >
-          Finish
+          {isSaving ? "Saving..." : "Finish"}
         </button>
       </header>
 
@@ -200,7 +226,6 @@ export default function ActiveWorkoutPage() {
                 <div className="w-16 flex items-center justify-center gap-1">
                   LBS
                   <button onClick={() => {
-                    // Try to grab the weight of the last logged set or current input to initialize calc
                     const lastWeight = ex.sets.findLast(s => typeof s.weight === 'number' && s.weight > 0)?.weight || 135;
                     setPlateCalcWeight(Number(lastWeight));
                     setIsPlateCalcOpen(true);
@@ -222,18 +247,20 @@ export default function ActiveWorkoutPage() {
                   <div className="w-16 px-1">
                     <input 
                       type="number"
+                      min="0"
                       value={set.weight}
-                      onChange={(e) => updateSet(ex.id, set.id, e.target.value === '' ? '' : Number(e.target.value), set.reps)}
-                      className={`w-full bg-black/50 border rounded-md text-center text-sm font-bold py-1 outline-none transition-colors ${set.isCompleted ? 'border-transparent text-white/50' : 'border-white/10 text-white focus:border-accent-green focus:bg-accent-green/10'}`}
+                      onChange={(e) => updateSet(ex.id, set.id, e.target.value === '' ? '' : Math.max(0, Number(e.target.value)), set.reps)}
+                      className={`w-full bg-black/50 border rounded-md text-center text-base font-bold py-1 outline-none transition-colors ${set.isCompleted ? 'border-transparent text-white/50' : 'border-white/10 text-white focus:border-accent-green focus:bg-accent-green/10'}`}
                       placeholder="-"
                     />
                   </div>
                   <div className="w-16 px-1">
                     <input 
                       type="number"
+                      min="0"
                       value={set.reps}
-                      onChange={(e) => updateSet(ex.id, set.id, set.weight, e.target.value === '' ? '' : Number(e.target.value))}
-                      className={`w-full bg-black/50 border rounded-md text-center text-sm font-bold py-1 outline-none transition-colors ${set.isCompleted ? 'border-transparent text-white/50' : 'border-white/10 text-white focus:border-accent-green focus:bg-accent-green/10'}`}
+                      onChange={(e) => updateSet(ex.id, set.id, set.weight, e.target.value === '' ? '' : Math.max(0, Number(e.target.value)))}
+                      className={`w-full bg-black/50 border rounded-md text-center text-base font-bold py-1 outline-none transition-colors ${set.isCompleted ? 'border-transparent text-white/50' : 'border-white/10 text-white focus:border-accent-green focus:bg-accent-green/10'}`}
                       placeholder="-"
                     />
                   </div>

@@ -179,19 +179,8 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
         }
       }
 
-      // 3. Update user XP
-      const { data: currentUser } = await supabase
-        .from('users')
-        .select('total_xp')
-        .eq('id', userId)
-        .single();
-
-      if (currentUser) {
-        await supabase
-          .from('users')
-          .update({ total_xp: (currentUser.total_xp || 0) + xpEarned })
-          .eq('id', userId);
-      }
+      // 3. Update user XP atomically via RPC
+      await supabase.rpc('increment_user_xp', { user_id: userId, xp_to_add: xpEarned });
 
       // 4. Check trophy achievements
       useTrophyStore.getState().checkAchievements({

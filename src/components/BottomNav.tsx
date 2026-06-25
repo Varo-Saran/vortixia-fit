@@ -9,7 +9,7 @@ export default function BottomNav() {
   const pathname = usePathname();
 
   // Hide on specific full-screen flows
-  if (pathname === "/settings" || pathname === "/login" || pathname === "/workout/active") {
+  if (pathname === "/settings" || pathname === "/login" || pathname === "/workout") {
     return null;
   }
 
