@@ -104,7 +104,7 @@ const PREDEFINED_TEMPLATES: RoutineTemplate[] = [
   {
     id: "tpl_int_ppl_5",
     name: "Intermediate Split (5-Day)",
-    description: "5-day PPL split with glute emphasis, cramp-safe core, and post-workout Zone 2 cardio.",
+    description: "Vathsaran's signature 5-day PPL protocol featuring glute emphasis, cramp-safe core, and post-workout Zone 2 cardio.",
     frequency: "5 days/week",
     plan: [
       {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRoutineStore } from "@/store/useRoutineStore";
+import { useRoutineStore, RoutineTemplate } from "@/store/useRoutineStore";
 import { ChevronLeft, Library, Check, X, Download, AlertTriangle, Plus, Trash2, Save, Share } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -25,6 +25,8 @@ export default function TemplatesPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"my-plans" | "explore">("my-plans");
   const [appliedId, setAppliedId] = useState<string | null>(null);
+  const [selectedViewTemplate, setSelectedViewTemplate] = useState<RoutineTemplate | null>(null);
+  const [activeViewDay, setActiveViewDay] = useState<string>("Monday");
 
   // iXiA AI Modal State
   const [showAiModal, setShowAiModal] = useState(false);
@@ -256,23 +258,34 @@ export default function TemplatesPage() {
                 {tpl.description}
               </p>
 
-              <button
-                onClick={() => handleApplyTemplate(tpl.id)}
-                disabled={appliedId !== null}
-                className={`w-full mt-5 py-3 rounded-xl font-bold text-sm tracking-wide transition-all ${
-                  appliedId === tpl.id 
-                    ? 'bg-accent-green text-black' 
-                    : 'bg-white/10 text-white hover:bg-white/20 border border-white/5'
-                }`}
-              >
-                {appliedId === tpl.id ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <Check className="w-4 h-4" /> APPLIED
-                  </span>
-                ) : (
-                  "APPLY TEMPLATE"
-                )}
-              </button>
+              <div className="flex gap-3 mt-5">
+                <button
+                  onClick={() => {
+                    setSelectedViewTemplate(tpl);
+                    setActiveViewDay(tpl.plan[0]?.day || "Monday");
+                  }}
+                  className="flex-1 py-3 rounded-xl font-bold text-xs tracking-wider bg-white/5 hover:bg-white/10 text-white border border-white/5 transition-all"
+                >
+                  VIEW WORKOUT
+                </button>
+                <button
+                  onClick={() => handleApplyTemplate(tpl.id)}
+                  disabled={appliedId !== null}
+                  className={`flex-1 py-3 rounded-xl font-bold text-xs tracking-wider transition-all ${
+                    appliedId === tpl.id 
+                      ? 'bg-accent-green text-black' 
+                      : 'bg-white/10 text-white hover:bg-white/20 border border-white/5'
+                  }`}
+                >
+                  {appliedId === tpl.id ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <Check className="w-4 h-4" /> APPLIED
+                    </span>
+                  ) : (
+                    "APPLY TEMPLATE"
+                  )}
+                </button>
+              </div>
             </div>
           ))}
         </section>
@@ -330,23 +343,34 @@ export default function TemplatesPage() {
                   {tpl.description}
                 </p>
 
-                <button
-                  onClick={() => handleApplyTemplate(tpl.id)}
-                  disabled={appliedId !== null}
-                  className={`w-full mt-5 py-3 rounded-xl font-bold text-sm tracking-wide transition-all ${
-                    appliedId === tpl.id 
-                      ? 'bg-accent-green text-black' 
-                      : 'bg-white/10 text-white hover:bg-white/20 border border-white/5'
-                  }`}
-                >
-                  {appliedId === tpl.id ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <Check className="w-4 h-4" /> APPLIED
-                    </span>
-                  ) : (
-                    "APPLY TEMPLATE"
-                  )}
-                </button>
+                <div className="flex gap-3 mt-5">
+                  <button
+                    onClick={() => {
+                      setSelectedViewTemplate(tpl);
+                      setActiveViewDay(tpl.plan[0]?.day || "Monday");
+                    }}
+                    className="flex-1 py-3 rounded-xl font-bold text-xs tracking-wider bg-white/5 hover:bg-white/10 text-white border border-white/5 transition-all"
+                  >
+                    VIEW WORKOUT
+                  </button>
+                  <button
+                    onClick={() => handleApplyTemplate(tpl.id)}
+                    disabled={appliedId !== null}
+                    className={`flex-1 py-3 rounded-xl font-bold text-xs tracking-wider transition-all ${
+                      appliedId === tpl.id 
+                        ? 'bg-accent-green text-black' 
+                        : 'bg-white/10 text-white hover:bg-white/20 border border-white/5'
+                    }`}
+                  >
+                    {appliedId === tpl.id ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <Check className="w-4 h-4" /> APPLIED
+                      </span>
+                    ) : (
+                      "APPLY TEMPLATE"
+                    )}
+                  </button>
+                </div>
               </div>
             ))
           )}
@@ -625,6 +649,123 @@ export default function TemplatesPage() {
                 </div>
               </div>
             )}
+            
+          </div>
+        </div>
+      )}
+
+      {/* View Workout Details Modal */}
+      {selectedViewTemplate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-lg bg-[#111] border border-white/10 rounded-[2rem] p-6 relative flex flex-col max-h-[80vh] animate-fade-in-up shadow-2xl">
+            
+            {/* Header */}
+            <button 
+              onClick={() => setSelectedViewTemplate(null)}
+              className="absolute top-4 right-4 p-2 bg-white/5 rounded-full hover:bg-white/10 text-text-muted hover:text-white"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            
+            <h3 className="text-lg font-black text-white pr-8">{selectedViewTemplate.name}</h3>
+            <span className="text-[10px] text-accent-green uppercase font-bold tracking-widest mt-1 mb-2">{selectedViewTemplate.frequency}</span>
+            <p className="text-xs text-text-muted mb-4 leading-relaxed">{selectedViewTemplate.description}</p>
+            
+            {/* Horizontal Scrollable Day selector tabs */}
+            <div className="flex gap-2 overflow-x-auto pb-3 mb-4 scrollbar-thin border-b border-white/5">
+              {selectedViewTemplate.plan.map((dayPlan) => (
+                <button
+                  key={dayPlan.day}
+                  onClick={() => setActiveViewDay(dayPlan.day)}
+                  className={`px-4 py-2 text-xs font-bold rounded-xl whitespace-nowrap transition-all ${
+                    activeViewDay === dayPlan.day
+                      ? 'bg-accent-green text-black font-black'
+                      : 'bg-white/5 text-text-muted hover:text-white border border-white/5'
+                  }`}
+                >
+                  {dayPlan.day} ({dayPlan.type})
+                </button>
+              ))}
+            </div>
+            
+            {/* Exercises list - scrollable container */}
+            <div className="flex-1 overflow-y-auto pr-1">
+              {(() => {
+                const currentDayPlan = selectedViewTemplate.plan.find(p => p.day === activeViewDay);
+                if (!currentDayPlan) return null;
+                
+                if (currentDayPlan.type === 'Rest' || (currentDayPlan.warmups.length === 0 && currentDayPlan.mainLifts.length === 0)) {
+                  return (
+                    <div className="flex flex-col items-center justify-center py-10 text-text-muted">
+                      <span className="text-3xl mb-2">😴</span>
+                      <span className="text-xs font-bold">Rest / Recovery Day</span>
+                      <span className="text-[10px] text-text-muted/60 mt-1">Focus on sleep, hydration, and active stretching.</span>
+                    </div>
+                  );
+                }
+                
+                return (
+                  <div className="flex flex-col gap-4">
+                    {/* Warm-ups */}
+                    {currentDayPlan.warmups.length > 0 && (
+                      <div>
+                        <span className="text-[9px] uppercase font-bold text-text-muted tracking-widest block mb-2">Warm-Up Protocol</span>
+                        <div className="flex flex-col gap-2">
+                          {currentDayPlan.warmups.map((ex) => (
+                            <div key={ex.id} className="bg-white/5 border border-white/5 rounded-xl p-3">
+                              <div className="flex justify-between items-start">
+                                <span className="text-xs font-bold text-white">{ex.name}</span>
+                                <span className="text-[10px] font-bold text-accent-green">{ex.targetSets} × {ex.targetValue}</span>
+                              </div>
+                              {ex.note && <p className="text-[10px] text-text-muted/80 mt-1 italic">Note: {ex.note}</p>}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Main Lifts */}
+                    {currentDayPlan.mainLifts.length > 0 && (
+                      <div>
+                        <span className="text-[9px] uppercase font-bold text-accent-green tracking-widest block mb-2">Main Lifts</span>
+                        <div className="flex flex-col gap-2">
+                          {currentDayPlan.mainLifts.map((ex) => (
+                            <div key={ex.id} className="bg-white/5 border border-white/5 rounded-xl p-3">
+                              <div className="flex justify-between items-start">
+                                <span className="text-xs font-bold text-white">{ex.name}</span>
+                                <span className="text-[10px] font-bold text-accent-green">{ex.targetSets} × {ex.targetValue} {ex.trackingType === 'time_only' ? '' : 'reps'}</span>
+                              </div>
+                              {ex.note && <p className="text-[10px] text-text-muted/80 mt-1 italic">Note: {ex.note}</p>}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+            
+            {/* Modal Actions */}
+            <div className="mt-6 pt-4 border-t border-white/5 flex gap-3">
+              <button
+                onClick={() => setSelectedViewTemplate(null)}
+                className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white font-bold text-xs uppercase tracking-widest rounded-xl transition-all border border-white/5"
+              >
+                Close
+              </button>
+              <button
+                onClick={() => {
+                  const id = selectedViewTemplate.id;
+                  setSelectedViewTemplate(null);
+                  handleApplyTemplate(id);
+                }}
+                disabled={appliedId !== null}
+                className="flex-1 py-3 bg-accent-green text-black font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-lg active:scale-95"
+              >
+                APPLY THIS PLAN
+              </button>
+            </div>
             
           </div>
         </div>
