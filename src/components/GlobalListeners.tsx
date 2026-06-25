@@ -171,12 +171,66 @@ export function GlobalListeners() {
       }
     };
 
+    // 4. Foreground Sync Anchor for Offline Feedback
+    const syncFeedback = async () => {
+      if (navigator.onLine) {
+        const unsynced = localStorage.getItem('unsynced_feedback');
+        if (unsynced) {
+          try {
+            const feedbacks = JSON.parse(unsynced);
+            if (Array.isArray(feedbacks) && feedbacks.length > 0) {
+              while (true) {
+                const currentUnsynced = localStorage.getItem('unsynced_feedback');
+                if (!currentUnsynced) break;
+                const currentFeedbacks = JSON.parse(currentUnsynced);
+                if (!Array.isArray(currentFeedbacks) || currentFeedbacks.length === 0) break;
+
+                const feedbackItem = currentFeedbacks[0];
+
+                try {
+                  const res = await fetch('/api/feedback', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(feedbackItem),
+                  });
+                  if (!res.ok) {
+                    console.error('Failed to sync feedback item:', res.statusText);
+                    break;
+                  }
+                } catch (err) {
+                  console.error('Network error during feedback sync:', err);
+                  break;
+                }
+
+                const remainingFeedbacks = currentFeedbacks.slice(1);
+                if (remainingFeedbacks.length > 0) {
+                  localStorage.setItem('unsynced_feedback', JSON.stringify(remainingFeedbacks));
+                } else {
+                  localStorage.removeItem('unsynced_feedback');
+                }
+              }
+
+              const checkRemaining = localStorage.getItem('unsynced_feedback');
+              if (!checkRemaining || JSON.parse(checkRemaining).length === 0) {
+                toast("Offline feedback synced successfully!");
+              }
+            }
+          } catch (e) {
+            console.error('Error syncing offline feedback', e);
+          }
+        }
+      }
+    };
+
     window.addEventListener('online', syncWorkouts);
+    window.addEventListener('online', syncFeedback);
     syncWorkouts();
+    syncFeedback();
 
     return () => {
       authSubscription.unsubscribe();
       window.removeEventListener('online', syncWorkouts);
+      window.removeEventListener('online', syncFeedback);
       if (friendRequestSubscription) {
         supabase.removeChannel(friendRequestSubscription);
       }

@@ -8,6 +8,7 @@ export interface UserProfile {
   avatar_url: string;
   total_xp: number;
   unclaimed_rewards?: number;
+  is_admin?: boolean;
 }
 
 export interface UserMetrics {
