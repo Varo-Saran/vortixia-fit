@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronLeft, MessageSquarePlus, Send, Target, Dumbbell, AlertTriangle, Lightbulb, HelpCircle, Laptop } from "lucide-react";
+import { ChevronLeft, MessageSquarePlus, Send, Target, Dumbbell, AlertTriangle, Lightbulb, HelpCircle, Laptop, ChevronDown } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useProfileStore } from "@/store/useProfileStore";
 import { toast } from "@/components/ui/Toast";
@@ -411,18 +411,21 @@ export default function FeedbackPage() {
                   <label className="text-[10px] uppercase tracking-widest text-text-muted font-bold ml-1 flex items-center gap-1">
                     <Dumbbell className="w-3.5 h-3.5" /> Equipment
                   </label>
-                  <select
-                    value={equipment}
-                    onChange={(e) => setEquipment(e.target.value)}
-                    className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-base text-white outline-none focus:border-accent-green transition-colors appearance-none"
-                  >
-                    <option value="">Select...</option>
-                    <option value="bodyweight">Bodyweight</option>
-                    <option value="dumbbell">Dumbbell</option>
-                    <option value="barbell">Barbell</option>
-                    <option value="cable">Cable / Machine</option>
-                    <option value="band">Resistance Band</option>
-                  </select>
+                  <div className="relative">
+                    <select
+                      value={equipment}
+                      onChange={(e) => setEquipment(e.target.value)}
+                      className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 pr-10 text-base text-white outline-none focus:border-accent-green transition-colors appearance-none"
+                    >
+                      <option value="">Select...</option>
+                      <option value="bodyweight">Bodyweight</option>
+                      <option value="dumbbell">Dumbbell</option>
+                      <option value="barbell">Barbell</option>
+                      <option value="cable">Cable / Machine</option>
+                      <option value="band">Resistance Band</option>
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
+                  </div>
                 </div>
               </div>
             </>

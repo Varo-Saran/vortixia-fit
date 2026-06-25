@@ -369,13 +369,6 @@ export default function Dashboard() {
               style={{ width: `${Math.min(100, Math.round(((profile.total_xp || 0) % 2000) / 2000 * 100))}%` }}
             />
           </div>
-          {/* Subtle Gender Hero Switch Pill */}
-          <button 
-            onClick={() => setHeroGender(heroGender === 'male' ? 'female' : 'male')} 
-            className="text-[8px] uppercase tracking-widest font-bold text-text-muted/65 hover:text-white transition-colors text-left mt-0.5 w-max"
-          >
-            Switch to {mounted ? (heroGender === 'male' ? 'Female' : 'Male') : 'Female'} Visuals
-          </button>
         </div>
       )}
 

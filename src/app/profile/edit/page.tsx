@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { Calculator, ChevronLeft, Save, Loader2 } from "lucide-react";
+import { Calculator, ChevronLeft, Save, Loader2, ChevronDown } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import { useProfileStore } from "@/store/useProfileStore";
+import { useSettingsStore } from "@/store/useSettingsStore";
 import { toast } from "@/components/ui/Toast";
 
 export default function EditProfile() {
@@ -116,7 +117,7 @@ export default function EditProfile() {
       bmr += gender === 'Male' ? 5 : -161;
       const tdee = Math.round(bmr * 1.55);
 
-      await supabase
+      const { error: upsertError } = await supabase
         .from('user_metrics')
         .upsert({
           id: userId,
@@ -130,8 +131,19 @@ export default function EditProfile() {
           body_fat_pct: bf,
         }, { onConflict: 'id' });
 
+      if (upsertError) {
+        console.error("Supabase upsert error:", upsertError);
+        toast.error(`Failed to update body metrics: ${upsertError.message}`);
+        setIsSaving(false);
+        return;
+      }
+
+      // Update settings store visual state immediately
+      const genderVal = gender.toLowerCase() === 'female' ? 'female' : 'male';
+      useSettingsStore.getState().setHeroGender(genderVal);
+
       // Log body metrics to history if changed
-      const { data: lastLog } = await supabase
+      const { data: lastLog, error: lastLogError } = await supabase
         .from('body_metrics_log')
         .select('weight_kg, body_fat_pct')
         .eq('user_id', userId)
@@ -139,17 +151,22 @@ export default function EditProfile() {
         .limit(1)
         .maybeSingle();
 
-      const weightChanged = !lastLog || parseFloat(lastLog.weight_kg) !== w;
-      const bfChanged = !lastLog || (lastLog.body_fat_pct === null && bf !== null) || (lastLog.body_fat_pct !== null && parseFloat(lastLog.body_fat_pct) !== bf);
+      if (!lastLogError) {
+        const weightChanged = !lastLog || parseFloat(lastLog.weight_kg) !== w;
+        const bfChanged = !lastLog || (lastLog.body_fat_pct === null && bf !== null) || (lastLog.body_fat_pct !== null && parseFloat(lastLog.body_fat_pct) !== bf);
 
-      if (weightChanged || bfChanged) {
-        await supabase
-          .from('body_metrics_log')
-          .insert({
-            user_id: userId,
-            weight_kg: w,
-            body_fat_pct: bf
-          });
+        if (weightChanged || bfChanged) {
+          const { error: insertLogError } = await supabase
+            .from('body_metrics_log')
+            .insert({
+              user_id: userId,
+              weight_kg: w,
+              body_fat_pct: bf
+            });
+          if (insertLogError) {
+            console.error("Failed to insert body metrics log:", insertLogError);
+          }
+        }
       }
 
       if (fullName !== profile?.full_name || username !== profile?.username) {
@@ -164,14 +181,17 @@ export default function EditProfile() {
         if (error) {
           if (error.code === '23505') {
             toast.error('Username is already taken');
+            setIsSaving(false);
             return;
           }
-          console.error("Error updating user:", error);
+          console.error("Error updating user profile:", error);
+          toast.error(`Failed to update user profile: ${error.message}`);
+          setIsSaving(false);
+          return;
         }
       }
 
       await fetchProfile(); // Always refresh profile and metrics in store
-
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 2000);
     } catch (err) {
@@ -260,15 +280,18 @@ export default function EditProfile() {
           <div className="flex gap-4">
             <div className="flex-1 flex flex-col gap-1">
               <label className="text-[10px] uppercase text-text-muted font-bold">Gender</label>
-              <select 
-                value={gender} 
-                onChange={(e) => setGender(e.target.value as any)}
-                className="bg-black/50 border border-white/10 rounded-lg p-3 pr-10 text-white outline-none text-sm w-full min-w-0"
-              >
-                <option value="" disabled>Select</option>
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-              </select>
+              <div className="relative">
+                <select 
+                  value={gender} 
+                  onChange={(e) => setGender(e.target.value as any)}
+                  className="bg-black/50 border border-white/10 rounded-lg p-3 pr-10 text-white outline-none text-sm w-full min-w-0 appearance-none focus:border-accent-green transition-colors"
+                >
+                  <option value="" disabled>Select</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
+              </div>
             </div>
             <div className="flex-1 flex flex-col gap-1">
               <label className="text-[10px] uppercase text-text-muted font-bold">Age</label>
@@ -298,14 +321,17 @@ export default function EditProfile() {
 
           <div className="flex flex-col gap-1">
             <label className="text-[10px] uppercase text-text-muted font-bold">Primary Goal</label>
-            <select 
-              value={goal} onChange={(e) => setGoal(e.target.value)}
-              className="bg-black/50 border border-white/10 rounded-lg p-3 pr-10 text-white outline-none text-sm w-full min-w-0"
-            >
-              <option value="Hypertrophy">Hypertrophy (Muscle Gain)</option>
-              <option value="Strength">Strength / Powerlifting</option>
-              <option value="Cut">Cut (Fat Loss)</option>
-            </select>
+            <div className="relative">
+              <select 
+                value={goal} onChange={(e) => setGoal(e.target.value)}
+                className="bg-black/50 border border-white/10 rounded-lg p-3 pr-10 text-white outline-none text-sm w-full min-w-0 appearance-none focus:border-accent-green transition-colors"
+              >
+                <option value="Hypertrophy">Hypertrophy (Muscle Gain)</option>
+                <option value="Strength">Strength / Powerlifting</option>
+                <option value="Cut">Cut (Fat Loss)</option>
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
+            </div>
           </div>
         </div>
       </section>

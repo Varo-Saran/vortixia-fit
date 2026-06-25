@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
+import { useSettingsStore } from './useSettingsStore';
 
 export interface UserProfile {
   id: string;
@@ -98,7 +99,13 @@ export const useProfileStore = create<ProfileStore>((set) => ({
         console.error("Error fetching metrics", metricsErr);
       }
 
-      set({ profile: { ...user, unclaimed_rewards: 1 }, metrics: metrics || null, isLoading: false });
+      const userMetrics = metrics || null;
+      if (userMetrics?.gender) {
+        const genderVal = userMetrics.gender.toLowerCase() === 'female' ? 'female' : 'male';
+        useSettingsStore.getState().setHeroGender(genderVal);
+      }
+
+      set({ profile: { ...user, unclaimed_rewards: 1 }, metrics: userMetrics, isLoading: false });
     } catch (err) {
       console.error("Error fetching profile", err);
       set({ isLoading: false });
