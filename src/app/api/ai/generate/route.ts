@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createSupabaseServer } from '@/lib/supabase-server';
+import { generateRoutine, GoalType, SplitType } from '@/lib/ixia-ai';
 
 export async function POST(req: Request) {
   try {
@@ -12,7 +13,7 @@ export async function POST(req: Request) {
 
     const userId = session.user.id;
     const body = await req.json();
-    const { goal: selectedGoal, split } = body;
+    const { goal: selectedGoal, split = 'ppl' } = body;
 
     // Fetch user metrics including goal
     const { data: metrics, error: metricsErr } = await supabase
@@ -26,87 +27,43 @@ export async function POST(req: Request) {
     }
 
     // Prioritize metric's goal if the prompt meant that literally, else fallback to selected goal
-    const userGoal = metrics?.goal || selectedGoal || 'hypertrophy';
-    
-    const prompt = `
-You are iXiA, an expert AI fitness coach. 
-Generate a 7-day workout routine for a user.
+    const userGoal = (metrics?.goal || selectedGoal || 'hypertrophy') as GoalType;
+    const userSplit = (split || 'ppl') as SplitType;
 
-User Metrics: ${JSON.stringify(metrics || {})}
-Goal: ${userGoal}
-Split: ${split || 'ppl'}
+    // Generate local routine using the built-in deterministic algorithm
+    const rawRoutine = generateRoutine(userGoal, userSplit);
 
-Output EXACTLY a JSON array of 7 objects (Monday through Sunday) matching this TypeScript interface:
+    const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const shortDays = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
-type TrackingType = 'reps_weight' | 'time_weight' | 'time_only' | 'cardio_hr' | 'reps_only';
-type WeightUnit = 'kg' | 'lbs' | 'plates' | 'unitless';
-
-interface PlannedExercise {
-  id: string; // unique short string like "e1", "e2"
-  name: string;
-  targetMuscle: string;
-  trackingType: TrackingType;
-  weightUnit: WeightUnit;
-  targetSets: number;
-  targetValue: string; // e.g., "8-10", "60 secs"
-  note?: string;
-  isWarmup?: boolean;
-}
-
-interface DayPlan {
-  day: string; // "Monday", "Tuesday", etc.
-  shortDay: string; // "M", "T", "W", "T", "F", "S", "S"
-  type: string; // e.g., "Push", "Pull", "Rest"
-  title: string; // e.g., "Push Day", "Active Recovery"
-  warmups: PlannedExercise[];
-  mainLifts: PlannedExercise[];
-}
-
-Return ONLY valid JSON.
-`;
-
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json({ error: 'GEMINI_API_KEY is not set' }, { status: 500 });
+    let distribution: string[] = [];
+    if (userSplit === 'bro_split') {
+      distribution = ['Chest', 'Back', 'Arms', 'Shoulders', 'Legs', 'Rest', 'Rest'];
+    } else if (userSplit === 'ppl') {
+      distribution = ['Push', 'Pull', 'Legs', 'Push', 'Pull', 'Legs', 'Rest'];
+    } else if (userSplit === 'upper_lower') {
+      distribution = ['Upper', 'Lower', 'Rest', 'Upper', 'Lower', 'Rest', 'Rest'];
+    } else if (userSplit === 'full_body') {
+      distribution = ['FullBody', 'Rest', 'FullBody', 'Rest', 'FullBody', 'Rest', 'Rest'];
     }
 
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-    
-    const geminiRes = await fetch(geminiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: {
-          responseMimeType: "application/json"
-        }
-      })
+    const parsedPlan = daysOfWeek.map((dayName, index) => {
+      const dayType = distribution[index] || 'Rest';
+      const mainLifts = rawRoutine[dayName] || [];
+      
+      return {
+        day: dayName,
+        shortDay: shortDays[index],
+        type: dayType,
+        title: dayType === 'Rest' ? 'Active Recovery' : `${dayType} Day`,
+        warmups: [],
+        mainLifts: mainLifts
+      };
     });
 
-    if (!geminiRes.ok) {
-      const errorText = await geminiRes.text();
-      console.error('Gemini API Error:', errorText);
-      return NextResponse.json({ error: 'Failed to generate routine from AI' }, { status: 500 });
-    }
-
-    const geminiData = await geminiRes.json();
-    const generatedText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
-    
-    if (!generatedText) {
-      return NextResponse.json({ error: 'Empty response from AI' }, { status: 500 });
-    }
-
-    let parsedPlan;
-    try {
-      parsedPlan = JSON.parse(generatedText);
-    } catch (parseError) {
-      console.error('Failed to parse Gemini JSON:', generatedText);
-      return NextResponse.json({ error: 'AI returned invalid JSON' }, { status: 500 });
-    }
-
     return NextResponse.json({ plan: parsedPlan });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error generating AI routine:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
   }
 }
