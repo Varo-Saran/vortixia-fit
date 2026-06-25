@@ -25,20 +25,34 @@ export function useWeather() {
     // Only run on client
     if (typeof window === 'undefined') return;
 
-    const fetchWeather = async (lat: number, lon: number) => {
+    const fetchWeather = async (lat: number, lon: number, providedCity?: string | null) => {
       try {
-        // 1. Get Weather from Open-Meteo
+        // 1. Get Weather from Open-Meteo (highly accurate meteorological forecast models)
         const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
+        if (!weatherRes.ok) throw new Error("Weather request failed");
         const weatherData = await weatherRes.json();
         
-        // 2. Get City from BigDataCloud (free client-side reverse geocoding)
-        const cityRes = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`);
-        const cityData = await cityRes.json();
+        // 2. Get City (use IP resolved city if provided, otherwise fallback to reverse-geocoder)
+        let city = providedCity || null;
+        if (!city) {
+          try {
+            const cityRes = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`);
+            if (cityRes.ok) {
+              const cityData = await cityRes.json();
+              city = cityData.city || cityData.locality || cityData.principalSubdivision || null;
+            }
+          } catch (e) {
+            console.warn("Reverse geocoding failed, falling back to coordinates");
+          }
+        }
+
+        if (!city) {
+          city = "My Location";
+        }
 
         const current = weatherData.current_weather;
         const temp = Math.round(current.temperature);
         const code = current.weathercode;
-        const city = cityData.city || cityData.locality || cityData.principalSubdivision || "Unknown City";
 
         // Map WMO Weather Codes to our UI state
         let condition = "Clear";
@@ -72,6 +86,22 @@ export function useWeather() {
       }
     };
 
+    const fetchIPFallback = async () => {
+      try {
+        const res = await fetch("https://ipapi.co/json/");
+        if (!res.ok) throw new Error("ipapi fallback request failed");
+        const data = await res.json();
+        if (data.latitude && data.longitude) {
+          await fetchWeather(data.latitude, data.longitude, data.city);
+        } else {
+          setWeather(prev => ({ ...prev, status: "denied" }));
+        }
+      } catch (err) {
+        console.error("IP fallback geocoding failed:", err);
+        setWeather(prev => ({ ...prev, status: "error" }));
+      }
+    };
+
     setWeather(prev => ({ ...prev, status: "loading" }));
 
     if ("geolocation" in navigator) {
@@ -80,13 +110,13 @@ export function useWeather() {
           fetchWeather(position.coords.latitude, position.coords.longitude);
         },
         (error) => {
-          console.warn("Location permission denied", error);
-          setWeather(prev => ({ ...prev, status: "denied" }));
+          console.warn("Location permission denied, trying IP fallback...", error);
+          fetchIPFallback();
         },
-        { timeout: 10000 }
+        { timeout: 8000 } // slightly lower timeout to trigger IP fallback faster
       );
     } else {
-      setWeather(prev => ({ ...prev, status: "error" }));
+      fetchIPFallback();
     }
 
   }, []);
