@@ -4,26 +4,33 @@ import { generateRoutine, GoalType, SplitType } from '@/lib/ixia-ai';
 
 export async function POST(req: Request) {
   try {
-    const supabase = await createSupabaseServer();
-    const { data: { session }, error: authError } = await supabase.auth.getSession();
-
-    if (authError || !session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    let session = null;
+    let supabase = null;
+    try {
+      supabase = await createSupabaseServer();
+      const { data } = await supabase.auth.getSession();
+      session = data?.session;
+    } catch (e) {
+      console.warn('Supabase initialization or session fetch skipped/failed:', e);
     }
 
-    const userId = session.user.id;
+    const userId = session?.user?.id;
     const body = await req.json();
     const { goal: selectedGoal, split = 'ppl' } = body;
 
     // Fetch user metrics including goal
-    const { data: metrics, error: metricsErr } = await supabase
-      .from('user_metrics')
-      .select('*')
-      .eq('id', userId)
-      .single();
+    let metrics = null;
+    if (supabase && userId) {
+      const { data: metricsData, error: metricsErr } = await supabase
+        .from('user_metrics')
+        .select('*')
+        .eq('id', userId)
+        .single();
 
-    if (metricsErr && metricsErr.code !== 'PGRST116') {
-      console.error('Error fetching metrics:', metricsErr);
+      if (metricsErr && metricsErr.code !== 'PGRST116') {
+        console.error('Error fetching metrics:', metricsErr);
+      }
+      metrics = metricsData;
     }
 
     // Prioritize metric's goal if the prompt meant that literally, else fallback to selected goal

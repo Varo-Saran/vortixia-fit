@@ -21,6 +21,9 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const q = searchParams.get('q') || '';
+  const limitStr = searchParams.get('limit');
+  const limitVal = limitStr ? parseInt(limitStr, 10) : 50;
+  const limit = isNaN(limitVal) ? 50 : limitVal;
   
   const supabase = await createSupabaseServer();
   const { data: { session } } = await supabase.auth.getSession();
@@ -48,7 +51,7 @@ export async function GET(request: Request) {
   excludeIds = Array.from(new Set(excludeIds));
 
   if (!q) {
-    let query = supabase.from('users').select('*').order('total_xp', { ascending: false }).limit(50);
+    let query = supabase.from('users').select('*').order('total_xp', { ascending: false }).limit(limit);
     if (excludeIds.length > 0) {
       query = query.not('id', 'in', `(${excludeIds.join(',')})`);
     }
@@ -59,7 +62,7 @@ export async function GET(request: Request) {
     }
     return NextResponse.json(data);
   } else {
-    let query = supabase.from('users').select('*').ilike('username', `%${q}%`).limit(50);
+    let query = supabase.from('users').select('*').ilike('username', `%${q}%`).limit(limit);
     if (excludeIds.length > 0) {
       query = query.not('id', 'in', `(${excludeIds.join(',')})`);
     }

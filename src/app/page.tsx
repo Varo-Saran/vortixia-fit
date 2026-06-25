@@ -17,6 +17,11 @@ import { toast } from "react-hot-toast";
 import { useRouter } from "next/navigation";
 
 export default function Dashboard() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const router = useRouter();
   const [greeting, setGreeting] = useState("Hello");
   const [streakDays, setStreakDays] = useState<{ day: string; date: string; active: boolean; today: boolean; timestamp: number }[]>([]);
@@ -53,7 +58,7 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchRecommendations = async () => {
       try {
-        const res = await fetch(`/api/search?q=`);
+        const res = await fetch(`/api/search?q=&limit=5`);
         if (res.ok) {
           const data = await res.json();
           setRecommendedAthletes(data);
@@ -169,11 +174,13 @@ export default function Dashboard() {
         .sort((a, b) => a.recoveryPercentage - b.recoveryPercentage);
       if (tiredMuscles.length > 0) {
         setFatiguedMuscleRecommendation(`${tiredMuscles[0].name} is fatigued (${Math.round(tiredMuscles[0].recoveryPercentage)}%). Avoid training it today.`);
+      } else if (readinessScore < 80) {
+        setFatiguedMuscleRecommendation(`CNS is recovering (${Math.round(readinessScore)}%). Focus on light active recovery or rest.`);
       } else {
         setFatiguedMuscleRecommendation("All muscles recovered. Ready to crush your targets!");
       }
     }
-  }, [muscles]);
+  }, [muscles, readinessScore]);
 
   // Fetch Active Duel & Friend Activity
   useEffect(() => {
@@ -225,7 +232,7 @@ export default function Dashboard() {
             .in('user_id', friendIds)
             .gte('start_time', new Date(`${todayStr}T00:00:00`).toISOString());
           if (sessions) {
-            setFriendWorkoutsCount(sessions.length);
+            setFriendWorkoutsCount(new Set(sessions.map(s => s.user_id)).size);
           }
         }
       } catch (e) {
@@ -288,7 +295,7 @@ export default function Dashboard() {
       {/* Massive Hero Background Image */}
       <div className="absolute top-0 left-0 w-full h-[55vh] z-0 pointer-events-none">
         <img 
-          src={`/mockups/hero_${heroGender}.png`} 
+          src={`/mockups/hero_${mounted ? heroGender : 'male'}.png`} 
           alt="Hero Athlete" 
           className="w-full h-full object-cover opacity-80 mix-blend-lighten" 
         />
@@ -367,7 +374,7 @@ export default function Dashboard() {
             onClick={() => setHeroGender(heroGender === 'male' ? 'female' : 'male')} 
             className="text-[8px] uppercase tracking-widest font-bold text-text-muted/65 hover:text-white transition-colors text-left mt-0.5 w-max"
           >
-            Switch to {heroGender === 'male' ? 'Female' : 'Male'} Visuals
+            Switch to {mounted ? (heroGender === 'male' ? 'Female' : 'Male') : 'Female'} Visuals
           </button>
         </div>
       )}
@@ -400,7 +407,7 @@ export default function Dashboard() {
       </section>
 
       {/* Active Workout Resume Banner */}
-      {isActive && (
+      {mounted && isActive && (
         <div className="relative z-10 w-[calc(100%-2rem)] mx-auto mb-6 p-4 rounded-2xl bg-gradient-to-r from-accent-red/20 to-red-500/10 border border-accent-red/30 shadow-[0_0_20px_rgba(255,59,48,0.15)] animate-pulse">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -458,28 +465,28 @@ export default function Dashboard() {
         <button 
           onClick={handleWorkoutTileClick}
           className={`col-span-1 row-span-2 relative p-5 rounded-[2rem] overflow-hidden flex flex-col justify-between group border shadow-2xl active:scale-95 transition-transform text-left w-full ${
-            isActive 
+            mounted && isActive 
               ? 'bg-[#1a0f0f] border-accent-red/30 shadow-[0_0_20px_rgba(255,59,48,0.1)]' 
               : 'bg-[#111] border-white/5'
           }`}
         >
-          <div className={`absolute inset-0 bg-gradient-to-b opacity-50 ${isActive ? 'from-accent-red/20' : 'from-accent-green/20'} to-transparent`} />
-          <div className={`absolute -top-10 -right-10 w-32 h-32 blur-3xl rounded-full ${isActive ? 'bg-accent-red/30' : 'bg-accent-green/30'}`} />
+          <div className={`absolute inset-0 bg-gradient-to-b opacity-50 ${mounted && isActive ? 'from-accent-red/20' : 'from-accent-green/20'} to-transparent`} />
+          <div className={`absolute -top-10 -right-10 w-32 h-32 blur-3xl rounded-full ${mounted && isActive ? 'bg-accent-red/30' : 'bg-accent-green/30'}`} />
           
           <div className="z-10">
              <h2 className="text-white font-black text-lg leading-tight">
-               {isActive ? "Workout Active" : todayPlanName}
+               {mounted && isActive ? "Workout Active" : todayPlanName}
              </h2>
              <p className="text-text-muted text-[9px] mt-1 font-bold uppercase tracking-widest">
-               {isActive ? `Elapsed: ${elapsed}` : "Today's Plan"}
+               {mounted && isActive ? `Elapsed: ${elapsed}` : "Today's Plan"}
              </p>
           </div>
           
           <div className="z-10 mt-auto">
             <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-transform group-hover:scale-110 shadow-lg ${
-              isActive ? 'bg-accent-red text-white' : 'bg-accent-green text-black'
+              mounted && isActive ? 'bg-accent-red text-white' : 'bg-accent-green text-black'
             }`}>
-              {isActive ? <Activity className="w-5 h-5 animate-pulse" /> : <Plus className="w-6 h-6 stroke-[3px]" />}
+              {mounted && isActive ? <Activity className="w-5 h-5 animate-pulse" /> : <Plus className="w-6 h-6 stroke-[3px]" />}
             </div>
           </div>
         </button>
@@ -492,14 +499,14 @@ export default function Dashboard() {
             <HeartPulse className="w-4 h-4 text-red-500" />
           </div>
           <div className="z-10">
-            <div className="text-3xl font-black text-white">{readinessScore || 100}<span className="text-sm">%</span></div>
+            <div className="text-3xl font-black text-white">{mounted ? (readinessScore ?? 100) : 100}<span className="text-sm">%</span></div>
             <p className={`text-[10px] font-bold uppercase mt-0.5 ${
-              readinessScore >= 80 ? 'text-accent-green' : readinessScore >= 50 ? 'text-yellow-500' : 'text-accent-red'
+              mounted && readinessScore ? (readinessScore >= 80 ? 'text-accent-green' : readinessScore >= 50 ? 'text-yellow-500' : 'text-accent-red') : 'text-accent-green'
             }`}>
-              {cnsStatus || "Fresh CNS"}
+              {mounted ? (cnsStatus || "Fresh CNS") : "Fresh CNS"}
             </p>
             <div className="text-[7px] text-text-muted leading-tight font-bold mt-1 line-clamp-2">
-              {fatiguedMuscleRecommendation}
+              {mounted ? fatiguedMuscleRecommendation : "All muscles recovered. Ready to crush your targets!"}
             </div>
           </div>
         </Link>

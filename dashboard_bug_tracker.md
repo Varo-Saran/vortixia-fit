@@ -16,12 +16,12 @@ This tracker monitors progress across our two-phase systematic resolution plan.
 
 ---
 
-## ⏳ Phase 2: UX Polish, Optimization & Hydration Guardrails [PENDING]
+## ⏳ Phase 2: UX Polish, Optimization & Hydration Guardrails [COMPLETE]
 
-- [ ] Unify the duplicated Rest Timer tick loops, link it to Zustand, and float the overlay globally in `layout.tsx`.
-- [ ] Eliminate strict 401 API authentication blocks from the local deterministic AI Routine Generator route for guest users.
-- [ ] Wrap dashboard and recovery readiness score displays in mounted/useEffect checks to prevent SSR Hydration Mismatch warnings.
-- [ ] Update the dashboard recovery recommendation logic to accurately evaluate general CNS fatigue when individual muscles aren't heavily damaged.
-- [ ] Remove the dead tooltip code and enable pointer-events on the `MuscleMapCanvas` widget container.
-- [ ] Code the dynamic progress bar width calculations for active duels cards and fix the unique ID filter for friend completion counts.
-- [ ] Add the URL limit parameter to the recommendedAthletes API search query to stop over-fetching user profiles.
+- [x] Unify the duplicated Rest Timer tick loops, link it to Zustand, and float the overlay globally in `layout.tsx`.
+- [x] Eliminate strict 401 API authentication blocks from the local deterministic AI Routine Generator route for guest users.
+- [x] Wrap dashboard and recovery readiness score displays in mounted/useEffect checks to prevent SSR Hydration Mismatch warnings.
+- [x] Update the dashboard recovery recommendation logic to accurately evaluate general CNS fatigue when individual muscles aren't heavily damaged.
+- [x] Remove the dead tooltip code and enable pointer-events on the `MuscleMapCanvas` widget container.
+- [x] Code the dynamic progress bar width calculations for active duels cards and fix the unique ID filter for friend completion counts.
+- [x] Add the URL limit parameter to the recommendedAthletes API search query to stop over-fetching user profiles.

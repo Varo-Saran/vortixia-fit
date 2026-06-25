@@ -340,7 +340,7 @@ export default function SocialArena() {
                       
                       <div className="flex flex-col gap-1">
                         <div className="w-full h-2 bg-black/80 rounded-full overflow-hidden flex border border-white/5">
-                          <div className="h-full bg-white/20 transition-all duration-1000 relative" style={{ width: `50%` }}>
+                          <div className="h-full bg-white/20 transition-all duration-1000 relative" style={{ width: `${myScore + oppScore > 0 ? (myScore / (myScore + oppScore)) * 100 : 50}%` }}>
                           </div>
                         </div>
                       </div>

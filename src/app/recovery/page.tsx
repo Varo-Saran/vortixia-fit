@@ -13,10 +13,13 @@ export default function RecoveryArena() {
 
   // View state
   const [viewSide, setViewSide] = useState<"front" | "back">("front");
+  const [mounted, setMounted] = useState(false);
 
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
-
-  if (muscles.length === 0) return null;
+  if (!mounted || muscles.length === 0) return null;
 
   return (
     <main className="flex min-h-screen flex-col items-center pt-[var(--notch-top)] pb-24 px-6 bg-background relative overflow-x-hidden">

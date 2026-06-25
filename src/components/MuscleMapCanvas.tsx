@@ -38,7 +38,7 @@ export default function MuscleMapCanvas({ viewSide }: MuscleMapCanvasProps) {
         gender: heroGender,
         side: viewSide,
         style: 'neon',
-        interactive: false,
+        interactive: true,
         selectable: false,
         multiSelect: false
       });
@@ -69,5 +69,5 @@ export default function MuscleMapCanvas({ viewSide }: MuscleMapCanvasProps) {
     }
   }, [heroGender]);
 
-  return <div ref={mapContainerRef} className="w-full h-full relative z-10 drop-shadow-[0_0_15px_rgba(255,51,51,0.15)] pointer-events-none" />;
+  return <div ref={mapContainerRef} className="w-full h-full relative z-10 drop-shadow-[0_0_15px_rgba(255,51,51,0.15)]" />;
 }

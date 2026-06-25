@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Outfit } from "next/font/google";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
+import { RestTimer } from "@/components/RestTimer";
 
 import { TrophyUnlockModal } from "@/components/TrophyUnlockModal";
 import { InitRecovery } from "@/components/InitRecovery";
@@ -62,6 +63,7 @@ export default function RootLayout({
         <GlobalListeners />
         {children}
         <BottomNav />
+        <RestTimer />
         <TrophyUnlockModal />
       </body>
     </html>

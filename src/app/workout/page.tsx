@@ -7,7 +7,6 @@ import { useRouter } from "next/navigation";
 import { useTrophyStore } from "@/store/useTrophyStore";
 import { SuccessCarousel } from "@/components/SuccessCarousel";
 import { PlateCalculator } from "@/components/PlateCalculator";
-import { RestTimer } from "@/components/RestTimer";
 import { ExerciseSelectionModal } from "@/components/ExerciseSelectionModal";
 import { useRecoveryStore, MuscleGroup } from "@/store/useRecoveryStore";
 import { useSocialStore } from "@/store/useSocialStore";
@@ -17,9 +16,9 @@ export default function ActiveWorkoutPage() {
   const router = useRouter();
   const { 
     isActive, startTime, routineName, exercises, 
-    restTimeRemaining, isResting, isSaving,
+    isSaving,
     finishWorkout, updateSet, toggleSetComplete, 
-    stopRest, addRestTime, tickRest, addSet, addExerciseToWorkout,
+    addSet, addExerciseToWorkout,
     saveWorkoutToDb, resetWorkout
   } = useWorkoutStore();
 
@@ -33,7 +32,7 @@ export default function ActiveWorkoutPage() {
   // Exercise Modal State
   const [isExerciseModalOpen, setIsExerciseModalOpen] = useState(false);
 
-  // Global Timer and Rest Ticker
+  // Global Timer
   useEffect(() => {
     if (!isActive || !startTime || showSummary) return;
     
@@ -44,13 +43,10 @@ export default function ActiveWorkoutPage() {
       const minutes = Math.floor(diff / 60).toString().padStart(2, '0');
       const seconds = (diff % 60).toString().padStart(2, '0');
       setElapsed(`${minutes}:${seconds}`);
-
-      // Tick rest timer
-      tickRest();
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [isActive, startTime, tickRest, showSummary]);
+  }, [isActive, startTime, showSummary]);
 
   const handleFinish = async () => {
     // Calculate volume for Gamification and Duels
@@ -292,12 +288,6 @@ export default function ActiveWorkoutPage() {
           + Add Exercise
         </button>
       </div>
-
-      <RestTimer 
-        isActive={isResting} 
-        onClose={stopRest} 
-        initialSeconds={90} 
-      />
 
       <PlateCalculator 
         isOpen={isPlateCalcOpen} 
