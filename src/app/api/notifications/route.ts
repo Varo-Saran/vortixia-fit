@@ -34,12 +34,12 @@ export async function GET(req: Request) {
       .select(`
         id, 
         created_at, 
-        user_id_1, 
-        users!duels_user_id_1_fkey(username, avatar_url), 
+        challenger_id, 
+        users!duels_challenger_id_fkey(username, avatar_url), 
         wager_xp, 
         duration_days
       `)
-      .eq('user_id_2', userId)
+      .eq('opponent_id', userId)
       .eq('status', 'pending');
 
     if (duelError) {
@@ -98,14 +98,15 @@ export async function GET(req: Request) {
     const tipIndex = (currentDay + idHash) % SYSTEM_TIPS.length;
     const selectedTip = SYSTEM_TIPS[tipIndex];
 
+    // System tips are read by default and locked to start of the day to prevent unread badge locking
     notifications.push({
       id: `system_tip_${currentDay}`,
       type: 'system_tip',
       title: selectedTip.title,
       message: selectedTip.message,
-      status: 'unread',
-      createdAt: new Date().toISOString(),
-      avatarUrl: null
+      status: 'read',
+      createdAt: new Date(currentDay * 86400000).toISOString(),
+      avatar_url: null
     });
 
     // Sort by createdAt descending

@@ -18,7 +18,48 @@ export interface NotificationStore {
   initRealtime: () => void;
   markAsRead: (id: string) => void;
   markAllAsRead: () => void;
+  dismissNotification: (id: string) => void;
 }
+
+interface CacheItem {
+  id: string;
+  timestamp: number;
+}
+
+const CLEANUP_THRESHOLD_MS = 14 * 24 * 60 * 60 * 1000; // 14 days
+
+const getCleanedCache = (key: string): CacheItem[] => {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return [];
+    const parsed: CacheItem[] = JSON.parse(raw);
+    const now = Date.now();
+    const active = parsed.filter(item => now - item.timestamp <= CLEANUP_THRESHOLD_MS);
+    if (active.length !== parsed.length) {
+      localStorage.setItem(key, JSON.stringify(active));
+    }
+    return active;
+  } catch (e) {
+    console.error(`Error loading or cleaning cache for key ${key}:`, e);
+    return [];
+  }
+};
+
+const saveToCache = (key: string, id: string) => {
+  if (typeof window === 'undefined') return;
+  try {
+    const active = getCleanedCache(key);
+    if (!active.some(item => item.id === id)) {
+      active.push({ id, timestamp: Date.now() });
+      localStorage.setItem(key, JSON.stringify(active));
+    }
+  } catch (e) {
+    console.error(`Error saving to cache for key ${key}:`, e);
+  }
+};
+
+let realtimeChannels: any[] = [];
 
 export const useNotificationStore = create<NotificationStore>((set, get) => ({
   notifications: [],
@@ -26,12 +67,44 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
   
   fetchNotifications: async () => {
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        set({ notifications: [], unreadCount: 0 });
+        return;
+      }
+      const userId = session.user.id;
+
       const res = await fetch('/api/notifications');
       if (!res.ok) throw new Error('Failed to fetch notifications');
       const data: NotificationItem[] = await res.json();
       
-      const unreadCount = data.filter(n => n.status === 'unread').length;
-      set({ notifications: data, unreadCount });
+      // Dynamic, user-scoped keys
+      const readKey = `user_${userId}_read_ids`;
+      const dismissedKey = `user_${userId}_dismissed_ids`;
+
+      // Clean and fetch cache
+      const readCache = getCleanedCache(readKey);
+      const dismissedCache = getCleanedCache(dismissedKey);
+
+      const readIds = new Set(readCache.map(c => c.id));
+      const dismissedIds = new Set(dismissedCache.map(c => c.id));
+
+      // Filter out dismissed notifications
+      const activeNotifs = data.filter(n => !dismissedIds.has(n.id));
+
+      // Map read status based on cache (also keeping system tips/pwa installs read by default if not set otherwise)
+      const mappedNotifs = activeNotifs.map(n => {
+        const isRead = readIds.has(n.id) || n.status === 'read';
+        return {
+          ...n,
+          status: (isRead ? 'read' : 'unread') as 'read' | 'unread'
+        };
+      });
+
+      // Compute unread count
+      const unreadCount = mappedNotifs.filter(n => n.status === 'unread').length;
+
+      set({ notifications: mappedNotifs, unreadCount });
     } catch (error) {
       console.error('Error fetching notifications:', error);
     }
@@ -42,57 +115,113 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
     if (!session) return;
     const userId = session.user.id;
 
-    // Listen to friend requests directed at the user
-    supabase
-      .channel('public:user_friends_notifications')
+    // Clean up existing channels to avoid duplicate subscriptions
+    realtimeChannels.forEach(channel => supabase.removeChannel(channel));
+    realtimeChannels = [];
+
+    // 1. Bidirectional Realtime Listener for user_friends table
+    const friendsChannel = supabase
+      .channel('public:user_friends_all_changes')
       .on(
         'postgres_changes',
         { 
-          event: 'INSERT', 
+          event: '*', 
           schema: 'public', 
-          table: 'user_friends', 
-          filter: `friend_id=eq.${userId}` 
+          table: 'user_friends' 
         },
-        (payload) => {
-          if (payload.new.status === 'pending') {
+        (payload: any) => {
+          const oldRow = payload.old;
+          const newRow = payload.new;
+          const isRelevant = 
+            (newRow && (newRow.user_id === userId || newRow.friend_id === userId)) ||
+            (oldRow && (oldRow.user_id === userId || oldRow.friend_id === userId));
+
+          if (isRelevant) {
             get().fetchNotifications();
           }
         }
       )
       .subscribe();
 
-    // Listen to duel challenges directed at the user
-    supabase
-      .channel('public:duels_notifications')
+    // 2. Bidirectional Realtime Listener for duels table
+    const duelsChannel = supabase
+      .channel('public:duels_all_changes')
       .on(
         'postgres_changes',
         { 
-          event: 'INSERT', 
+          event: '*', 
           schema: 'public', 
-          table: 'duels', 
-          filter: `user_id_2=eq.${userId}` 
+          table: 'duels'
         },
-        (payload) => {
-          if (payload.new.status === 'pending') {
+        (payload: any) => {
+          const oldRow = payload.old;
+          const newRow = payload.new;
+          const isRelevant = 
+            (newRow && (newRow.challenger_id === userId || newRow.opponent_id === userId)) ||
+            (oldRow && (oldRow.challenger_id === userId || oldRow.opponent_id === userId));
+
+          if (isRelevant) {
             get().fetchNotifications();
           }
         }
       )
       .subscribe();
+
+    realtimeChannels.push(friendsChannel, duelsChannel);
   },
 
-  markAsRead: (id) => set((state) => {
-    const notifs = state.notifications.map(n => 
-      n.id === id ? { ...n, status: 'read' as const } : n
-    );
-    return {
-      notifications: notifs,
-      unreadCount: notifs.filter(n => n.status === 'unread').length,
-    };
-  }),
+  markAsRead: async (id) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    const userId = session.user.id;
+    const readKey = `user_${userId}_read_ids`;
 
-  markAllAsRead: () => set((state) => ({
-    notifications: state.notifications.map(n => ({ ...n, status: 'read' as const })),
-    unreadCount: 0,
-  })),
+    saveToCache(readKey, id);
+
+    set((state) => {
+      const notifs = state.notifications.map(n => 
+        n.id === id ? { ...n, status: 'read' as const } : n
+      );
+      return {
+        notifications: notifs,
+        unreadCount: notifs.filter(n => n.status === 'unread').length,
+      };
+    });
+  },
+
+  markAllAsRead: async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    const userId = session.user.id;
+    const readKey = `user_${userId}_read_ids`;
+
+    const activeNotifications = get().notifications;
+    activeNotifications.forEach(n => {
+      if (n.status === 'unread') {
+        saveToCache(readKey, n.id);
+      }
+    });
+
+    set((state) => ({
+      notifications: state.notifications.map(n => ({ ...n, status: 'read' as const })),
+      unreadCount: 0,
+    }));
+  },
+
+  dismissNotification: async (id) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    const userId = session.user.id;
+    const dismissedKey = `user_${userId}_dismissed_ids`;
+
+    saveToCache(dismissedKey, id);
+
+    set((state) => {
+      const filtered = state.notifications.filter(n => n.id !== id);
+      return {
+        notifications: filtered,
+        unreadCount: filtered.filter(n => n.status === 'unread').length,
+      };
+    });
+  }
 }));

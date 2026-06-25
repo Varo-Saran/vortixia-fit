@@ -52,16 +52,20 @@ export const useSocialStore = create<SocialStore>()(
           const { data: me, error: meErr } = await supabase.from('users').select('*').eq('id', userId).single();
           if (meErr) throw meErr;
 
-          const { data: friendships, error: friendErr } = await supabase.from('friendships').select('user_id_2').eq('user_id_1', userId).eq('status', 'accepted');
+          const { data: friendships, error: friendErr } = await supabase
+            .from('user_friends')
+            .select('user_id, friend_id')
+            .or(`user_id.eq.${userId},friend_id.eq.${userId}`)
+            .eq('status', 'accepted');
           if (friendErr) throw friendErr;
 
-          const friendIds = friendships.map(f => f.user_id_2);
+          const friendIds = friendships ? friendships.map(f => f.user_id === userId ? f.friend_id : f.user_id) : [];
           let friends: UserProfile[] = [];
           
           if (friendIds.length > 0) {
             const { data: friendsData, error: fDataErr } = await supabase.from('users').select('*').in('id', friendIds);
             if (fDataErr) throw fDataErr;
-            friends = friendsData;
+            friends = friendsData || [];
           }
 
           const allUsers = [me, ...friends];

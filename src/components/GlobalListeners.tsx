@@ -4,11 +4,22 @@ import { useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "@/components/ui/Toast";
 import { useRouter } from "next/navigation";
+import { useNotificationStore } from "@/store/useNotificationStore";
 
 export function GlobalListeners() {
   const router = useRouter();
 
   useEffect(() => {
+    // Helper to load notifications & init realtime
+    const initNotifications = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user?.id) {
+        const store = useNotificationStore.getState();
+        await store.fetchNotifications();
+        store.initRealtime();
+      }
+    };
+
     // 1. Auth state change listener
     const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
@@ -18,21 +29,22 @@ export function GlobalListeners() {
             for (let name of names) caches.delete(name);
           });
           router.push('/login');
-        } else if (event === "TOKEN_REFRESHED") {
-          console.log("Token refreshed");
-        } else if (event === "SIGNED_IN") {
-          // You could add a toast here if you wanted
+        } else if (event === "TOKEN_REFRESHED" || event === "SIGNED_IN") {
+          initNotifications();
         }
       }
     );
 
-    // 2. Realtime listener for friend requests
+    // Initial check
+    initNotifications();
+
+    // 2. Realtime listener for friend requests (to show interactive Toast notifications)
     let friendRequestSubscription: ReturnType<typeof supabase.channel> | null = null;
     
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user?.id) {
         friendRequestSubscription = supabase
-          .channel('public:user_friends')
+          .channel('public:user_friends_toast')
           .on(
             'postgres_changes',
             {

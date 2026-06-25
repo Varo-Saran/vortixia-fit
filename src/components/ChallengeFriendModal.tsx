@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { X, Swords, UserCircle } from "lucide-react";
-import { useFriendsStore } from "@/store/useFriendsStore";
 import { useProfileStore, UserProfile } from "@/store/useProfileStore";
 import { supabase } from "@/lib/supabase";
 
@@ -8,10 +7,10 @@ interface ChallengeFriendModalProps {
   isOpen: boolean;
   onClose: () => void;
   onChallengeIssued?: () => void;
+  friends: UserProfile[];
 }
 
-export function ChallengeFriendModal({ isOpen, onClose, onChallengeIssued }: ChallengeFriendModalProps) {
-  const { friends } = useFriendsStore();
+export function ChallengeFriendModal({ isOpen, onClose, onChallengeIssued, friends }: ChallengeFriendModalProps) {
   const { profile } = useProfileStore();
 
   const [selectedFriend, setSelectedFriend] = useState<UserProfile | null>(null);
@@ -61,8 +60,8 @@ export function ChallengeFriendModal({ isOpen, onClose, onChallengeIssued }: Cha
       const duration_days = duration === "1_week" ? 7 : 30;
       
       const { error } = await supabase.from('duels').insert({
-        user_id_1: profile.id,
-        user_id_2: selectedFriend.id,
+        challenger_id: profile.id,
+        opponent_id: selectedFriend.id,
         wager_xp: wagerXP,
         duration_days,
         status: 'pending'
@@ -81,7 +80,7 @@ export function ChallengeFriendModal({ isOpen, onClose, onChallengeIssued }: Cha
     }
   };
 
-  const acceptedFriends = friends.filter(f => f.status === 'friends');
+  const acceptedFriends = friends || [];
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
@@ -114,12 +113,12 @@ export function ChallengeFriendModal({ isOpen, onClose, onChallengeIssued }: Cha
                 acceptedFriends.map(friend => (
                   <button
                     key={friend.id}
-                    onClick={() => setSelectedFriend({ id: friend.id, username: friend.username, full_name: friend.name, avatar_url: friend.avatar, total_xp: 0 })}
+                    onClick={() => setSelectedFriend(friend)}
                     className={`snap-start flex flex-col items-center gap-2 min-w-[72px] p-2 rounded-xl transition-all ${selectedFriend?.id === friend.id ? 'bg-accent-red/20 border-2 border-accent-red shadow-[0_0_15px_rgba(255,51,51,0.2)]' : 'bg-black border border-white/10 hover:border-white/30'}`}
                   >
                     <div className="w-12 h-12 rounded-full overflow-hidden bg-black/50 border border-white/10">
-                      {friend.avatar ? (
-                        <img src={friend.avatar} alt="avatar" className="w-full h-full object-cover" />
+                      {friend.avatar_url ? (
+                        <img src={friend.avatar_url} alt="avatar" className="w-full h-full object-cover" />
                       ) : (
                         <UserCircle className="w-full h-full text-white/50" />
                       )}

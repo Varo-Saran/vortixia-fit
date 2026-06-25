@@ -49,7 +49,19 @@ export async function POST(req: Request) {
         return NextResponse.json(updateData);
       }
 
-      return NextResponse.json({ error: 'Friend request already exists or already friends' }, { status: 400 });
+      // If the request was previously rejected, delete it so a new request can be created
+      if (existing.status === 'rejected') {
+        const { error: deleteError } = await supabase
+          .from('user_friends')
+          .delete()
+          .eq('id', existing.id);
+        if (deleteError) {
+          console.error("Error deleting rejected request:", deleteError);
+          return NextResponse.json({ error: 'Failed to clear rejected request' }, { status: 500 });
+        }
+      } else {
+        return NextResponse.json({ error: 'Friend request already exists or already friends' }, { status: 400 });
+      }
     }
 
     const { data, error } = await supabase.from('user_friends').insert({
@@ -85,14 +97,26 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: 'Invalid data' }, { status: 400 });
     }
 
-    const { data, error } = await supabase
-      .from('user_friends')
-      .update({ status })
-      .eq('id', requestId)
-      .eq('friend_id', session.user.id)
-      .select()
-      .single();
+    let queryResult;
+    if (status === 'rejected') {
+      queryResult = await supabase
+        .from('user_friends')
+        .delete()
+        .eq('id', requestId)
+        .eq('friend_id', session.user.id)
+        .select()
+        .single();
+    } else {
+      queryResult = await supabase
+        .from('user_friends')
+        .update({ status })
+        .eq('id', requestId)
+        .eq('friend_id', session.user.id)
+        .select()
+        .single();
+    }
 
+    const { data, error } = queryResult;
     if (error) throw error;
 
     return NextResponse.json(data);

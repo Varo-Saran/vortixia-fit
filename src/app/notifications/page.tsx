@@ -8,7 +8,7 @@ import { useNotificationStore } from "@/store/useNotificationStore";
 import { toast } from "@/components/ui/Toast";
 
 export default function NotificationsPage() {
-  const { notifications, fetchNotifications, markAsRead } = useNotificationStore();
+  const { notifications, fetchNotifications, markAsRead, dismissNotification } = useNotificationStore();
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"system" | "community">("system");
   const [processingId, setProcessingId] = useState<string | null>(null);
@@ -85,6 +85,26 @@ export default function NotificationsPage() {
     }
   };
 
+  const handleDuelChallenge = async (duelId: string, status: 'active' | 'declined') => {
+    setProcessingId(duelId);
+    try {
+      const res = await fetch('/api/duels', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ duelId, status }),
+      });
+      if (!res.ok) {
+        throw new Error('Failed to update duel');
+      }
+      toast.success(status === 'active' ? 'Duel challenge accepted! ⚔️' : 'Duel challenge declined');
+      await fetchNotifications(); // Refresh notifications
+    } catch (error) {
+      toast.error('An error occurred');
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
   const filteredNotifications = notifications.filter(n => {
     if (activeTab === "community") {
       return ["friend_request", "duel_challenge"].includes(n.type);
@@ -100,7 +120,7 @@ export default function NotificationsPage() {
       type: "pwa_install",
       title: "Install Vortixia Fit",
       message: "Add this app to your home screen for a better experience, faster access, and to receive notifications.",
-      status: "unread",
+      status: "read", // informational tip, set to read
       createdAt: new Date().toISOString(),
     } as any);
   }
@@ -192,7 +212,7 @@ export default function NotificationsPage() {
                     dragElastic={0.2}
                     onDragEnd={(e, info) => {
                       if (info.offset.x < -80) {
-                        markAsRead(notif.id);
+                        dismissNotification(notif.id);
                       }
                     }}
                     onClick={() => notif.status === 'unread' && markAsRead(notif.id)}
@@ -246,6 +266,24 @@ export default function NotificationsPage() {
                             </button>
                             <button
                               onClick={(e) => { e.stopPropagation(); handleFriendRequest(notif.id, 'rejected'); }}
+                              disabled={processingId === notif.id}
+                              className="px-4 py-1.5 bg-white/10 text-white text-sm font-bold rounded-lg active:scale-95 transition-transform disabled:opacity-50"
+                            >
+                              Decline
+                            </button>
+                          </div>
+                        )}
+                        {notif.type === 'duel_challenge' && (
+                          <div className="flex gap-2 mt-3">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleDuelChallenge(notif.id, 'active'); }}
+                              disabled={processingId === notif.id}
+                              className="px-4 py-1.5 bg-accent-red text-white text-sm font-bold rounded-lg active:scale-95 transition-transform disabled:opacity-50"
+                            >
+                              Accept
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleDuelChallenge(notif.id, 'declined'); }}
                               disabled={processingId === notif.id}
                               className="px-4 py-1.5 bg-white/10 text-white text-sm font-bold rounded-lg active:scale-95 transition-transform disabled:opacity-50"
                             >

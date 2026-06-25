@@ -19,6 +19,9 @@
   
   /* Text Muted */
   --text-muted: #a3a3a3;
+
+  /* Notch / Safe Area Top padding support */
+  --notch-top: env(safe-area-inset-top, 0px);
 }
 
 @theme inline {

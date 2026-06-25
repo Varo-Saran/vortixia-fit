@@ -18,6 +18,20 @@ export default function SocialArena() {
   const [friendsList, setFriendsList] = useState<any[]>([]);
   const [friendsWorkedOutToday, setFriendsWorkedOutToday] = useState<Set<string>>(new Set());
   const [friendToRemove, setFriendToRemove] = useState<{ id: string; userId: string; name: string } | null>(null);
+  const [dismissedBubbles, setDismissedBubbles] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (friendsList.length > 0) {
+      const date = new Date().toISOString().split('T')[0];
+      const dismissed = new Set<string>();
+      friendsList.forEach(f => {
+        if (localStorage.getItem(`bubble_dismissed_${f.user.id}_${date}`) === 'true') {
+          dismissed.add(f.user.id);
+        }
+      });
+      setDismissedBubbles(dismissed);
+    }
+  }, [friendsList]);
 
   const fetchFriends = async () => {
     if (!profile) return;
@@ -60,6 +74,7 @@ export default function SocialArena() {
       const res = await fetch(`/api/friends?friendId=${friendToRemove.userId}`, { method: 'DELETE' });
       if (res.ok) {
         setFriendsList(prev => prev.filter(f => f.requestId !== friendToRemove.id));
+        fetchSocialData(); // Sync the leaderboard immediately
         toast.success("Friend removed");
       } else {
         const err = await res.json();
@@ -75,16 +90,12 @@ export default function SocialArena() {
   const handleDismissBubble = (friendId: string) => {
     const date = new Date().toISOString().split('T')[0];
     localStorage.setItem(`bubble_dismissed_${friendId}_${date}`, 'true');
-    // Force re-render by updating state
-    setFriendsWorkedOutToday(prev => {
+    setDismissedBubbles(prev => {
       const next = new Set(prev);
-      // We don't remove them from the set because they still worked out today,
-      // but we handle dismissal via localStorage check during render.
+      next.add(friendId);
       return next;
     });
   };
-
-
 
   const fetchDuels = async () => {
     if (!profile) return;
@@ -93,7 +104,7 @@ export default function SocialArena() {
       const { data, error } = await supabase
         .from('duels')
         .select('*')
-        .or(`user_id_1.eq.${profile.id},user_id_2.eq.${profile.id}`);
+        .or(`challenger_id.eq.${profile.id},opponent_id.eq.${profile.id}`);
       if (error) throw error;
       setDbDuels(data || []);
     } catch (err) {
@@ -209,8 +220,7 @@ export default function SocialArena() {
             ) : (
               friendsList.map(f => {
                 const isWorkedOutToday = friendsWorkedOutToday.has(f.user.id);
-                const date = new Date().toISOString().split('T')[0];
-                const bubbleDismissed = typeof window !== 'undefined' ? localStorage.getItem(`bubble_dismissed_${f.user.id}_${date}`) === 'true' : false;
+                const bubbleDismissed = dismissedBubbles.has(f.user.id);
                 const showBubble = isWorkedOutToday && !bubbleDismissed;
 
                 return (
@@ -271,8 +281,8 @@ export default function SocialArena() {
             </div>
           ) : (
             dbDuels.map((duel) => {
-              const isChallenger = duel.user_id_1 === profile?.id;
-              const oppId = isChallenger ? duel.user_id_2 : duel.user_id_1;
+              const isChallenger = duel.challenger_id === profile?.id;
+              const oppId = isChallenger ? duel.opponent_id : duel.challenger_id;
               const opponent = leaderboard.find(u => u.id === oppId) || { id: oppId, username: 'Unknown', avatar_url: null, full_name: 'Unknown' };
               
               const durationLabel = duel.duration_days === 7 ? "1 Week" : "1 Month";
@@ -337,6 +347,49 @@ export default function SocialArena() {
                       </div>
                     </div>
                   )}
+
+                  {duel.status === 'pending' && !isChallenger && (
+                    <div className="flex gap-3 mt-2 z-10">
+                      <button
+                        onClick={async () => {
+                          try {
+                            const res = await fetch('/api/duels', {
+                              method: 'PATCH',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ duelId: duel.id, status: 'active' })
+                            });
+                            if (!res.ok) throw new Error();
+                            toast.success("Duel challenge accepted! ⚔️");
+                            fetchDuels();
+                          } catch {
+                            toast.error("Failed to accept duel");
+                          }
+                        }}
+                        className="flex-1 py-2 bg-accent-green text-black text-xs font-bold rounded-lg active:scale-95 transition-transform"
+                      >
+                        Accept
+                      </button>
+                      <button
+                        onClick={async () => {
+                          try {
+                            const res = await fetch('/api/duels', {
+                              method: 'PATCH',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ duelId: duel.id, status: 'declined' })
+                            });
+                            if (!res.ok) throw new Error();
+                            toast.success("Duel challenge declined");
+                            fetchDuels();
+                          } catch {
+                            toast.error("Failed to decline duel");
+                          }
+                        }}
+                        className="flex-1 py-2 bg-white/10 text-white text-xs font-bold rounded-lg active:scale-95 transition-transform"
+                      >
+                        Decline
+                      </button>
+                    </div>
+                  )}
                   
                   {duel.created_at && (
                     <p className="text-center text-[10px] text-text-muted uppercase tracking-widest font-bold mt-2">
@@ -354,6 +407,7 @@ export default function SocialArena() {
         isOpen={isChallengeModalOpen} 
         onClose={() => setIsChallengeModalOpen(false)} 
         onChallengeIssued={fetchDuels}
+        friends={friendsList.map(f => f.user)}
       />
 
       {/* Remove Friend Confirmation Modal */}
