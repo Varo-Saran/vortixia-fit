@@ -57,7 +57,11 @@ export default function FeedbackPage() {
               body: JSON.stringify(item),
             });
             if (!res.ok) {
-              failedItems.push(item);
+              if (res.status >= 400 && res.status < 500) {
+                console.warn("Discarding invalid offline feedback item (client error):", res.status);
+              } else {
+                failedItems.push(item);
+              }
             }
           } catch (err) {
             failedItems.push(item);
@@ -123,7 +127,8 @@ export default function FeedbackPage() {
 
     let payload: any = {
       type: activeTab,
-      device_metadata: getDeviceMetadata(),
+      data: {},
+      deviceMetadata: getDeviceMetadata(),
     };
 
     if (activeTab === "bug") {
@@ -132,33 +137,41 @@ export default function FeedbackPage() {
         setSubmitting(false);
         return;
       }
-      payload.title = bugTitle;
-      payload.description = bugSteps;
-      payload.severity = bugSeverity;
+      payload.data = {
+        title: bugTitle,
+        steps: bugSteps,
+        severity: bugSeverity,
+      };
     } else if (activeTab === "suggestion") {
       if (!suggestionTitle.trim() || !suggestionDetails.trim()) {
         toast.error("Please fill in all required fields.");
         setSubmitting(false);
         return;
       }
-      payload.title = suggestionTitle;
-      payload.description = suggestionDetails;
+      payload.data = {
+        title: suggestionTitle,
+        details: suggestionDetails,
+      };
     } else if (activeTab === "exercise") {
       if (!exerciseName.trim()) {
         toast.error("Please enter the exercise name.");
         setSubmitting(false);
         return;
       }
-      payload.title = exerciseName;
-      payload.target_muscle = targetMuscle;
-      payload.equipment = equipment;
+      payload.data = {
+        title: exerciseName,
+        targetMuscle: targetMuscle,
+        equipment: equipment,
+      };
     } else if (activeTab === "general") {
       if (!generalMessage.trim()) {
         toast.error("Please enter your message.");
         setSubmitting(false);
         return;
       }
-      payload.description = generalMessage;
+      payload.data = {
+        message: generalMessage,
+      };
     }
 
     try {
@@ -381,8 +394,8 @@ export default function FeedbackPage() {
                 />
               </div>
 
-              <div className="flex gap-3">
-                <div className="flex-1 flex flex-col gap-1.5">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="flex-1 min-w-0 flex flex-col gap-1.5">
                   <label className="text-[10px] uppercase tracking-widest text-text-muted font-bold ml-1 flex items-center gap-1">
                     <Target className="w-3.5 h-3.5" /> Target Muscle
                   </label>
@@ -391,17 +404,17 @@ export default function FeedbackPage() {
                     value={targetMuscle}
                     onChange={(e) => setTargetMuscle(e.target.value)}
                     placeholder="e.g. Glutes"
-                    className="bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-base text-white placeholder-text-muted/50 outline-none focus:border-accent-green transition-colors"
+                    className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-base text-white placeholder-text-muted/50 outline-none focus:border-accent-green transition-colors"
                   />
                 </div>
-                <div className="flex-1 flex flex-col gap-1.5">
+                <div className="flex-1 min-w-0 flex flex-col gap-1.5">
                   <label className="text-[10px] uppercase tracking-widest text-text-muted font-bold ml-1 flex items-center gap-1">
                     <Dumbbell className="w-3.5 h-3.5" /> Equipment
                   </label>
                   <select
                     value={equipment}
                     onChange={(e) => setEquipment(e.target.value)}
-                    className="bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-base text-white outline-none focus:border-accent-green transition-colors appearance-none"
+                    className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-base text-white outline-none focus:border-accent-green transition-colors appearance-none"
                   >
                     <option value="">Select...</option>
                     <option value="bodyweight">Bodyweight</option>

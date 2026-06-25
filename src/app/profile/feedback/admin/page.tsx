@@ -64,8 +64,13 @@ export default function AdminFeedbackPage() {
   const fetchFeedback = async () => {
     setIsFeedbackLoading(true);
     try {
-      const response = await fetch("/api/feedback", {
+      const response = await fetch(`/api/feedback?t=${Date.now()}`, {
         method: "GET",
+        headers: {
+          "Cache-Control": "no-cache",
+          "Pragma": "no-cache",
+        },
+        cache: "no-store",
       });
 
       if (!response.ok) {
@@ -80,6 +85,7 @@ export default function AdminFeedbackPage() {
       const result = await response.json();
       if (result.success) {
         setFeedback(result.data || []);
+        toast.success("Feedback list synced.");
       }
     } catch (err) {
       console.error("Error fetching feedback:", err);
@@ -544,7 +550,7 @@ export default function AdminFeedbackPage() {
       </section>
 
       {/* Floating Copy Button */}
-      <div className="fixed bottom-6 left-4 right-4 flex justify-center z-10">
+      <div className="fixed bottom-[calc(env(safe-area-inset-bottom,20px)+4.5rem)] left-4 right-4 flex justify-center z-40">
         <button
           onClick={handleCopyMarkdown}
           className="flex items-center justify-center gap-2 bg-accent-green text-black font-black text-xs uppercase tracking-widest px-6 py-4 rounded-full shadow-[0_4px_20px_rgba(74,222,128,0.4)] hover:bg-accent-green/90 transition-all hover:scale-105 active:scale-95"

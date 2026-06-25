@@ -195,7 +195,11 @@ export function GlobalListeners() {
                   });
                   if (!res.ok) {
                     console.error('Failed to sync feedback item:', res.statusText);
-                    break;
+                    if (res.status >= 400 && res.status < 500) {
+                      console.warn('Discarding invalid offline feedback item (client error):', res.status);
+                    } else {
+                      break;
+                    }
                   }
                 } catch (err) {
                   console.error('Network error during feedback sync:', err);

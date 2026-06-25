@@ -26,11 +26,40 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json();
-    const { type, data, deviceMetadata } = body;
+    const type = body.type;
+    let data = body.data;
+
+    // Backward compatibility: Reconstruct data object from flat body properties if missing
+    if (!data && type) {
+      if (type === 'bug') {
+        data = {
+          title: body.title,
+          steps: body.description,
+          severity: body.severity
+        };
+      } else if (type === 'suggestion') {
+        data = {
+          title: body.title,
+          details: body.description
+        };
+      } else if (type === 'exercise') {
+        data = {
+          title: body.title,
+          targetMuscle: body.target_muscle || body.targetMuscle,
+          equipment: body.equipment
+        };
+      } else if (type === 'general') {
+        data = {
+          message: body.description
+        };
+      }
+    }
 
     if (!type || !data) {
       return NextResponse.json({ error: 'Type and data are required' }, { status: 400 });
     }
+
+    const deviceMetadata = body.deviceMetadata || body.device_metadata || {};
 
     const supabase = await createSupabaseServer();
     const { data: dbData, error: dbError } = await supabase
@@ -41,7 +70,7 @@ export async function POST(req: Request) {
         username: username,
         type,
         data,
-        device_metadata: deviceMetadata || {},
+        device_metadata: deviceMetadata,
         status: 'pending',
       })
       .select()
