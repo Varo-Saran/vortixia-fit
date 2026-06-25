@@ -36,10 +36,11 @@ export default function EditProfile() {
       setAge(metrics.age.toString());
       setWeight(metrics.weight_kg.toString());
       setHeight(metrics.height_cm.toString());
+      setBodyFat(metrics.body_fat_pct?.toString() || "");
     }
   }, [metrics]);
 
-  const [bodyFat, setBodyFat] = useState<string>("");
+  const [bodyFat, setBodyFat] = useState<string>(metrics?.body_fat_pct?.toString() || "");
   const [goal, setGoal] = useState<string>("Hypertrophy");
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -108,6 +109,7 @@ export default function EditProfile() {
       const w = parseFloat(weight);
       const h = parseFloat(height);
       const a = parseInt(age);
+      const bf = bodyFat ? parseFloat(bodyFat) : null;
       const heightInMeters = h / 100;
       const bmi = parseFloat((w / (heightInMeters * heightInMeters)).toFixed(1));
       let bmr = (10 * w) + (6.25 * h) - (5 * a);
@@ -125,7 +127,30 @@ export default function EditProfile() {
           bmi,
           bmr: Math.round(bmr),
           tdee,
+          body_fat_pct: bf,
         }, { onConflict: 'id' });
+
+      // Log body metrics to history if changed
+      const { data: lastLog } = await supabase
+        .from('body_metrics_log')
+        .select('weight_kg, body_fat_pct')
+        .eq('user_id', userId)
+        .order('logged_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const weightChanged = !lastLog || parseFloat(lastLog.weight_kg) !== w;
+      const bfChanged = !lastLog || (lastLog.body_fat_pct === null && bf !== null) || (lastLog.body_fat_pct !== null && parseFloat(lastLog.body_fat_pct) !== bf);
+
+      if (weightChanged || bfChanged) {
+        await supabase
+          .from('body_metrics_log')
+          .insert({
+            user_id: userId,
+            weight_kg: w,
+            body_fat_pct: bf
+          });
+      }
 
       if (fullName !== profile?.full_name || username !== profile?.username) {
         const { error } = await supabase
@@ -142,10 +167,10 @@ export default function EditProfile() {
             return;
           }
           console.error("Error updating user:", error);
-        } else {
-          fetchProfile(); // Refresh store
         }
       }
+
+      await fetchProfile(); // Always refresh profile and metrics in store
 
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 2000);

@@ -19,6 +19,7 @@ export interface UserMetrics {
   bmi: number;
   bmr: number;
   tdee: number;
+  body_fat_pct?: number;
 }
 
 export interface ProfileStore {
