@@ -83,7 +83,7 @@ export function ChallengeFriendModal({ isOpen, onClose, onChallengeIssued, frien
   const acceptedFriends = friends || [];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
+    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4">
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
       
@@ -183,7 +183,7 @@ export function ChallengeFriendModal({ isOpen, onClose, onChallengeIssued, frien
         </div>
 
         {/* Footer */}
-        <div className="p-5 border-t border-white/10 bg-black/50">
+        <div className="p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] border-t border-white/10 bg-black/50">
           <button 
             disabled={!selectedFriend || isSubmitting}
             onClick={handleChallenge}

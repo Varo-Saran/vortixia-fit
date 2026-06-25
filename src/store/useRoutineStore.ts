@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { supabase } from '@/lib/supabase';
 
 // New flexible tracking schemas
@@ -106,151 +107,196 @@ export interface RoutineStore {
   weeklyPlan: DayPlan[];
   isLoading: boolean;
   templates: RoutineTemplate[];
+  customTemplates: RoutineTemplate[];
   fetchRoutine: () => Promise<void>;
   updateDayPlan: (dayName: string, exercises: PlannedExercise[]) => void;
   loadTemplate: (templateId: string) => void;
   exportRoutine: () => string;
   importRoutine: (base64Str: string) => boolean;
   applyAiRoutine: (plan: DayPlan[]) => void;
+  saveCustomTemplate: (name: string, description: string, plan: DayPlan[]) => boolean;
+  deleteCustomTemplate: (templateId: string) => void;
+  resetActiveSplit: () => void;
+  clearAllCustomTemplates: () => void;
 }
 
-export const useRoutineStore = create<RoutineStore>((set, get) => ({
-  weeklyPlan: [],
-  isLoading: true,
-  templates: PREDEFINED_TEMPLATES,
-  
-  fetchRoutine: async () => {
-    set({ isLoading: true });
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        set({ weeklyPlan: PREDEFINED_TEMPLATES[0].plan, isLoading: false });
-        return;
-      }
+export const useRoutineStore = create<RoutineStore>()(
+  persist(
+    (set, get) => ({
+      weeklyPlan: [],
+      isLoading: true,
+      templates: PREDEFINED_TEMPLATES,
+      customTemplates: [],
+      
+      fetchRoutine: async () => {
+        set({ isLoading: true });
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session) {
+            set({ weeklyPlan: PREDEFINED_TEMPLATES[0].plan, isLoading: false });
+            return;
+          }
 
-      const userId = session.user.id;
+          const userId = session.user.id;
 
-      // Try to fetch the user's active routine from Supabase
-      const { data: routine, error: routineErr } = await supabase
-        .from('routines')
-        .select('id, name')
-        .eq('user_id', userId)
-        .eq('is_active', true)
-        .single();
+          // Try to fetch the user's active routine from Supabase
+          const { data: routine, error: routineErr } = await supabase
+            .from('routines')
+            .select('id, name')
+            .eq('user_id', userId)
+            .eq('is_active', true)
+            .single();
 
-      if (routineErr || !routine) {
-        // No routine in DB - use default template
-        set({ weeklyPlan: PREDEFINED_TEMPLATES[0].plan, isLoading: false });
-        return;
-      }
+          if (routineErr || !routine) {
+            // No routine in DB - use default template
+            set({ weeklyPlan: PREDEFINED_TEMPLATES[0].plan, isLoading: false });
+            return;
+          }
 
-      // Fetch routine days
-      const { data: days, error: daysErr } = await supabase
-        .from('routine_days')
-        .select('id, day_name, short_day, type, title')
-        .eq('routine_id', routine.id)
-        .order('created_at');
+          // Fetch routine days
+          const { data: days, error: daysErr } = await supabase
+            .from('routine_days')
+            .select('id, day_name, short_day, type, title')
+            .eq('routine_id', routine.id)
+            .order('created_at');
 
-      if (daysErr || !days || days.length === 0) {
-        set({ weeklyPlan: PREDEFINED_TEMPLATES[0].plan, isLoading: false });
-        return;
-      }
+          if (daysErr || !days || days.length === 0) {
+            set({ weeklyPlan: PREDEFINED_TEMPLATES[0].plan, isLoading: false });
+            return;
+          }
 
-      // Fetch all planned exercises for these days
-      const dayIds = days.map(d => d.id);
-      const { data: exercises, error: exErr } = await supabase
-        .from('planned_exercises')
-        .select('*')
-        .in('routine_day_id', dayIds)
-        .order('order_index');
+          // Fetch all planned exercises for these days
+          const dayIds = days.map(d => d.id);
+          const { data: exercises, error: exErr } = await supabase
+            .from('planned_exercises')
+            .select('*')
+            .in('routine_day_id', dayIds)
+            .order('order_index');
 
-      // Build the weekly plan
-      const weeklyPlan: DayPlan[] = days.map(day => {
-        const dayExercises = (exercises || []).filter(ex => ex.routine_day_id === day.id);
-        const mainLifts: PlannedExercise[] = dayExercises
-          .filter(ex => !ex.is_warmup)
-          .map(ex => ({
-            id: ex.id,
-            name: ex.name,
-            targetMuscle: ex.type || 'unknown',
-            trackingType: (ex.tracking_style || 'reps_weight') as TrackingType,
-            weightUnit: 'kg' as WeightUnit,
-            targetSets: ex.target_sets,
-            targetValue: ex.target_reps,
-            note: ex.note || undefined,
-            isWarmup: false,
-          }));
-        const warmups: PlannedExercise[] = dayExercises
-          .filter(ex => ex.is_warmup)
-          .map(ex => ({
-            id: ex.id,
-            name: ex.name,
-            targetMuscle: ex.type || 'unknown',
-            trackingType: (ex.tracking_style || 'reps_weight') as TrackingType,
-            weightUnit: 'kg' as WeightUnit,
-            targetSets: ex.target_sets,
-            targetValue: ex.target_reps,
-            isWarmup: true,
-          }));
+          // Build the weekly plan
+          const weeklyPlan: DayPlan[] = days.map(day => {
+            const dayExercises = (exercises || []).filter(ex => ex.routine_day_id === day.id);
+            const mainLifts: PlannedExercise[] = dayExercises
+              .filter(ex => !ex.is_warmup)
+              .map(ex => ({
+                id: ex.id,
+                name: ex.name,
+                targetMuscle: ex.type || 'unknown',
+                trackingType: (ex.tracking_style || 'reps_weight') as TrackingType,
+                weightUnit: 'kg' as WeightUnit,
+                targetSets: ex.target_sets,
+                targetValue: ex.target_reps,
+                note: ex.note || undefined,
+                isWarmup: false,
+              }));
+            const warmups: PlannedExercise[] = dayExercises
+              .filter(ex => ex.is_warmup)
+              .map(ex => ({
+                id: ex.id,
+                name: ex.name,
+                targetMuscle: ex.type || 'unknown',
+                trackingType: (ex.tracking_style || 'reps_weight') as TrackingType,
+                weightUnit: 'kg' as WeightUnit,
+                targetSets: ex.target_sets,
+                targetValue: ex.target_reps,
+                isWarmup: true,
+              }));
 
-        return {
-          day: day.day_name,
-          shortDay: day.short_day,
-          type: day.type,
-          title: day.title,
-          warmups,
-          mainLifts,
+            return {
+              day: day.day_name,
+              shortDay: day.short_day,
+              type: day.type,
+              title: day.title,
+              warmups,
+              mainLifts,
+            };
+          });
+
+          set({ weeklyPlan, isLoading: false });
+        } catch (err) {
+          console.error('Error fetching routine:', err);
+          set({ weeklyPlan: PREDEFINED_TEMPLATES[0].plan, isLoading: false });
+        }
+      },
+
+      updateDayPlan: (dayName, exercises) => set((state) => {
+        const newPlan = [...state.weeklyPlan];
+        const index = newPlan.findIndex(p => p.day === dayName);
+        if (index !== -1) {
+          newPlan[index] = { ...newPlan[index], mainLifts: exercises };
+        }
+        return { weeklyPlan: newPlan };
+      }),
+
+      loadTemplate: (templateId: string) => {
+        const template = get().templates.find(t => t.id === templateId) || get().customTemplates.find(t => t.id === templateId);
+        if (template) {
+          set({ weeklyPlan: template.plan });
+        }
+      },
+
+      applyAiRoutine: (plan: DayPlan[]) => set({ weeklyPlan: plan }),
+
+      exportRoutine: () => {
+        const plan = get().weeklyPlan;
+        try {
+          const jsonStr = JSON.stringify(plan);
+          return btoa(encodeURIComponent(jsonStr));
+        } catch (e) {
+          console.error("Failed to export routine", e);
+          return "";
+        }
+      },
+
+      importRoutine: (base64Str: string) => {
+        try {
+          const jsonStr = decodeURIComponent(atob(base64Str));
+          const plan = JSON.parse(jsonStr) as DayPlan[];
+          if (Array.isArray(plan) && plan.length === 7) {
+            set({ weeklyPlan: plan });
+            return true;
+          }
+          return false;
+        } catch (e) {
+          console.error("Failed to import routine", e);
+          return false;
+        }
+      },
+
+      saveCustomTemplate: (name, description, plan) => {
+        const { customTemplates } = get();
+        if (customTemplates.length >= 15) {
+          return false; // Rate limit exceeded
+        }
+        const activeDaysCount = plan.filter(p => p.type !== 'Rest' && p.mainLifts.length > 0).length;
+        const newTemplate: RoutineTemplate = {
+          id: `cust_${Date.now()}`,
+          name,
+          description: description || "Custom workout plan saved in app.",
+          frequency: `${activeDaysCount || plan.filter(p => p.type !== 'Rest').length} days/week`,
+          plan
         };
-      });
-
-      set({ weeklyPlan, isLoading: false });
-    } catch (err) {
-      console.error('Error fetching routine:', err);
-      set({ weeklyPlan: PREDEFINED_TEMPLATES[0].plan, isLoading: false });
-    }
-  },
-
-  updateDayPlan: (dayName, exercises) => set((state) => {
-    const newPlan = [...state.weeklyPlan];
-    const index = newPlan.findIndex(p => p.day === dayName);
-    if (index !== -1) {
-      newPlan[index] = { ...newPlan[index], mainLifts: exercises };
-    }
-    return { weeklyPlan: newPlan };
-  }),
-
-  loadTemplate: (templateId: string) => {
-    const template = get().templates.find(t => t.id === templateId);
-    if (template) {
-      set({ weeklyPlan: template.plan });
-    }
-  },
-
-  applyAiRoutine: (plan: DayPlan[]) => set({ weeklyPlan: plan }),
-
-  exportRoutine: () => {
-    const plan = get().weeklyPlan;
-    try {
-      const jsonStr = JSON.stringify(plan);
-      return btoa(encodeURIComponent(jsonStr));
-    } catch (e) {
-      console.error("Failed to export routine", e);
-      return "";
-    }
-  },
-
-  importRoutine: (base64Str: string) => {
-    try {
-      const jsonStr = decodeURIComponent(atob(base64Str));
-      const plan = JSON.parse(jsonStr) as DayPlan[];
-      if (Array.isArray(plan) && plan.length === 7) {
-        set({ weeklyPlan: plan });
+        set({ customTemplates: [...customTemplates, newTemplate] });
         return true;
+      },
+
+      deleteCustomTemplate: (templateId) => {
+        set({
+          customTemplates: get().customTemplates.filter(t => t.id !== templateId)
+        });
+      },
+
+      resetActiveSplit: () => {
+        set({ weeklyPlan: PREDEFINED_TEMPLATES[0].plan });
+      },
+
+      clearAllCustomTemplates: () => {
+        set({ customTemplates: [] });
       }
-      return false;
-    } catch (e) {
-      console.error("Failed to import routine", e);
-      return false;
+    }),
+    {
+      name: 'vortixia-custom-templates-storage',
+      partialize: (state) => ({ customTemplates: state.customTemplates }),
     }
-  }
-}));
+  )
+);
