@@ -262,17 +262,17 @@ export default function Settings() {
         <div className="bg-zinc-900/40 backdrop-blur-md border border-white/5 rounded-2xl p-5 flex flex-col divide-y divide-zinc-800/40">
           
           {/* Audio Feedback */}
-          <div className="py-5 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full group">
-            <div className="flex items-start gap-3.5 min-w-0">
+          <div className="py-5 first:pt-0 last:pb-0 flex flex-row items-center justify-between gap-4 w-full group">
+            <div className="flex items-start gap-3.5 flex-1 min-w-0">
               <div className="p-2.5 bg-zinc-800/30 rounded-xl border border-white/5 text-zinc-400 group-hover:text-emerald-400/80 transition-all flex-shrink-0">
                 <Volume2 className="w-4 h-4" />
               </div>
-              <div className="flex flex-col">
+              <div className="flex flex-col pr-4">
                 <span className="text-zinc-100 font-semibold tracking-wide text-base">Audio Feedback</span>
                 <span className="text-zinc-500 text-xs leading-relaxed max-w-[240px] mt-0.5">Play alarm sound when rest timer ends</span>
               </div>
             </div>
-            <div className="w-full sm:w-auto flex justify-end">
+            <div className="flex-shrink-0">
               <ToggleSwitch 
                 checked={soundEffects} 
                 onChange={() => handleToggle(setSoundEffects, soundEffects)} 
@@ -281,17 +281,17 @@ export default function Settings() {
           </div>
 
           {/* Tactile Haptics */}
-          <div className="py-5 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full group">
-            <div className="flex items-start gap-3.5 min-w-0">
+          <div className="py-5 first:pt-0 last:pb-0 flex flex-row items-center justify-between gap-4 w-full group">
+            <div className="flex items-start gap-3.5 flex-1 min-w-0">
               <div className="p-2.5 bg-zinc-800/30 rounded-xl border border-white/5 text-zinc-400 group-hover:text-emerald-400/80 transition-all flex-shrink-0">
                 <Smartphone className="w-4 h-4" />
               </div>
-              <div className="flex flex-col">
+              <div className="flex flex-col pr-4">
                 <span className="text-zinc-100 font-semibold tracking-wide text-base">Tactile Haptics</span>
                 <span className="text-zinc-500 text-xs leading-relaxed max-w-[240px] mt-0.5">Vibrate device on toggles & confirmations</span>
               </div>
             </div>
-            <div className="w-full sm:w-auto flex justify-end">
+            <div className="flex-shrink-0">
               <ToggleSwitch 
                 checked={hapticFeedback} 
                 onChange={() => handleToggle(setHapticFeedback, hapticFeedback)} 
@@ -310,17 +310,17 @@ export default function Settings() {
         <div className="bg-zinc-900/40 backdrop-blur-md border border-white/5 rounded-2xl p-5 flex flex-col divide-y divide-zinc-800/40">
           
           {/* Workout Reminders */}
-          <div className="py-5 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full group">
-            <div className="flex items-start gap-3.5 min-w-0">
+          <div className="py-5 first:pt-0 last:pb-0 flex flex-row items-center justify-between gap-4 w-full group">
+            <div className="flex items-start gap-3.5 flex-1 min-w-0">
               <div className="p-2.5 bg-zinc-800/30 rounded-xl border border-white/5 text-zinc-400 group-hover:text-emerald-400/80 transition-all flex-shrink-0">
                 <Bell className="w-4 h-4" />
               </div>
-              <div className="flex flex-col">
+              <div className="flex flex-col pr-4">
                 <span className="text-zinc-100 font-semibold tracking-wide text-base">Workout Reminders</span>
                 <span className="text-zinc-500 text-xs leading-relaxed max-w-[240px] mt-0.5">Remind me to log today's scheduled split</span>
               </div>
             </div>
-            <div className="w-full sm:w-auto flex justify-end">
+            <div className="flex-shrink-0">
               <ToggleSwitch 
                 checked={notifyWorkouts} 
                 onChange={() => handleToggle(setNotifyWorkouts, notifyWorkouts)} 
@@ -329,17 +329,17 @@ export default function Settings() {
           </div>
 
           {/* Social & Duels */}
-          <div className="py-5 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full group">
-            <div className="flex items-start gap-3.5 min-w-0">
+          <div className="py-5 first:pt-0 last:pb-0 flex flex-row items-center justify-between gap-4 w-full group">
+            <div className="flex items-start gap-3.5 flex-1 min-w-0">
               <div className="p-2.5 bg-zinc-800/30 rounded-xl border border-white/5 text-zinc-400 group-hover:text-emerald-400/80 transition-all flex-shrink-0">
                 <Swords className="w-4 h-4" />
               </div>
-              <div className="flex flex-col">
+              <div className="flex flex-col pr-4">
                 <span className="text-zinc-100 font-semibold tracking-wide text-base">Social & Duels</span>
                 <span className="text-zinc-500 text-xs leading-relaxed max-w-[240px] mt-0.5">Alerts when challenged or followed</span>
               </div>
             </div>
-            <div className="w-full sm:w-auto flex justify-end">
+            <div className="flex-shrink-0">
               <ToggleSwitch 
                 checked={notifySocial} 
                 onChange={() => handleToggle(setNotifySocial, notifySocial)} 
@@ -348,17 +348,17 @@ export default function Settings() {
           </div>
 
           {/* Inactivity Alerts */}
-          <div className="py-5 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full group">
-            <div className="flex items-start gap-3.5 min-w-0">
+          <div className="py-5 first:pt-0 last:pb-0 flex flex-row items-center justify-between gap-4 w-full group">
+            <div className="flex items-start gap-3.5 flex-1 min-w-0">
               <div className="p-2.5 bg-zinc-800/30 rounded-xl border border-white/5 text-zinc-400 group-hover:text-emerald-400/80 transition-all flex-shrink-0">
                 <Activity className="w-4 h-4" />
               </div>
-              <div className="flex flex-col">
+              <div className="flex flex-col pr-4">
                 <span className="text-zinc-100 font-semibold tracking-wide text-base">Inactivity Alerts</span>
                 <span className="text-zinc-500 text-xs leading-relaxed max-w-[240px] mt-0.5">Nudge me after 3 days of no activity</span>
               </div>
             </div>
-            <div className="w-full sm:w-auto flex justify-end">
+            <div className="flex-shrink-0">
               <ToggleSwitch 
                 checked={notifyInactivity} 
                 onChange={() => handleToggle(setNotifyInactivity, notifyInactivity)} 
