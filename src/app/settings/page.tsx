@@ -115,7 +115,7 @@ export default function Settings() {
       {/* Account Info summary card */}
       {profile && (
         <section className="w-full mb-8 animate-fade-in-up">
-          <div className="glass-card p-5 flex items-center justify-between border border-white/5 rounded-3xl bg-white/3">
+          <div className="bg-zinc-900/40 backdrop-blur-md border border-white/5 rounded-2xl p-5 flex items-center justify-between">
             <div className="flex items-center gap-4 min-w-0">
               <div className="w-14 h-14 rounded-full border border-white/10 overflow-hidden bg-black/40 flex items-center justify-center flex-shrink-0">
                 {profile.avatar_url ? (
@@ -125,8 +125,8 @@ export default function Settings() {
                 )}
               </div>
               <div className="flex flex-col min-w-0">
-                <span className="font-extrabold text-base text-white truncate">{profile.full_name || "Champion"}</span>
-                <span className="text-xs text-text-muted font-mono truncate mt-0.5">@{profile.username || "anonymous"}</span>
+                <span className="font-extrabold text-base text-zinc-100 truncate">{profile.full_name || "Champion"}</span>
+                <span className="text-xs text-zinc-500 font-mono truncate mt-0.5">@{profile.username || "anonymous"}</span>
                 <span className="text-[10px] text-accent-green font-black uppercase mt-1 tracking-wider">Level {Math.floor((profile.total_xp || 0) / 2000) + 1}</span>
               </div>
             </div>
@@ -146,99 +146,99 @@ export default function Settings() {
 
       {/* Preferences Section */}
       <section className="w-full mb-8 animate-fade-in-up">
-        <h2 className="text-xs font-black tracking-widest text-text-muted uppercase mb-4 ml-2">
+        <h2 className="text-xs font-black tracking-widest text-zinc-500 uppercase mb-4 ml-2">
           Preferences
         </h2>
-        <div className="glass-card divide-y divide-white/5 flex flex-col overflow-hidden border border-white/5 rounded-3xl bg-white/3">
+        <div className="bg-zinc-900/40 backdrop-blur-md border border-white/5 rounded-2xl p-5 flex flex-col divide-y divide-zinc-800/40">
           
           {/* Weight Unit */}
-          <div className="py-5 px-6 flex items-center justify-between group hover:bg-white/[0.01] transition-all">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-full bg-white/5 border border-white/5 flex items-center justify-center text-text-muted group-hover:text-white transition-all">
+          <div className="py-5 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full group">
+            <div className="flex items-start gap-3.5 min-w-0">
+              <div className="p-2.5 bg-zinc-800/30 rounded-xl border border-white/5 text-zinc-400 group-hover:text-emerald-400/80 transition-all flex-shrink-0">
                 <Scale className="w-4 h-4" />
               </div>
               <div className="flex flex-col">
-                <span className="font-bold text-sm">Weight Unit</span>
-                <span className="text-xs text-text-muted mt-0.5">Display metrics in metric/imperial</span>
+                <span className="text-zinc-100 font-semibold tracking-wide text-base">Weight Unit</span>
+                <span className="text-zinc-500 text-xs leading-relaxed max-w-[240px] mt-0.5">Display metrics in metric/imperial</span>
               </div>
             </div>
-            <div className="relative">
+            <div className="w-full sm:w-auto relative">
               <select 
                 value={weightUnit} 
                 onChange={(e) => { triggerHaptic(); setWeightUnit(e.target.value as any); }}
-                className="bg-black/50 border border-white/10 rounded-xl px-4 py-2.5 pr-10 text-sm text-white font-bold outline-none cursor-pointer hover:bg-black/60 focus:border-accent-green transition-all appearance-none"
+                className="w-full sm:w-auto bg-zinc-900/60 border border-white/5 focus:border-emerald-500/50 rounded-xl px-4 py-2.5 pr-10 text-sm text-zinc-200 font-medium outline-none cursor-pointer transition-all duration-200 appearance-none"
               >
                 <option value="kg">Kilograms (kg)</option>
                 <option value="lbs">Pounds (lbs)</option>
               </select>
-              <ChevronDown className="w-4 h-4 text-text-muted absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <ChevronDown className="w-4 h-4 text-zinc-500 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
           </div>
 
           {/* Height Unit */}
-          <div className="py-5 px-6 flex items-center justify-between group hover:bg-white/[0.01] transition-all">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-full bg-white/5 border border-white/5 flex items-center justify-center text-text-muted group-hover:text-white transition-all">
+          <div className="py-5 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full group">
+            <div className="flex items-start gap-3.5 min-w-0">
+              <div className="p-2.5 bg-zinc-800/30 rounded-xl border border-white/5 text-zinc-400 group-hover:text-emerald-400/80 transition-all flex-shrink-0">
                 <Ruler className="w-4 h-4" />
               </div>
               <div className="flex flex-col">
-                <span className="font-bold text-sm">Height Unit</span>
-                <span className="text-xs text-text-muted mt-0.5">Display height measurement system</span>
+                <span className="text-zinc-100 font-semibold tracking-wide text-base">Height Unit</span>
+                <span className="text-zinc-500 text-xs leading-relaxed max-w-[240px] mt-0.5">Display height measurement system</span>
               </div>
             </div>
-            <div className="relative">
+            <div className="w-full sm:w-auto relative">
               <select 
                 value={heightUnit} 
                 onChange={(e) => { triggerHaptic(); setHeightUnit(e.target.value as any); }}
-                className="bg-black/50 border border-white/10 rounded-xl px-4 py-2.5 pr-10 text-sm text-white font-bold outline-none cursor-pointer hover:bg-black/60 focus:border-accent-green transition-all appearance-none"
+                className="w-full sm:w-auto bg-zinc-900/60 border border-white/5 focus:border-emerald-500/50 rounded-xl px-4 py-2.5 pr-10 text-sm text-zinc-200 font-medium outline-none cursor-pointer transition-all duration-200 appearance-none"
               >
                 <option value="cm">Centimeters (cm)</option>
                 <option value="in">Inches (in)</option>
               </select>
-              <ChevronDown className="w-4 h-4 text-text-muted absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <ChevronDown className="w-4 h-4 text-zinc-500 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
           </div>
 
           {/* Time Format */}
-          <div className="py-5 px-6 flex items-center justify-between group hover:bg-white/[0.01] transition-all">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-full bg-white/5 border border-white/5 flex items-center justify-center text-text-muted group-hover:text-white transition-all">
+          <div className="py-5 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full group">
+            <div className="flex items-start gap-3.5 min-w-0">
+              <div className="p-2.5 bg-zinc-800/30 rounded-xl border border-white/5 text-zinc-400 group-hover:text-emerald-400/80 transition-all flex-shrink-0">
                 <Clock className="w-4 h-4" />
               </div>
               <div className="flex flex-col">
-                <span className="font-bold text-sm">Time Format</span>
-                <span className="text-xs text-text-muted mt-0.5">Display clocks format</span>
+                <span className="text-zinc-100 font-semibold tracking-wide text-base">Time Format</span>
+                <span className="text-zinc-500 text-xs leading-relaxed max-w-[240px] mt-0.5">Display clocks format</span>
               </div>
             </div>
-            <div className="relative">
+            <div className="w-full sm:w-auto relative">
               <select 
                 value={timeFormat} 
                 onChange={(e) => { triggerHaptic(); setTimeFormat(e.target.value as any); }}
-                className="bg-black/50 border border-white/10 rounded-xl px-4 py-2.5 pr-10 text-sm text-white font-bold outline-none cursor-pointer hover:bg-black/60 focus:border-accent-green transition-all appearance-none"
+                className="w-full sm:w-auto bg-zinc-900/60 border border-white/5 focus:border-emerald-500/50 rounded-xl px-4 py-2.5 pr-10 text-sm text-zinc-200 font-medium outline-none cursor-pointer transition-all duration-200 appearance-none"
               >
                 <option value="12h">12-Hour (AM/PM)</option>
                 <option value="24h">24-Hour</option>
               </select>
-              <ChevronDown className="w-4 h-4 text-text-muted absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <ChevronDown className="w-4 h-4 text-zinc-500 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
           </div>
 
           {/* Default Rest Timer */}
-          <div className="py-5 px-6 flex items-center justify-between group hover:bg-white/[0.01] transition-all">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-full bg-white/5 border border-white/5 flex items-center justify-center text-text-muted group-hover:text-white transition-all">
+          <div className="py-5 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full group">
+            <div className="flex items-start gap-3.5 min-w-0">
+              <div className="p-2.5 bg-zinc-800/30 rounded-xl border border-white/5 text-zinc-400 group-hover:text-emerald-400/80 transition-all flex-shrink-0">
                 <Timer className="w-4 h-4" />
               </div>
               <div className="flex flex-col">
-                <span className="font-bold text-sm">Default Rest Timer</span>
-                <span className="text-xs text-text-muted mt-0.5">Auto-launch timer between workout sets</span>
+                <span className="text-zinc-100 font-semibold tracking-wide text-base">Default Rest Timer</span>
+                <span className="text-zinc-500 text-xs leading-relaxed max-w-[240px] mt-0.5">Auto-launch timer between workout sets</span>
               </div>
             </div>
-            <div className="relative">
+            <div className="w-full sm:w-auto relative">
               <select 
                 value={defaultRestTimer} 
                 onChange={(e) => { triggerHaptic(); setDefaultRestTimer(parseInt(e.target.value)); }}
-                className="bg-black/50 border border-white/10 rounded-xl px-4 py-2.5 pr-10 text-sm text-white font-bold outline-none cursor-pointer hover:bg-black/60 focus:border-accent-green transition-all appearance-none"
+                className="w-full sm:w-auto bg-zinc-900/60 border border-white/5 focus:border-emerald-500/50 rounded-xl px-4 py-2.5 pr-10 text-sm text-zinc-200 font-medium outline-none cursor-pointer transition-all duration-200 appearance-none"
               >
                 <option value={30}>30 Seconds</option>
                 <option value={45}>45 Seconds</option>
@@ -247,7 +247,7 @@ export default function Settings() {
                 <option value={120}>120 Seconds (2 Min)</option>
                 <option value={180}>180 Seconds (3 Min)</option>
               </select>
-              <ChevronDown className="w-4 h-4 text-text-muted absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <ChevronDown className="w-4 h-4 text-zinc-500 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
           </div>
 
@@ -256,43 +256,47 @@ export default function Settings() {
 
       {/* Sound & Haptics */}
       <section className="w-full mb-8 animate-fade-in-up" style={{ animationDelay: '0.05s' }}>
-        <h2 className="text-xs font-black tracking-widest text-text-muted uppercase mb-4 ml-2">
+        <h2 className="text-xs font-black tracking-widest text-zinc-500 uppercase mb-4 ml-2">
           Sound & Haptics
         </h2>
-        <div className="glass-card divide-y divide-white/5 flex flex-col overflow-hidden border border-white/5 rounded-3xl bg-white/3">
+        <div className="bg-zinc-900/40 backdrop-blur-md border border-white/5 rounded-2xl p-5 flex flex-col divide-y divide-zinc-800/40">
           
           {/* Audio Feedback */}
-          <div className="py-5 px-6 flex items-center justify-between group hover:bg-white/[0.01] transition-all">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-full bg-white/5 border border-white/5 flex items-center justify-center text-text-muted group-hover:text-white transition-all">
+          <div className="py-5 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full group">
+            <div className="flex items-start gap-3.5 min-w-0">
+              <div className="p-2.5 bg-zinc-800/30 rounded-xl border border-white/5 text-zinc-400 group-hover:text-emerald-400/80 transition-all flex-shrink-0">
                 <Volume2 className="w-4 h-4" />
               </div>
               <div className="flex flex-col">
-                <span className="font-bold text-sm">Audio Feedback</span>
-                <span className="text-xs text-text-muted mt-0.5">Play alarm sound when rest timer ends</span>
+                <span className="text-zinc-100 font-semibold tracking-wide text-base">Audio Feedback</span>
+                <span className="text-zinc-500 text-xs leading-relaxed max-w-[240px] mt-0.5">Play alarm sound when rest timer ends</span>
               </div>
             </div>
-            <ToggleSwitch 
-              checked={soundEffects} 
-              onChange={() => handleToggle(setSoundEffects, soundEffects)} 
-            />
+            <div className="w-full sm:w-auto flex justify-end">
+              <ToggleSwitch 
+                checked={soundEffects} 
+                onChange={() => handleToggle(setSoundEffects, soundEffects)} 
+              />
+            </div>
           </div>
 
           {/* Tactile Haptics */}
-          <div className="py-5 px-6 flex items-center justify-between group hover:bg-white/[0.01] transition-all">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-full bg-white/5 border border-white/5 flex items-center justify-center text-text-muted group-hover:text-white transition-all">
+          <div className="py-5 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full group">
+            <div className="flex items-start gap-3.5 min-w-0">
+              <div className="p-2.5 bg-zinc-800/30 rounded-xl border border-white/5 text-zinc-400 group-hover:text-emerald-400/80 transition-all flex-shrink-0">
                 <Smartphone className="w-4 h-4" />
               </div>
               <div className="flex flex-col">
-                <span className="font-bold text-sm">Tactile Haptics</span>
-                <span className="text-xs text-text-muted mt-0.5">Vibrate device on toggles & confirmations</span>
+                <span className="text-zinc-100 font-semibold tracking-wide text-base">Tactile Haptics</span>
+                <span className="text-zinc-500 text-xs leading-relaxed max-w-[240px] mt-0.5">Vibrate device on toggles & confirmations</span>
               </div>
             </div>
-            <ToggleSwitch 
-              checked={hapticFeedback} 
-              onChange={() => handleToggle(setHapticFeedback, hapticFeedback)} 
-            />
+            <div className="w-full sm:w-auto flex justify-end">
+              <ToggleSwitch 
+                checked={hapticFeedback} 
+                onChange={() => handleToggle(setHapticFeedback, hapticFeedback)} 
+              />
+            </div>
           </div>
 
         </div>
@@ -300,60 +304,66 @@ export default function Settings() {
 
       {/* Notifications */}
       <section className="w-full mb-8 animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
-        <h2 className="text-xs font-black tracking-widest text-text-muted uppercase mb-4 ml-2">
+        <h2 className="text-xs font-black tracking-widest text-zinc-500 uppercase mb-4 ml-2">
           Push Notifications
         </h2>
-        <div className="glass-card divide-y divide-white/5 flex flex-col overflow-hidden border border-white/5 rounded-3xl bg-white/3">
+        <div className="bg-zinc-900/40 backdrop-blur-md border border-white/5 rounded-2xl p-5 flex flex-col divide-y divide-zinc-800/40">
           
           {/* Workout Reminders */}
-          <div className="py-5 px-6 flex items-center justify-between group hover:bg-white/[0.01] transition-all">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-full bg-white/5 border border-white/5 flex items-center justify-center text-text-muted group-hover:text-white transition-all">
+          <div className="py-5 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full group">
+            <div className="flex items-start gap-3.5 min-w-0">
+              <div className="p-2.5 bg-zinc-800/30 rounded-xl border border-white/5 text-zinc-400 group-hover:text-emerald-400/80 transition-all flex-shrink-0">
                 <Bell className="w-4 h-4" />
               </div>
               <div className="flex flex-col">
-                <span className="font-bold text-sm">Workout Reminders</span>
-                <span className="text-xs text-text-muted mt-0.5">Remind me to log today's scheduled split</span>
+                <span className="text-zinc-100 font-semibold tracking-wide text-base">Workout Reminders</span>
+                <span className="text-zinc-500 text-xs leading-relaxed max-w-[240px] mt-0.5">Remind me to log today's scheduled split</span>
               </div>
             </div>
-            <ToggleSwitch 
-              checked={notifyWorkouts} 
-              onChange={() => handleToggle(setNotifyWorkouts, notifyWorkouts)} 
-            />
+            <div className="w-full sm:w-auto flex justify-end">
+              <ToggleSwitch 
+                checked={notifyWorkouts} 
+                onChange={() => handleToggle(setNotifyWorkouts, notifyWorkouts)} 
+              />
+            </div>
           </div>
 
           {/* Social & Duels */}
-          <div className="py-5 px-6 flex items-center justify-between group hover:bg-white/[0.01] transition-all">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-full bg-white/5 border border-white/5 flex items-center justify-center text-text-muted group-hover:text-white transition-all">
+          <div className="py-5 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full group">
+            <div className="flex items-start gap-3.5 min-w-0">
+              <div className="p-2.5 bg-zinc-800/30 rounded-xl border border-white/5 text-zinc-400 group-hover:text-emerald-400/80 transition-all flex-shrink-0">
                 <Swords className="w-4 h-4" />
               </div>
               <div className="flex flex-col">
-                <span className="font-bold text-sm">Social & Duels</span>
-                <span className="text-xs text-text-muted mt-0.5">Alerts when challenged or followed</span>
+                <span className="text-zinc-100 font-semibold tracking-wide text-base">Social & Duels</span>
+                <span className="text-zinc-500 text-xs leading-relaxed max-w-[240px] mt-0.5">Alerts when challenged or followed</span>
               </div>
             </div>
-            <ToggleSwitch 
-              checked={notifySocial} 
-              onChange={() => handleToggle(setNotifySocial, notifySocial)} 
-            />
+            <div className="w-full sm:w-auto flex justify-end">
+              <ToggleSwitch 
+                checked={notifySocial} 
+                onChange={() => handleToggle(setNotifySocial, notifySocial)} 
+              />
+            </div>
           </div>
 
           {/* Inactivity Alerts */}
-          <div className="py-5 px-6 flex items-center justify-between group hover:bg-white/[0.01] transition-all">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-full bg-white/5 border border-white/5 flex items-center justify-center text-text-muted group-hover:text-white transition-all">
+          <div className="py-5 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full group">
+            <div className="flex items-start gap-3.5 min-w-0">
+              <div className="p-2.5 bg-zinc-800/30 rounded-xl border border-white/5 text-zinc-400 group-hover:text-emerald-400/80 transition-all flex-shrink-0">
                 <Activity className="w-4 h-4" />
               </div>
               <div className="flex flex-col">
-                <span className="font-bold text-sm">Inactivity Alerts</span>
-                <span className="text-xs text-text-muted mt-0.5">Nudge me after 3 days of no activity</span>
+                <span className="text-zinc-100 font-semibold tracking-wide text-base">Inactivity Alerts</span>
+                <span className="text-zinc-500 text-xs leading-relaxed max-w-[240px] mt-0.5">Nudge me after 3 days of no activity</span>
               </div>
             </div>
-            <ToggleSwitch 
-              checked={notifyInactivity} 
-              onChange={() => handleToggle(setNotifyInactivity, notifyInactivity)} 
-            />
+            <div className="w-full sm:w-auto flex justify-end">
+              <ToggleSwitch 
+                checked={notifyInactivity} 
+                onChange={() => handleToggle(setNotifyInactivity, notifyInactivity)} 
+              />
+            </div>
           </div>
 
         </div>
@@ -364,32 +374,40 @@ export default function Settings() {
         <h2 className="text-xs font-black tracking-widest text-[#FF3B38] uppercase mb-4 ml-2">
           Danger Zone
         </h2>
-        <div className="glass-card flex flex-col overflow-hidden border border-red-500/10 rounded-3xl bg-[#1a0c0c]/30">
+        <div className="bg-[#1a0c0c]/30 backdrop-blur-md border border-red-500/10 rounded-2xl p-5 flex flex-col divide-y divide-red-900/10">
           
+          {/* Log Out */}
           <button 
             onClick={() => { triggerHaptic(); logout(); }} 
-            className="py-5 px-6 flex items-center gap-4 text-white hover:bg-white/5 transition-all border-b border-white/5 text-left group"
+            className="py-5 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full text-left group"
           >
-            <div className="w-10 h-10 rounded-full bg-white/5 border border-white/5 flex items-center justify-center text-text-muted group-hover:text-white transition-all">
-              <LogOut className="w-4 h-4 text-text-muted group-hover:text-white" />
+            <div className="flex items-start gap-3.5 min-w-0">
+              <div className="p-2.5 bg-zinc-800/30 rounded-xl border border-white/5 text-zinc-400 group-hover:text-white transition-all flex-shrink-0">
+                <LogOut className="w-4 h-4" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-zinc-100 font-semibold tracking-wide text-base">Log Out</span>
+                <span className="text-zinc-500 text-xs leading-relaxed max-w-[240px] mt-0.5">Sign out of your active session</span>
+              </div>
             </div>
-            <div className="flex flex-col">
-              <span className="font-bold text-sm">Log Out</span>
-              <span className="text-xs text-text-muted mt-0.5">Sign out of your active session</span>
-            </div>
+            <ChevronRight className="w-5 h-5 text-zinc-500 group-hover:text-white transition-all hidden sm:block" />
           </button>
 
+          {/* Delete Account */}
           <button 
             onClick={() => { triggerHaptic(); setShowDeleteConfirm(true); }} 
-            className="py-5 px-6 flex items-center gap-4 text-[#FF3B38] hover:bg-[#FF3B38]/10 transition-all text-left group"
+            className="py-5 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full text-left group"
           >
-            <div className="w-10 h-10 rounded-full bg-[#FF3B38]/10 border border-[#FF3B38]/15 flex items-center justify-center text-[#FF3B38]">
-              <Trash2 className="w-4 h-4" />
+            <div className="flex items-start gap-3.5 min-w-0">
+              <div className="p-2.5 bg-red-900/10 rounded-xl border border-red-500/10 text-red-500 flex-shrink-0">
+                <Trash2 className="w-4 h-4" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[#FF3B38] font-semibold tracking-wide text-base">Delete Account</span>
+                <span className="text-zinc-500 text-xs leading-relaxed max-w-[240px] mt-0.5">Permanently erase all your data</span>
+              </div>
             </div>
-            <div className="flex flex-col">
-              <span className="font-bold text-sm">Delete Account</span>
-              <span className="text-xs text-red-400/70 mt-0.5">Permanently erase all your data</span>
-            </div>
+            <ChevronRight className="w-5 h-5 text-red-500/50 group-hover:text-red-500 transition-all hidden sm:block" />
           </button>
 
         </div>
