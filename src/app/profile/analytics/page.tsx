@@ -161,21 +161,38 @@ export default function AnalyticsPage() {
           .maybeSingle();
 
         if (metricsLog && metricsLog.length > 0) {
-          const formattedHistory = metricsLog.map(log => ({
-            date: new Date(log.logged_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-            weight: parseFloat(log.weight_kg),
-            bodyFat: log.body_fat_pct ? parseFloat(log.body_fat_pct) : null
-          }));
+          const formattedHistory = metricsLog.map((log, idx) => {
+            let bf = log.body_fat_pct ? parseFloat(log.body_fat_pct) : null;
+            // Fallback to current metrics body fat if latest log has null body fat
+            if (idx === metricsLog.length - 1 && bf === null && currentMetrics?.body_fat_pct) {
+              bf = parseFloat(currentMetrics.body_fat_pct);
+            }
+            return {
+              date: new Date(log.logged_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+              weight: parseFloat(log.weight_kg),
+              bodyFat: bf
+            };
+          });
           setMetricsHistory(formattedHistory);
 
           const currentWeight = parseFloat(metricsLog[metricsLog.length - 1].weight_kg);
           const firstWeight = parseFloat(metricsLog[0].weight_kg);
           setWeightDelta(currentWeight - firstWeight);
 
-          const currentBf = metricsLog[metricsLog.length - 1].body_fat_pct ? parseFloat(metricsLog[metricsLog.length - 1].body_fat_pct) : null;
-          const firstBf = metricsLog[0].body_fat_pct ? parseFloat(metricsLog[0].body_fat_pct) : null;
+          // Find the first non-null historical body fat entry in metricsLog
+          const firstNonNullBfLog = metricsLog.find(log => log.body_fat_pct !== null);
+          const firstBf = firstNonNullBfLog && firstNonNullBfLog.body_fat_pct ? parseFloat(firstNonNullBfLog.body_fat_pct) : null;
+
+          // Latest metric history log body fat (with fallback to current metrics body fat)
+          const latestBfLog = metricsLog[metricsLog.length - 1].body_fat_pct;
+          const currentBf = latestBfLog !== null 
+            ? parseFloat(latestBfLog) 
+            : (currentMetrics?.body_fat_pct ? parseFloat(currentMetrics.body_fat_pct) : null);
+
           if (currentBf !== null && firstBf !== null) {
             setBfDelta(currentBf - firstBf);
+          } else {
+            setBfDelta(null);
           }
         } else if (currentMetrics) {
           // If no logs exist, seed with current metrics
@@ -377,7 +394,7 @@ export default function AnalyticsPage() {
                   <span className="text-xl font-black text-white mt-1">
                     {metricsHistory.length > 0 && metricsHistory[metricsHistory.length - 1].bodyFat !== null 
                       ? `${metricsHistory[metricsHistory.length - 1].bodyFat}%` 
-                      : "N/A"}
+                      : "-"}
                   </span>
                   {bfDelta !== null && (
                     <span className={`text-[10px] font-extrabold mt-1 flex items-center gap-0.5 ${bfDelta <= 0 ? "text-accent-green" : "text-orange-400"}`}>

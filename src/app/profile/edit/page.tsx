@@ -9,13 +9,7 @@ import { useSettingsStore } from "@/store/useSettingsStore";
 import { toast } from "@/components/ui/Toast";
 
 export default function EditProfile() {
-  const { profile, metrics, fetchProfile } = useProfileStore();
-
-  useEffect(() => {
-    if (!profile) {
-      fetchProfile();
-    }
-  }, [profile, fetchProfile]);
+  const { profile, metrics, fetchProfile, isLoading } = useProfileStore();
 
   const [gender, setGender] = useState<"Male" | "Female">(metrics?.gender as any || "Male");
   const [age, setAge] = useState<string>(metrics?.age?.toString() || "25");
@@ -23,6 +17,20 @@ export default function EditProfile() {
   const [height, setHeight] = useState<string>(metrics?.height_cm?.toString() || "175");
   const [fullName, setFullName] = useState<string>(profile?.full_name || "");
   const [username, setUsername] = useState<string>(profile?.username || "");
+  const [bodyFat, setBodyFat] = useState<string>(metrics?.body_fat_pct?.toString() || "");
+  const [goal, setGoal] = useState<string>("Hypertrophy");
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
+  const [usernameSuggestions, setUsernameSuggestions] = useState<string[]>([]);
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
+  const [checkingUsername, setCheckingUsername] = useState(false);
+
+  useEffect(() => {
+    if (!profile) {
+      fetchProfile();
+    }
+  }, [profile, fetchProfile]);
 
   useEffect(() => {
     if (profile) {
@@ -40,15 +48,6 @@ export default function EditProfile() {
       setBodyFat(metrics.body_fat_pct?.toString() || "");
     }
   }, [metrics]);
-
-  const [bodyFat, setBodyFat] = useState<string>(metrics?.body_fat_pct?.toString() || "");
-  const [goal, setGoal] = useState<string>("Hypertrophy");
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(false);
-
-  const [usernameSuggestions, setUsernameSuggestions] = useState<string[]>([]);
-  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
-  const [checkingUsername, setCheckingUsername] = useState(false);
 
   useEffect(() => {
     if (!username || username === profile?.username) {
@@ -98,7 +97,21 @@ export default function EditProfile() {
     return { bmi, bmr: Math.round(bmr), tdee };
   }, [weight, height, age, gender]);
 
+  if (isLoading && (profile === null || metrics === null)) {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center pt-[var(--notch-top)] pb-24 px-6 bg-[#050505] relative overflow-x-hidden">
+        <div className="flex flex-col items-center justify-center gap-4">
+          <Loader2 className="w-10 h-10 text-accent-green animate-spin" />
+          <p className="text-sm font-semibold text-text-muted">Loading profile metrics...</p>
+        </div>
+      </main>
+    );
+  }
+
   const handleSave = async () => {
+    if (isLoading && (profile === null || metrics === null)) {
+      return;
+    }
     setIsSaving(true);
     setSaveSuccess(false);
     try {
@@ -214,7 +227,7 @@ export default function EditProfile() {
         </div>
         <button
           onClick={handleSave}
-          disabled={isSaving || usernameAvailable === false}
+          disabled={isSaving || usernameAvailable === false || (isLoading && (profile === null || metrics === null))}
           className={`flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-sm transition-all active:scale-95 ${
             saveSuccess
               ? 'bg-accent-green text-black'
@@ -284,13 +297,13 @@ export default function EditProfile() {
                 <select 
                   value={gender} 
                   onChange={(e) => setGender(e.target.value as any)}
-                  className="bg-black/50 border border-white/10 rounded-lg p-3 pr-10 text-white outline-none text-sm w-full min-w-0 appearance-none focus:border-accent-green transition-colors"
+                  className="bg-black/50 border border-white/10 rounded-lg p-3 pr-12 text-white outline-none text-sm w-full min-w-0 appearance-none focus:border-accent-green transition-colors"
                 >
                   <option value="" disabled>Select</option>
                   <option value="Male">Male</option>
                   <option value="Female">Female</option>
                 </select>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
+                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
               </div>
             </div>
             <div className="flex-1 flex flex-col gap-1">
@@ -324,13 +337,13 @@ export default function EditProfile() {
             <div className="relative">
               <select 
                 value={goal} onChange={(e) => setGoal(e.target.value)}
-                className="bg-black/50 border border-white/10 rounded-lg p-3 pr-10 text-white outline-none text-sm w-full min-w-0 appearance-none focus:border-accent-green transition-colors"
+                className="bg-black/50 border border-white/10 rounded-lg p-3 pr-12 text-white outline-none text-sm w-full min-w-0 appearance-none focus:border-accent-green transition-colors"
               >
                 <option value="Hypertrophy">Hypertrophy (Muscle Gain)</option>
                 <option value="Strength">Strength / Powerlifting</option>
                 <option value="Cut">Cut (Fat Loss)</option>
               </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
+              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
             </div>
           </div>
         </div>
