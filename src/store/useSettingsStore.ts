@@ -27,6 +27,8 @@ interface SettingsStore {
   setNotifyInactivity: (enabled: boolean) => void;
   fetchSettings: () => Promise<void>;
   syncToSupabase: () => Promise<void>;
+  subscribeToPush: () => Promise<void>;
+  unsubscribeFromPush: () => Promise<void>;
 }
 
 export const useSettingsStore = create<SettingsStore>()(
@@ -107,7 +109,114 @@ export const useSettingsStore = create<SettingsStore>()(
           console.error('Failed to sync settings:', err);
         }
       },
+
+      subscribeToPush: async () => {
+        if (typeof window === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+          console.warn('Push messaging is not supported in this browser');
+          return;
+        }
+
+        try {
+          const permission = await Notification.requestPermission();
+          if (permission !== 'granted') {
+            throw new Error('Notification permission was denied');
+          }
+
+          const registration = await navigator.serviceWorker.ready;
+          const existingSubscription = await registration.pushManager.getSubscription();
+
+          if (existingSubscription) {
+            const p256dh = existingSubscription.getKey('p256dh');
+            const auth = existingSubscription.getKey('auth');
+            if (p256dh && auth) {
+              await fetch('/api/push/subscribe', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  endpoint: existingSubscription.endpoint,
+                  keys: {
+                    p256dh: btoa(String.fromCharCode(...new Uint8Array(p256dh))),
+                    auth: btoa(String.fromCharCode(...new Uint8Array(auth))),
+                  }
+                })
+              });
+            }
+            return;
+          }
+
+          const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+          if (!vapidKey) {
+            console.error('VAPID public key is not set');
+            return;
+          }
+
+          const convertedVapidKey = urlBase64ToUint8Array(vapidKey);
+          const subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: convertedVapidKey
+          });
+
+          const p256dh = subscription.getKey('p256dh');
+          const auth = subscription.getKey('auth');
+
+          if (p256dh && auth) {
+            const res = await fetch('/api/push/subscribe', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                endpoint: subscription.endpoint,
+                keys: {
+                  p256dh: btoa(String.fromCharCode(...new Uint8Array(p256dh))),
+                  auth: btoa(String.fromCharCode(...new Uint8Array(auth))),
+                }
+              })
+            });
+            if (!res.ok) {
+              throw new Error('Failed to register subscription on backend');
+            }
+          }
+        } catch (err) {
+          console.error('Error during push subscription:', err);
+          throw err;
+        }
+      },
+
+      unsubscribeFromPush: async () => {
+        if (typeof window === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in window)) return;
+
+        try {
+          const registration = await navigator.serviceWorker.ready;
+          const subscription = await registration.pushManager.getSubscription();
+
+          if (subscription) {
+            await fetch('/api/push/subscribe', {
+              method: 'DELETE',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ endpoint: subscription.endpoint })
+            });
+
+            await subscription.unsubscribe();
+          }
+        } catch (err) {
+          console.error('Error unsubscribing from push:', err);
+        }
+      },
     }),
     { name: 'vortixia-settings' }
   )
 );
+
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding)
+    .replace(/\-/g, '+')
+    .replace(/_/g, '/');
+
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}

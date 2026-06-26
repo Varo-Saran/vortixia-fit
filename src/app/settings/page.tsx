@@ -22,13 +22,17 @@ export default function Settings() {
     notifyWorkouts, setNotifyWorkouts,
     notifySocial, setNotifySocial,
     notifyInactivity, setNotifyInactivity,
-    fetchSettings
+    fetchSettings,
+    subscribeToPush,
+    unsubscribeFromPush
   } = useSettingsStore();
 
   const { profile, fetchProfile, logout } = useProfileStore();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [confirmUsername, setConfirmUsername] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
 
   useEffect(() => {
     fetchSettings();
@@ -36,6 +40,42 @@ export default function Settings() {
       fetchProfile();
     }
   }, [fetchSettings, fetchProfile, profile]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const userAgent = window.navigator.userAgent.toLowerCase();
+      const isIOSDevice = /ipad|iphone|ipod/.test(userAgent) && !(window as any).MSStream;
+      setIsIOS(isIOSDevice);
+      
+      const isInStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
+      setIsStandalone(isInStandalone);
+    }
+  }, []);
+
+  const handleNotificationToggle = async (setter: (val: boolean) => void, fieldName: 'notifyWorkouts' | 'notifySocial' | 'notifyInactivity', currentVal: boolean) => {
+    const newVal = !currentVal;
+    setter(newVal);
+    triggerHaptic();
+
+    try {
+      if (newVal) {
+        await subscribeToPush();
+      } else {
+        const { notifyWorkouts: w, notifySocial: s, notifyInactivity: i } = useSettingsStore.getState();
+        const nextW = fieldName === 'notifyWorkouts' ? newVal : w;
+        const nextS = fieldName === 'notifySocial' ? newVal : s;
+        const nextI = fieldName === 'notifyInactivity' ? newVal : i;
+
+        if (!nextW && !nextS && !nextI) {
+          await unsubscribeFromPush();
+        }
+      }
+    } catch (err) {
+      console.error('Failed to update push subscription:', err);
+      toast.error("Failed to update push notifications permission.");
+      setter(currentVal); // revert toggle
+    }
+  };
 
   // Subtle vibration helper
   const triggerHaptic = () => {
@@ -60,6 +100,12 @@ export default function Settings() {
     setIsDeleting(true);
     triggerHaptic();
     try {
+      try {
+        await unsubscribeFromPush();
+      } catch (e) {
+        console.error("Error unsubscribing on delete account:", e);
+      }
+      
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
       
@@ -307,62 +353,77 @@ export default function Settings() {
         <h2 className="text-xs font-black tracking-widest text-zinc-500 uppercase mb-4 ml-2">
           Push Notifications
         </h2>
-        <div className="bg-zinc-900/40 backdrop-blur-md border border-white/5 rounded-2xl p-5 flex flex-col divide-y divide-zinc-800/40">
+        <div className="bg-zinc-900/40 backdrop-blur-md border border-white/5 rounded-2xl p-5 flex flex-col gap-4">
           
-          {/* Workout Reminders */}
-          <div className="py-5 first:pt-0 last:pb-0 flex flex-row items-center justify-between gap-4 w-full group">
-            <div className="flex items-start gap-3.5 flex-1 min-w-0">
-              <div className="p-2.5 bg-zinc-800/30 rounded-xl border border-white/5 text-zinc-400 group-hover:text-emerald-400/80 transition-all flex-shrink-0">
-                <Bell className="w-4 h-4" />
-              </div>
-              <div className="flex flex-col pr-4">
-                <span className="text-zinc-100 font-semibold tracking-wide text-base">Workout Reminders</span>
-                <span className="text-zinc-500 text-xs leading-relaxed max-w-[240px] mt-0.5">Remind me to log today's scheduled split</span>
+          {/* iOS Standalone Warning Banner */}
+          {isIOS && !isStandalone && (
+            <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 flex gap-3 text-left animate-fade-in">
+              <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+              <div className="flex flex-col">
+                <span className="text-amber-200 font-semibold text-sm">iOS Home Screen Required</span>
+                <span className="text-zinc-400 text-xs leading-relaxed mt-1">
+                  To activate live push alerts on iOS, tap the share icon and select <strong>'Add to Home Screen'</strong>.
+                </span>
               </div>
             </div>
-            <div className="flex-shrink-0">
-              <ToggleSwitch 
-                checked={notifyWorkouts} 
-                onChange={() => handleToggle(setNotifyWorkouts, notifyWorkouts)} 
-              />
-            </div>
-          </div>
+          )}
 
-          {/* Social & Duels */}
-          <div className="py-5 first:pt-0 last:pb-0 flex flex-row items-center justify-between gap-4 w-full group">
-            <div className="flex items-start gap-3.5 flex-1 min-w-0">
-              <div className="p-2.5 bg-zinc-800/30 rounded-xl border border-white/5 text-zinc-400 group-hover:text-emerald-400/80 transition-all flex-shrink-0">
-                <Swords className="w-4 h-4" />
+          <div className="flex flex-col divide-y divide-zinc-800/40">
+            {/* Workout Reminders */}
+            <div className="py-5 first:pt-0 last:pb-0 flex flex-row items-center justify-between gap-4 w-full group">
+              <div className="flex items-start gap-3.5 flex-1 min-w-0">
+                <div className="p-2.5 bg-zinc-800/30 rounded-xl border border-white/5 text-zinc-400 group-hover:text-emerald-400/80 transition-all flex-shrink-0">
+                  <Bell className="w-4 h-4" />
+                </div>
+                <div className="flex flex-col pr-4">
+                  <span className="text-zinc-100 font-semibold tracking-wide text-base">Workout Reminders</span>
+                  <span className="text-zinc-500 text-xs leading-relaxed max-w-[240px] mt-0.5">Remind me to log today's scheduled split</span>
+                </div>
               </div>
-              <div className="flex flex-col pr-4">
-                <span className="text-zinc-100 font-semibold tracking-wide text-base">Social & Duels</span>
-                <span className="text-zinc-500 text-xs leading-relaxed max-w-[240px] mt-0.5">Alerts when challenged or followed</span>
+              <div className="flex-shrink-0">
+                <ToggleSwitch 
+                  checked={notifyWorkouts} 
+                  onChange={() => handleNotificationToggle(setNotifyWorkouts, 'notifyWorkouts', notifyWorkouts)} 
+                />
               </div>
             </div>
-            <div className="flex-shrink-0">
-              <ToggleSwitch 
-                checked={notifySocial} 
-                onChange={() => handleToggle(setNotifySocial, notifySocial)} 
-              />
-            </div>
-          </div>
 
-          {/* Inactivity Alerts */}
-          <div className="py-5 first:pt-0 last:pb-0 flex flex-row items-center justify-between gap-4 w-full group">
-            <div className="flex items-start gap-3.5 flex-1 min-w-0">
-              <div className="p-2.5 bg-zinc-800/30 rounded-xl border border-white/5 text-zinc-400 group-hover:text-emerald-400/80 transition-all flex-shrink-0">
-                <Activity className="w-4 h-4" />
+            {/* Social & Duels */}
+            <div className="py-5 first:pt-0 last:pb-0 flex flex-row items-center justify-between gap-4 w-full group">
+              <div className="flex items-start gap-3.5 flex-1 min-w-0">
+                <div className="p-2.5 bg-zinc-800/30 rounded-xl border border-white/5 text-zinc-400 group-hover:text-emerald-400/80 transition-all flex-shrink-0">
+                  <Swords className="w-4 h-4" />
+                </div>
+                <div className="flex flex-col pr-4">
+                  <span className="text-zinc-100 font-semibold tracking-wide text-base">Social & Duels</span>
+                  <span className="text-zinc-500 text-xs leading-relaxed max-w-[240px] mt-0.5">Alerts when challenged or followed</span>
+                </div>
               </div>
-              <div className="flex flex-col pr-4">
-                <span className="text-zinc-100 font-semibold tracking-wide text-base">Inactivity Alerts</span>
-                <span className="text-zinc-500 text-xs leading-relaxed max-w-[240px] mt-0.5">Nudge me after 3 days of no activity</span>
+              <div className="flex-shrink-0">
+                <ToggleSwitch 
+                  checked={notifySocial} 
+                  onChange={() => handleNotificationToggle(setNotifySocial, 'notifySocial', notifySocial)} 
+                />
               </div>
             </div>
-            <div className="flex-shrink-0">
-              <ToggleSwitch 
-                checked={notifyInactivity} 
-                onChange={() => handleToggle(setNotifyInactivity, notifyInactivity)} 
-              />
+
+            {/* Inactivity Alerts */}
+            <div className="py-5 first:pt-0 last:pb-0 flex flex-row items-center justify-between gap-4 w-full group">
+              <div className="flex items-start gap-3.5 flex-1 min-w-0">
+                <div className="p-2.5 bg-zinc-800/30 rounded-xl border border-white/5 text-zinc-400 group-hover:text-emerald-400/80 transition-all flex-shrink-0">
+                  <Activity className="w-4 h-4" />
+                </div>
+                <div className="flex flex-col pr-4">
+                  <span className="text-zinc-100 font-semibold tracking-wide text-base">Inactivity Alerts</span>
+                  <span className="text-zinc-500 text-xs leading-relaxed max-w-[240px] mt-0.5">Nudge me after 3 days of no activity</span>
+                </div>
+              </div>
+              <div className="flex-shrink-0">
+                <ToggleSwitch 
+                  checked={notifyInactivity} 
+                  onChange={() => handleNotificationToggle(setNotifyInactivity, 'notifyInactivity', notifyInactivity)} 
+                />
+              </div>
             </div>
           </div>
 
@@ -378,7 +439,15 @@ export default function Settings() {
           
           {/* Log Out */}
           <button 
-            onClick={() => { triggerHaptic(); logout(); }} 
+            onClick={async () => {
+              triggerHaptic();
+              try {
+                await unsubscribeFromPush();
+              } catch (e) {
+                console.error("Error unsubscribing on logout:", e);
+              }
+              logout();
+            }} 
             className="py-5 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full text-left group"
           >
             <div className="flex items-start gap-3.5 min-w-0">

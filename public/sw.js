@@ -38,6 +38,9 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(event.request.url);
 
+  // Do not intercept or cache push notification API requests
+  if (url.pathname.startsWith('/api/push/')) return;
+
   // Stale-while-revalidate for API (Supabase / Next.js Data)
   if (url.origin.includes('supabase.co') || url.pathname.startsWith('/api/') || url.pathname.startsWith('/_next/data/')) {
     event.respondWith(
@@ -91,5 +94,51 @@ self.addEventListener('fetch', (event) => {
         return response;
       })
       .catch(() => caches.match(event.request))
+  );
+});
+
+// PWA Native Push Event Handlers
+self.addEventListener('push', (event) => {
+  try {
+    const data = event.data ? event.data.json() : {};
+    const title = data.title || 'Vortixia Fit';
+    const options = {
+      body: data.message || 'New update from Vortixia Fit!',
+      icon: '/favicon-96x96.png',
+      badge: '/favicon.svg',
+      data: {
+        url: data.url || '/'
+      },
+      vibrate: [100, 50, 100],
+      tag: 'vortixia-notification'
+    };
+    event.waitUntil(self.registration.showNotification(title, options));
+  } catch (err) {
+    console.error('Error handling push event in service worker:', err);
+  }
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = event.notification.data?.url || '/';
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      // Focus if already open, navigate to target route
+      for (const client of clientList) {
+        const clientUrl = new URL(client.url);
+        const targetObj = new URL(targetUrl, self.location.origin);
+        if (clientUrl.origin === targetObj.origin && 'focus' in client) {
+          if ('navigate' in client) {
+            client.navigate(targetUrl);
+          }
+          return client.focus();
+        }
+      }
+      // Or open fresh window
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(targetUrl);
+      }
+    })
   );
 });
