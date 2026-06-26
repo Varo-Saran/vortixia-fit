@@ -1,13 +1,13 @@
 "use client";
  
 import { useState, useEffect } from "react";
-import { ArrowLeft, LogOut, Trash2, Bell, Volume2, Smartphone, Timer, ChevronRight, UserCircle, AlertTriangle, ShieldAlert } from "lucide-react";
+import { ArrowLeft, LogOut, Trash2, Bell, Volume2, Smartphone, Timer, ChevronRight, UserCircle, AlertTriangle, ShieldAlert, Scale, Ruler, Clock, ChevronDown, Activity, Swords } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSettingsStore } from "@/store/useSettingsStore";
 import { useProfileStore } from "@/store/useProfileStore";
 import { supabase } from "@/lib/supabase";
-import { toast } from "react-hot-toast";
+import { toast } from "@/components/ui/Toast";
 
 export default function Settings() {
   const router = useRouter();
@@ -46,7 +46,6 @@ export default function Settings() {
 
   const handleToggle = (setter: (val: boolean) => void, currentVal: boolean) => {
     setter(!currentVal);
-    // Vibrate immediately
     if (hapticFeedback && typeof navigator !== 'undefined' && navigator.vibrate) {
       navigator.vibrate(10);
     }
@@ -66,11 +65,11 @@ export default function Settings() {
       
       const userId = session.user.id;
 
-      // 1. Delete associated database records to clean up (in production this would be handled via server trigger or CASCADE)
+      // Delete associated database records
       await supabase.from('user_metrics').delete().eq('id', userId);
       await supabase.from('users').delete().eq('id', userId);
 
-      // 2. Sign out
+      // Sign out
       await supabase.auth.signOut();
       toast.success("Account successfully deleted.");
       window.location.href = '/login';
@@ -86,26 +85,26 @@ export default function Settings() {
     <button
       type="button"
       onClick={onChange}
-      className={`w-11 h-6 rounded-full relative transition-colors duration-200 outline-none flex items-center ${
-        checked ? 'bg-accent-green' : 'bg-white/10 border border-white/5'
+      className={`w-12 h-6 rounded-full relative transition-all duration-300 ease-out outline-none cursor-pointer flex items-center ${
+        checked ? 'bg-accent-green shadow-[0_0_12px_rgba(74,222,128,0.4)] border border-transparent' : 'bg-white/5 border border-white/10'
       }`}
     >
       <span
-        className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-transform duration-200 absolute ${
-          checked ? 'translate-x-5' : 'translate-x-0.5'
+        className={`w-5 h-5 rounded-full bg-white shadow-md transition-all duration-300 ease-out absolute top-[1px] left-[1px] ${
+          checked ? 'translate-x-[24px] scale-105' : 'translate-x-0'
         }`}
       />
     </button>
   );
 
   return (
-    <main className="flex min-h-screen flex-col pt-[var(--notch-top)] pb-28 px-6 bg-[#050505] text-white relative overflow-x-hidden">
+    <main className="flex min-h-screen flex-col pt-[var(--notch-top)] pb-32 px-6 bg-[#050505] text-white relative overflow-x-hidden">
       
       {/* Header */}
-      <header className="w-full flex items-center py-4 mb-6 sticky top-[var(--notch-top)] z-20 bg-[#050505]/80 backdrop-blur-lg border-b border-white/5">
+      <header className="w-full flex items-center py-4 mb-8 sticky top-[var(--notch-top)] z-20 bg-[#050505]/80 backdrop-blur-lg border-b border-white/5">
         <button 
           onClick={() => router.back()} 
-          className="mr-4 p-2 bg-white/5 rounded-full border border-white/10 hover:bg-white/10 transition-colors"
+          className="mr-4 p-2 bg-white/5 rounded-full border border-white/10 hover:bg-white/10 transition-all active:scale-90"
           aria-label="Go back"
         >
           <ArrowLeft className="w-5 h-5 text-white" />
@@ -115,27 +114,27 @@ export default function Settings() {
 
       {/* Account Info summary card */}
       {profile && (
-        <section className="w-full mb-6 animate-fade-in-up">
-          <div className="glass-card p-4 flex items-center justify-between border border-white/5 rounded-3xl">
+        <section className="w-full mb-8 animate-fade-in-up">
+          <div className="glass-card p-5 flex items-center justify-between border border-white/5 rounded-3xl bg-white/3">
             <div className="flex items-center gap-4 min-w-0">
-              <div className="w-12 h-12 rounded-full border border-white/10 overflow-hidden bg-black/40 flex items-center justify-center flex-shrink-0">
+              <div className="w-14 h-14 rounded-full border border-white/10 overflow-hidden bg-black/40 flex items-center justify-center flex-shrink-0">
                 {profile.avatar_url ? (
                   <img src={profile.avatar_url} alt="Profile" className="w-full h-full object-cover" />
                 ) : (
-                  <UserCircle className="w-7 h-7 text-white/50" />
+                  <UserCircle className="w-8 h-8 text-white/50" />
                 )}
               </div>
               <div className="flex flex-col min-w-0">
-                <span className="font-extrabold text-sm text-white truncate">{profile.full_name || "Champion"}</span>
-                <span className="text-xs text-text-muted font-mono truncate">@{profile.username || "anonymous"}</span>
-                <span className="text-[10px] text-accent-green font-black uppercase mt-0.5 tracking-wider">Level {Math.floor((profile.total_xp || 0) / 2000) + 1}</span>
+                <span className="font-extrabold text-base text-white truncate">{profile.full_name || "Champion"}</span>
+                <span className="text-xs text-text-muted font-mono truncate mt-0.5">@{profile.username || "anonymous"}</span>
+                <span className="text-[10px] text-accent-green font-black uppercase mt-1 tracking-wider">Level {Math.floor((profile.total_xp || 0) / 2000) + 1}</span>
               </div>
             </div>
             
             <Link href="/profile/edit">
               <button 
                 onClick={triggerHaptic}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs font-bold text-white hover:bg-white/10 active:scale-95 transition-all"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-xs font-bold text-white hover:bg-white/10 active:scale-95 transition-all"
               >
                 Edit Profile
                 <ChevronRight className="w-3.5 h-3.5" />
@@ -146,90 +145,132 @@ export default function Settings() {
       )}
 
       {/* Preferences Section */}
-      <section className="w-full mb-6 animate-fade-in-up">
-        <h2 className="text-xs font-bold text-text-muted uppercase tracking-widest mb-3 ml-2">
+      <section className="w-full mb-8 animate-fade-in-up">
+        <h2 className="text-xs font-black tracking-widest text-text-muted uppercase mb-4 ml-2">
           Preferences
         </h2>
         <div className="glass-card divide-y divide-white/5 flex flex-col overflow-hidden border border-white/5 rounded-3xl bg-white/3">
           
-          <div className="p-4 flex items-center justify-between">
-            <div className="flex flex-col">
-              <span className="font-bold text-sm">Weight Unit</span>
-              <span className="text-xs text-text-muted">Display metrics in metric/imperial</span>
+          {/* Weight Unit */}
+          <div className="py-5 px-6 flex items-center justify-between group hover:bg-white/[0.01] transition-all">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-full bg-white/5 border border-white/5 flex items-center justify-center text-text-muted group-hover:text-white transition-all">
+                <Scale className="w-4 h-4" />
+              </div>
+              <div className="flex flex-col">
+                <span className="font-bold text-sm">Weight Unit</span>
+                <span className="text-xs text-text-muted mt-0.5">Display metrics in metric/imperial</span>
+              </div>
             </div>
-            <select 
-              value={weightUnit} 
-              onChange={(e) => { triggerHaptic(); setWeightUnit(e.target.value as any); }}
-              className="bg-black/50 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white outline-none cursor-pointer focus:border-accent-green"
-            >
-              <option value="kg">Kilograms (kg)</option>
-              <option value="lbs">Pounds (lbs)</option>
-            </select>
+            <div className="relative">
+              <select 
+                value={weightUnit} 
+                onChange={(e) => { triggerHaptic(); setWeightUnit(e.target.value as any); }}
+                className="bg-black/50 border border-white/10 rounded-xl px-4 py-2.5 pr-10 text-sm text-white font-bold outline-none cursor-pointer hover:bg-black/60 focus:border-accent-green transition-all appearance-none"
+              >
+                <option value="kg">Kilograms (kg)</option>
+                <option value="lbs">Pounds (lbs)</option>
+              </select>
+              <ChevronDown className="w-4 h-4 text-text-muted absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
           </div>
 
-          <div className="p-4 flex items-center justify-between">
-            <div className="flex flex-col">
-              <span className="font-bold text-sm">Height Unit</span>
-              <span className="text-xs text-text-muted">Display height measurement system</span>
+          {/* Height Unit */}
+          <div className="py-5 px-6 flex items-center justify-between group hover:bg-white/[0.01] transition-all">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-full bg-white/5 border border-white/5 flex items-center justify-center text-text-muted group-hover:text-white transition-all">
+                <Ruler className="w-4 h-4" />
+              </div>
+              <div className="flex flex-col">
+                <span className="font-bold text-sm">Height Unit</span>
+                <span className="text-xs text-text-muted mt-0.5">Display height measurement system</span>
+              </div>
             </div>
-            <select 
-              value={heightUnit} 
-              onChange={(e) => { triggerHaptic(); setHeightUnit(e.target.value as any); }}
-              className="bg-black/50 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white outline-none cursor-pointer focus:border-accent-green"
-            >
-              <option value="cm">Centimeters (cm)</option>
-              <option value="in">Inches (in)</option>
-            </select>
+            <div className="relative">
+              <select 
+                value={heightUnit} 
+                onChange={(e) => { triggerHaptic(); setHeightUnit(e.target.value as any); }}
+                className="bg-black/50 border border-white/10 rounded-xl px-4 py-2.5 pr-10 text-sm text-white font-bold outline-none cursor-pointer hover:bg-black/60 focus:border-accent-green transition-all appearance-none"
+              >
+                <option value="cm">Centimeters (cm)</option>
+                <option value="in">Inches (in)</option>
+              </select>
+              <ChevronDown className="w-4 h-4 text-text-muted absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
           </div>
 
-          <div className="p-4 flex items-center justify-between">
-            <div className="flex flex-col">
-              <span className="font-bold text-sm">Time Format</span>
-              <span className="text-xs text-text-muted">Display clocks format</span>
+          {/* Time Format */}
+          <div className="py-5 px-6 flex items-center justify-between group hover:bg-white/[0.01] transition-all">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-full bg-white/5 border border-white/5 flex items-center justify-center text-text-muted group-hover:text-white transition-all">
+                <Clock className="w-4 h-4" />
+              </div>
+              <div className="flex flex-col">
+                <span className="font-bold text-sm">Time Format</span>
+                <span className="text-xs text-text-muted mt-0.5">Display clocks format</span>
+              </div>
             </div>
-            <select 
-              value={timeFormat} 
-              onChange={(e) => { triggerHaptic(); setTimeFormat(e.target.value as any); }}
-              className="bg-black/50 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white outline-none cursor-pointer focus:border-accent-green"
-            >
-              <option value="12h">12-Hour (AM/PM)</option>
-              <option value="24h">24-Hour</option>
-            </select>
+            <div className="relative">
+              <select 
+                value={timeFormat} 
+                onChange={(e) => { triggerHaptic(); setTimeFormat(e.target.value as any); }}
+                className="bg-black/50 border border-white/10 rounded-xl px-4 py-2.5 pr-10 text-sm text-white font-bold outline-none cursor-pointer hover:bg-black/60 focus:border-accent-green transition-all appearance-none"
+              >
+                <option value="12h">12-Hour (AM/PM)</option>
+                <option value="24h">24-Hour</option>
+              </select>
+              <ChevronDown className="w-4 h-4 text-text-muted absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
           </div>
 
-          <div className="p-4 flex items-center justify-between">
-            <div className="flex flex-col">
-              <span className="font-bold text-sm flex items-center gap-2"><Timer className="w-4 h-4 text-accent-green" /> Default Rest Timer</span>
-              <span className="text-xs text-text-muted">Auto-launch timer between workout sets</span>
+          {/* Default Rest Timer */}
+          <div className="py-5 px-6 flex items-center justify-between group hover:bg-white/[0.01] transition-all">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-full bg-white/5 border border-white/5 flex items-center justify-center text-text-muted group-hover:text-white transition-all">
+                <Timer className="w-4 h-4" />
+              </div>
+              <div className="flex flex-col">
+                <span className="font-bold text-sm">Default Rest Timer</span>
+                <span className="text-xs text-text-muted mt-0.5">Auto-launch timer between workout sets</span>
+              </div>
             </div>
-            <select 
-              value={defaultRestTimer} 
-              onChange={(e) => { triggerHaptic(); setDefaultRestTimer(parseInt(e.target.value)); }}
-              className="bg-black/50 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white outline-none cursor-pointer focus:border-accent-green"
-            >
-              <option value={30}>30 Seconds</option>
-              <option value={45}>45 Seconds</option>
-              <option value={60}>60 Seconds (1 Min)</option>
-              <option value={90}>90 Seconds (1.5 Min)</option>
-              <option value={120}>120 Seconds (2 Min)</option>
-              <option value={180}>180 Seconds (3 Min)</option>
-            </select>
+            <div className="relative">
+              <select 
+                value={defaultRestTimer} 
+                onChange={(e) => { triggerHaptic(); setDefaultRestTimer(parseInt(e.target.value)); }}
+                className="bg-black/50 border border-white/10 rounded-xl px-4 py-2.5 pr-10 text-sm text-white font-bold outline-none cursor-pointer hover:bg-black/60 focus:border-accent-green transition-all appearance-none"
+              >
+                <option value={30}>30 Seconds</option>
+                <option value={45}>45 Seconds</option>
+                <option value={60}>60 Seconds (1 Min)</option>
+                <option value={90}>90 Seconds (1.5 Min)</option>
+                <option value={120}>120 Seconds (2 Min)</option>
+                <option value={180}>180 Seconds (3 Min)</option>
+              </select>
+              <ChevronDown className="w-4 h-4 text-text-muted absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
           </div>
 
         </div>
       </section>
 
       {/* Sound & Haptics */}
-      <section className="w-full mb-6 animate-fade-in-up" style={{ animationDelay: '0.05s' }}>
-        <h2 className="text-xs font-bold text-text-muted uppercase tracking-widest mb-3 ml-2">
+      <section className="w-full mb-8 animate-fade-in-up" style={{ animationDelay: '0.05s' }}>
+        <h2 className="text-xs font-black tracking-widest text-text-muted uppercase mb-4 ml-2">
           Sound & Haptics
         </h2>
         <div className="glass-card divide-y divide-white/5 flex flex-col overflow-hidden border border-white/5 rounded-3xl bg-white/3">
           
-          <div className="p-4 flex items-center justify-between">
-            <div className="flex flex-col">
-              <span className="font-bold text-sm flex items-center gap-2"><Volume2 className="w-4 h-4 text-accent-green" /> Audio Feedback</span>
-              <span className="text-xs text-text-muted">Play alarm sound when rest timer ends</span>
+          {/* Audio Feedback */}
+          <div className="py-5 px-6 flex items-center justify-between group hover:bg-white/[0.01] transition-all">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-full bg-white/5 border border-white/5 flex items-center justify-center text-text-muted group-hover:text-white transition-all">
+                <Volume2 className="w-4 h-4" />
+              </div>
+              <div className="flex flex-col">
+                <span className="font-bold text-sm">Audio Feedback</span>
+                <span className="text-xs text-text-muted mt-0.5">Play alarm sound when rest timer ends</span>
+              </div>
             </div>
             <ToggleSwitch 
               checked={soundEffects} 
@@ -237,10 +278,16 @@ export default function Settings() {
             />
           </div>
 
-          <div className="p-4 flex items-center justify-between">
-            <div className="flex flex-col">
-              <span className="font-bold text-sm flex items-center gap-2"><Smartphone className="w-4 h-4 text-accent-green" /> Tactile Haptics</span>
-              <span className="text-xs text-text-muted">Vibrate device on toggles & confirmations</span>
+          {/* Tactile Haptics */}
+          <div className="py-5 px-6 flex items-center justify-between group hover:bg-white/[0.01] transition-all">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-full bg-white/5 border border-white/5 flex items-center justify-center text-text-muted group-hover:text-white transition-all">
+                <Smartphone className="w-4 h-4" />
+              </div>
+              <div className="flex flex-col">
+                <span className="font-bold text-sm">Tactile Haptics</span>
+                <span className="text-xs text-text-muted mt-0.5">Vibrate device on toggles & confirmations</span>
+              </div>
             </div>
             <ToggleSwitch 
               checked={hapticFeedback} 
@@ -252,16 +299,22 @@ export default function Settings() {
       </section>
 
       {/* Notifications */}
-      <section className="w-full mb-6 animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
-        <h2 className="text-xs font-bold text-text-muted uppercase tracking-widest mb-3 ml-2">
+      <section className="w-full mb-8 animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
+        <h2 className="text-xs font-black tracking-widest text-text-muted uppercase mb-4 ml-2">
           Push Notifications
         </h2>
         <div className="glass-card divide-y divide-white/5 flex flex-col overflow-hidden border border-white/5 rounded-3xl bg-white/3">
           
-          <div className="p-4 flex items-center justify-between">
-            <div className="flex flex-col">
-              <span className="font-bold text-sm flex items-center gap-2"><Bell className="w-4 h-4 text-accent-green" /> Workout Reminders</span>
-              <span className="text-xs text-text-muted">Remind me to log today's scheduled split</span>
+          {/* Workout Reminders */}
+          <div className="py-5 px-6 flex items-center justify-between group hover:bg-white/[0.01] transition-all">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-full bg-white/5 border border-white/5 flex items-center justify-center text-text-muted group-hover:text-white transition-all">
+                <Bell className="w-4 h-4" />
+              </div>
+              <div className="flex flex-col">
+                <span className="font-bold text-sm">Workout Reminders</span>
+                <span className="text-xs text-text-muted mt-0.5">Remind me to log today's scheduled split</span>
+              </div>
             </div>
             <ToggleSwitch 
               checked={notifyWorkouts} 
@@ -269,10 +322,16 @@ export default function Settings() {
             />
           </div>
 
-          <div className="p-4 flex items-center justify-between">
-            <div className="flex flex-col">
-              <span className="font-bold text-sm flex items-center gap-2"><Bell className="w-4 h-4 text-accent-green" /> Social & Duels</span>
-              <span className="text-xs text-text-muted">Alerts when challenged or followed</span>
+          {/* Social & Duels */}
+          <div className="py-5 px-6 flex items-center justify-between group hover:bg-white/[0.01] transition-all">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-full bg-white/5 border border-white/5 flex items-center justify-center text-text-muted group-hover:text-white transition-all">
+                <Swords className="w-4 h-4" />
+              </div>
+              <div className="flex flex-col">
+                <span className="font-bold text-sm">Social & Duels</span>
+                <span className="text-xs text-text-muted mt-0.5">Alerts when challenged or followed</span>
+              </div>
             </div>
             <ToggleSwitch 
               checked={notifySocial} 
@@ -280,10 +339,16 @@ export default function Settings() {
             />
           </div>
 
-          <div className="p-4 flex items-center justify-between">
-            <div className="flex flex-col">
-              <span className="font-bold text-sm flex items-center gap-2"><Bell className="w-4 h-4 text-accent-green" /> Inactivity Alerts</span>
-              <span className="text-xs text-text-muted">Nudge me after 3 days of no activity</span>
+          {/* Inactivity Alerts */}
+          <div className="py-5 px-6 flex items-center justify-between group hover:bg-white/[0.01] transition-all">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-full bg-white/5 border border-white/5 flex items-center justify-center text-text-muted group-hover:text-white transition-all">
+                <Activity className="w-4 h-4" />
+              </div>
+              <div className="flex flex-col">
+                <span className="font-bold text-sm">Inactivity Alerts</span>
+                <span className="text-xs text-text-muted mt-0.5">Nudge me after 3 days of no activity</span>
+              </div>
             </div>
             <ToggleSwitch 
               checked={notifyInactivity} 
@@ -296,25 +361,35 @@ export default function Settings() {
 
       {/* Danger Zone */}
       <section className="w-full animate-fade-in-up" style={{ animationDelay: '0.15s' }}>
-        <h2 className="text-xs font-bold text-[#FF3B38] uppercase tracking-widest mb-3 ml-2">
+        <h2 className="text-xs font-black tracking-widest text-[#FF3B38] uppercase mb-4 ml-2">
           Danger Zone
         </h2>
         <div className="glass-card flex flex-col overflow-hidden border border-red-500/10 rounded-3xl bg-[#1a0c0c]/30">
           
           <button 
             onClick={() => { triggerHaptic(); logout(); }} 
-            className="p-4 flex items-center gap-3 text-white hover:bg-white/5 transition-colors border-b border-white/5 text-left"
+            className="py-5 px-6 flex items-center gap-4 text-white hover:bg-white/5 transition-all border-b border-white/5 text-left group"
           >
-            <LogOut className="w-5 h-5 text-text-muted" />
-            <span className="font-bold text-sm">Log Out</span>
+            <div className="w-10 h-10 rounded-full bg-white/5 border border-white/5 flex items-center justify-center text-text-muted group-hover:text-white transition-all">
+              <LogOut className="w-4 h-4 text-text-muted group-hover:text-white" />
+            </div>
+            <div className="flex flex-col">
+              <span className="font-bold text-sm">Log Out</span>
+              <span className="text-xs text-text-muted mt-0.5">Sign out of your active session</span>
+            </div>
           </button>
 
           <button 
             onClick={() => { triggerHaptic(); setShowDeleteConfirm(true); }} 
-            className="p-4 flex items-center gap-3 text-[#FF3B38] hover:bg-[#FF3B38]/10 transition-colors text-left"
+            className="py-5 px-6 flex items-center gap-4 text-[#FF3B38] hover:bg-[#FF3B38]/10 transition-all text-left group"
           >
-            <Trash2 className="w-5 h-5" />
-            <span className="font-bold text-sm">Delete Account</span>
+            <div className="w-10 h-10 rounded-full bg-[#FF3B38]/10 border border-[#FF3B38]/15 flex items-center justify-center text-[#FF3B38]">
+              <Trash2 className="w-4 h-4" />
+            </div>
+            <div className="flex flex-col">
+              <span className="font-bold text-sm">Delete Account</span>
+              <span className="text-xs text-red-400/70 mt-0.5">Permanently erase all your data</span>
+            </div>
           </button>
 
         </div>
