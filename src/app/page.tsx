@@ -483,12 +483,6 @@ export default function Dashboard() {
               )}
             </div>
           </Link>
-
-          <Link href="/settings" aria-label="Settings">
-            <div className="w-9 h-9 rounded-full border border-white/10 bg-black/20 backdrop-blur-md flex items-center justify-center transition-all active:scale-95 shadow-lg text-text-muted hover:text-white">
-              <Settings className="w-4 h-4" />
-            </div>
-          </Link>
         </div>
       </header>
 

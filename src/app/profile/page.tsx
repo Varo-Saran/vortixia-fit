@@ -132,7 +132,7 @@ export default function ProfileHub() {
         <div>
           <h3 className="text-[10px] uppercase tracking-widest text-text-muted font-bold ml-4 mb-2">Preferences</h3>
           <div className="bg-white/5 border border-white/10 rounded-3xl overflow-hidden flex flex-col">
-            <Link href="/profile/settings" className="flex items-center justify-between p-4 border-b border-white/5 hover:bg-white/5 transition-colors group">
+            <Link href="/settings" className="flex items-center justify-between p-4 border-b border-white/5 hover:bg-white/5 transition-colors group">
                <div className="flex items-center gap-4">
                  <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center group-hover:bg-white/20 transition-colors">
                    <Settings className="w-5 h-5 text-white" />
@@ -166,7 +166,7 @@ export default function ProfileHub() {
         <div>
           <h3 className="text-[10px] uppercase tracking-widest text-text-muted font-bold ml-4 mb-2">About</h3>
           <div className="bg-white/5 border border-white/10 rounded-3xl overflow-hidden flex flex-col">
-            <button className="flex items-center justify-between p-4 border-b border-white/5 hover:bg-white/5 transition-colors group">
+            <Link href="/profile/about" className="flex items-center justify-between p-4 border-b border-white/5 hover:bg-white/5 transition-colors group">
                <div className="flex items-center gap-4">
                  <div className="w-10 h-10 rounded-full bg-cyan-500/10 flex items-center justify-center group-hover:bg-cyan-500/20 transition-colors">
                    <Info className="w-5 h-5 text-cyan-400" />
@@ -174,7 +174,7 @@ export default function ProfileHub() {
                  <span className="font-bold text-white text-sm">About This App</span>
                </div>
                <ChevronRight className="w-5 h-5 text-text-muted group-hover:text-white transition-colors" />
-            </button>
+            </Link>
             <button className="flex items-center justify-between p-4 hover:bg-white/5 transition-colors group">
                <div className="flex items-center gap-4">
                  <div className="w-10 h-10 rounded-full bg-yellow-500/10 flex items-center justify-center group-hover:bg-yellow-500/20 transition-colors">

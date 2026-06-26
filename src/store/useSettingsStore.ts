@@ -7,12 +7,24 @@ interface SettingsStore {
   weightUnit: 'kg' | 'lbs';
   heightUnit: 'cm' | 'in';
   timeFormat: '12h' | '24h';
+  defaultRestTimer: number; // default rest timer in seconds
+  soundEffects: boolean;
+  hapticFeedback: boolean;
+  notifyWorkouts: boolean;
+  notifySocial: boolean;
+  notifyInactivity: boolean;
   isSynced: boolean;
 
   setHeroGender: (gender: 'male' | 'female') => void;
   setWeightUnit: (unit: 'kg' | 'lbs') => void;
   setHeightUnit: (unit: 'cm' | 'in') => void;
   setTimeFormat: (format: '12h' | '24h') => void;
+  setDefaultRestTimer: (seconds: number) => void;
+  setSoundEffects: (enabled: boolean) => void;
+  setHapticFeedback: (enabled: boolean) => void;
+  setNotifyWorkouts: (enabled: boolean) => void;
+  setNotifySocial: (enabled: boolean) => void;
+  setNotifyInactivity: (enabled: boolean) => void;
   fetchSettings: () => Promise<void>;
   syncToSupabase: () => Promise<void>;
 }
@@ -24,6 +36,12 @@ export const useSettingsStore = create<SettingsStore>()(
       weightUnit: 'kg',
       heightUnit: 'cm',
       timeFormat: '24h',
+      defaultRestTimer: 90,
+      soundEffects: true,
+      hapticFeedback: true,
+      notifyWorkouts: true,
+      notifySocial: true,
+      notifyInactivity: true,
       isSynced: false,
 
       setHeroGender: (gender) => set({ heroGender: gender }),
@@ -40,6 +58,12 @@ export const useSettingsStore = create<SettingsStore>()(
         set({ timeFormat: format });
         get().syncToSupabase();
       },
+      setDefaultRestTimer: (seconds) => set({ defaultRestTimer: seconds }),
+      setSoundEffects: (enabled) => set({ soundEffects: enabled }),
+      setHapticFeedback: (enabled) => set({ hapticFeedback: enabled }),
+      setNotifyWorkouts: (enabled) => set({ notifyWorkouts: enabled }),
+      setNotifySocial: (enabled) => set({ notifySocial: enabled }),
+      setNotifyInactivity: (enabled) => set({ notifyInactivity: enabled }),
 
       fetchSettings: async () => {
         try {
