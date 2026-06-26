@@ -59,21 +59,26 @@ export function ChallengeFriendModal({ isOpen, onClose, onChallengeIssued, frien
     try {
       const duration_days = duration === "1_week" ? 7 : 30;
       
-      const { error } = await supabase.from('duels').insert({
-        challenger_id: profile.id,
-        opponent_id: selectedFriend.id,
-        wager_xp: wagerXP,
-        duration_days,
-        status: 'pending'
+      const res = await fetch('/api/duels', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          opponentId: selectedFriend.id,
+          wagerXp: wagerXP,
+          durationDays: duration_days
+        })
       });
 
-      if (error) throw error;
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({ error: 'Failed to create duel' }));
+        throw new Error(errData.error || 'Failed to create duel');
+      }
       
       if (onChallengeIssued) {
         onChallengeIssued();
       }
       onClose();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error creating duel:", err);
     } finally {
       setIsSubmitting(false);

@@ -150,6 +150,20 @@ export function GlobalListeners() {
                     console.error('Failed to update active duels on sync:', duelErr);
                   }
 
+                  // Trigger workout completion push notification to friends
+                  try {
+                    await fetch('/api/push/workout-complete', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        routineName: workout.routineName || 'Workout',
+                        xpEarned: workout.xpEarned
+                      })
+                    });
+                  } catch (pushErr) {
+                    console.error('Failed to trigger workout completion push on sync:', pushErr);
+                  }
+
                   const remainingWorkouts = currentWorkouts.slice(1);
                   if (remainingWorkouts.length > 0) {
                     localStorage.setItem('unsynced_workouts', JSON.stringify(remainingWorkouts));

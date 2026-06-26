@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { supabase } from '@/lib/supabase';
 
 export type MuscleGroup = 'chest' | 'back' | 'legs' | 'arms' | 'core' | 'shoulders';
 
@@ -27,6 +28,7 @@ export interface RecoveryStore {
   triggerDecay: () => void;
   applyFatigue: (muscleId: MuscleGroup, fatigueAmount: number) => void;
   fastForward: (hours: number) => void; // Developer tool
+  syncCnsToSupabase: () => Promise<void>;
 }
 
 const RECOVERY_PER_HOUR = 1.5; // ~36% recovery per 24h
@@ -72,6 +74,7 @@ export const useRecoveryStore = create<RecoveryStore>()(
           readinessScore,
           cnsStatus
         });
+        get().syncCnsToSupabase();
       },
 
       applyFatigue: (muscleId, fatigueAmount) => {
@@ -98,6 +101,7 @@ export const useRecoveryStore = create<RecoveryStore>()(
           readinessScore,
           cnsStatus
         });
+        get().syncCnsToSupabase();
       },
 
       fastForward: (hours: number) => {
@@ -106,7 +110,21 @@ export const useRecoveryStore = create<RecoveryStore>()(
         const simulatedPastTimestamp = (lastDecayTimestamp || Date.now()) - (hours * 60 * 60 * 1000);
         set({ lastDecayTimestamp: simulatedPastTimestamp });
         get().triggerDecay();
-      }
+      },
+
+      syncCnsToSupabase: async () => {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session) return;
+          const { readinessScore } = get();
+          await supabase
+            .from('users')
+            .update({ cns_readiness: readinessScore })
+            .eq('id', session.user.id);
+        } catch (err) {
+          console.error('Failed to sync CNS readiness to Supabase:', err);
+        }
+      },
     }),
     {
       name: 'vortixia-recovery-storage',

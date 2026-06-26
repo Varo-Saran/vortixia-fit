@@ -63,9 +63,18 @@ export const useSettingsStore = create<SettingsStore>()(
       setDefaultRestTimer: (seconds) => set({ defaultRestTimer: seconds }),
       setSoundEffects: (enabled) => set({ soundEffects: enabled }),
       setHapticFeedback: (enabled) => set({ hapticFeedback: enabled }),
-      setNotifyWorkouts: (enabled) => set({ notifyWorkouts: enabled }),
-      setNotifySocial: (enabled) => set({ notifySocial: enabled }),
-      setNotifyInactivity: (enabled) => set({ notifyInactivity: enabled }),
+      setNotifyWorkouts: (enabled) => {
+        set({ notifyWorkouts: enabled });
+        get().syncToSupabase();
+      },
+      setNotifySocial: (enabled) => {
+        set({ notifySocial: enabled });
+        get().syncToSupabase();
+      },
+      setNotifyInactivity: (enabled) => {
+        set({ notifyInactivity: enabled });
+        get().syncToSupabase();
+      },
 
       fetchSettings: async () => {
         try {
@@ -74,7 +83,7 @@ export const useSettingsStore = create<SettingsStore>()(
 
           const { data, error } = await supabase
             .from('users')
-            .select('weight_unit, height_unit, time_format')
+            .select('weight_unit, height_unit, time_format, notify_workouts, notify_social, notify_inactivity')
             .eq('id', session.user.id)
             .single();
 
@@ -83,6 +92,9 @@ export const useSettingsStore = create<SettingsStore>()(
               weightUnit: (data.weight_unit as 'kg' | 'lbs') || 'kg',
               heightUnit: (data.height_unit as 'cm' | 'in') || 'cm',
               timeFormat: (data.time_format as '12h' | '24h') || '24h',
+              notifyWorkouts: data.notify_workouts !== false,
+              notifySocial: data.notify_social !== false,
+              notifyInactivity: data.notify_inactivity !== false,
               isSynced: true,
             });
           }
@@ -96,13 +108,16 @@ export const useSettingsStore = create<SettingsStore>()(
           const { data: { session } } = await supabase.auth.getSession();
           if (!session) return;
 
-          const { weightUnit, heightUnit, timeFormat } = get();
+          const { weightUnit, heightUnit, timeFormat, notifyWorkouts, notifySocial, notifyInactivity } = get();
           await supabase
             .from('users')
             .update({
               weight_unit: weightUnit,
               height_unit: heightUnit,
               time_format: timeFormat,
+              notify_workouts: notifyWorkouts,
+              notify_social: notifySocial,
+              notify_inactivity: notifyInactivity,
             })
             .eq('id', session.user.id);
         } catch (err) {

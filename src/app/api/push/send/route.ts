@@ -14,7 +14,7 @@ if (vapidPublicKey && vapidPrivateKey) {
   );
 }
 
-async function sendPushToUser(supabase: any, userId: string, title: string, message: string, url: string = '/') {
+export async function sendPushToUser(supabase: any, userId: string, title: string, message: string, url: string = '/') {
   // Get active subscriptions for this user
   const { data: subscriptions, error } = await supabase
     .from('push_subscriptions')
@@ -89,10 +89,11 @@ export async function POST(req: Request) {
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
 
-      // Query active users in DB
+      // Query active users who have notify_workouts enabled
       const { data: users, error: usersErr } = await supabase
         .from('users')
-        .select('id, username');
+        .select('id, username')
+        .eq('notify_workouts', true);
 
       if (usersErr || !users) {
         return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 });
@@ -108,7 +109,6 @@ export async function POST(req: Request) {
           .gte('end_time', todayStart.toISOString());
 
         if (!sessionErr && (!sessions || sessions.length === 0)) {
-          // Send reminder
           await sendPushToUser(
             supabase, 
             u.id, 
@@ -123,13 +123,11 @@ export async function POST(req: Request) {
     }
 
     if (type === 'inactivity_alerts') {
-      // Find users whose last workout was exactly 3 days ago (or > 3 days)
-      const threeDaysAgo = new Date();
-      threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
-
+      // Find users who haven't logged a workout in 72 hours and have notify_inactivity enabled
       const { data: users, error: usersErr } = await supabase
         .from('users')
-        .select('id, username');
+        .select('id, username, created_at')
+        .eq('notify_inactivity', true);
 
       if (usersErr || !users) {
         return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 });
@@ -137,31 +135,80 @@ export async function POST(req: Request) {
 
       let inactiveCount = 0;
       for (const u of users) {
-        // Get user's most recent workout session
         const { data: lastSession, error: sErr } = await supabase
           .from('workout_sessions')
           .select('end_time')
           .eq('user_id', u.id)
           .order('end_time', { ascending: false })
-          .limit(1);
+          .limit(1)
+          .maybeSingle();
 
-        if (!sErr && lastSession && lastSession.length > 0) {
-          const lastDate = new Date(lastSession[0].end_time);
-          const diffDays = Math.floor((Date.now() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
-          
-          if (diffDays === 3) {
-            await sendPushToUser(
-              supabase,
-              u.id,
-              '👀 Consistency Alert',
-              `It's been 3 days since your last workout, ${u.username || 'athlete'}. Don't lose your momentum!`,
-              '/'
-            );
-            inactiveCount++;
+        let isInactive = false;
+        if (!sErr) {
+          if (lastSession) {
+            const elapsedMs = Date.now() - new Date(lastSession.end_time).getTime();
+            if (elapsedMs >= 72 * 60 * 60 * 1000) {
+              isInactive = true;
+            }
+          } else {
+            // No workout logged, check if they signed up at least 72 hours ago
+            const elapsedMs = Date.now() - new Date(u.created_at).getTime();
+            if (elapsedMs >= 72 * 60 * 60 * 1000) {
+              isInactive = true;
+            }
           }
+        }
+
+        if (isInactive) {
+          await sendPushToUser(
+            supabase,
+            u.id,
+            '👀 Consistency Nudge',
+            `👀 3 days inactive! Open the app to keep your consistency streak alive.`,
+            '/'
+          );
+          inactiveCount++;
         }
       }
       return NextResponse.json({ success: true, processed: inactiveCount });
+    }
+
+    if (type === 'cns_recovery') {
+      // Find users who have notify_workouts enabled and cns_readiness is 100
+      const { data: users, error: usersErr } = await supabase
+        .from('users')
+        .select('id, username')
+        .eq('cns_readiness', 100)
+        .eq('notify_workouts', true);
+
+      if (usersErr || !users) {
+        return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 });
+      }
+
+      let recoveredCount = 0;
+      for (const u of users) {
+        // Check if they had a workout session in the last 48 hours (meaning they trained hard and recently recovered)
+        const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
+        const { data: recentWorkout, error: wErr } = await supabase
+          .from('workout_sessions')
+          .select('id')
+          .eq('user_id', u.id)
+          .gte('end_time', fortyEightHoursAgo.toISOString())
+          .limit(1)
+          .maybeSingle();
+
+        if (!wErr && recentWorkout) {
+          await sendPushToUser(
+            supabase,
+            u.id,
+            '💪 CNS Fully Recovered',
+            `💪 Your CNS is fully recovered! You are primed for peak performance.`,
+            '/recovery'
+          );
+          recoveredCount++;
+        }
+      }
+      return NextResponse.json({ success: true, processed: recoveredCount });
     }
 
     return NextResponse.json({ error: 'Invalid parameters' }, { status: 400 });

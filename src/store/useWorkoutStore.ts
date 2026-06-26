@@ -131,7 +131,8 @@ export const useWorkoutStore = create<WorkoutStore>()(
           totalVolume,
           xpEarned,
           durationMins,
-          completedSets
+          completedSets,
+          routineName: routineName || undefined,
         };
         const unsynced = JSON.parse(localStorage.getItem('unsynced_workouts') || '[]');
         unsynced.push(payload);
@@ -225,6 +226,20 @@ export const useWorkoutStore = create<WorkoutStore>()(
         totalVolume,
         durationMins,
       });
+
+      // Trigger workout completion push notification to friends
+      try {
+        await fetch('/api/push/workout-complete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            routineName: routineName || 'Workout',
+            xpEarned
+          })
+        });
+      } catch (pushErr) {
+        console.error('Failed to trigger workout completion push:', pushErr);
+      }
 
       // 5. Store summary for UI
       set({

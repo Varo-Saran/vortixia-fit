@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createSupabaseServer } from '@/lib/supabase-server';
+import { sendPushToUser } from '@/app/api/push/send/route';
 
 export async function POST(req: Request) {
   const supabase = await createSupabaseServer();
@@ -46,6 +47,37 @@ export async function POST(req: Request) {
           console.error("Error auto-accepting friend request:", updateError);
           return NextResponse.json({ error: 'Failed to auto-accept friend request' }, { status: 500 });
         }
+
+        // Send push notification to the original sender (friendId) that current user accepted
+        if (updateData) {
+          try {
+            const { data: acceptor } = await supabase
+              .from('users')
+              .select('username')
+              .eq('id', session.user.id)
+              .single();
+
+            const { data: originalSender } = await supabase
+              .from('users')
+              .select('notify_social')
+              .eq('id', friendId)
+              .single();
+
+            if (originalSender?.notify_social !== false) {
+              const acceptorName = acceptor?.username || 'An athlete';
+              await sendPushToUser(
+                supabase,
+                friendId,
+                'Friend Request Accepted',
+                `🤝 ${acceptorName} accepted your friend request! Start a duel and test your limits.`,
+                '/social'
+              );
+            }
+          } catch (pushErr) {
+            console.error("Failed to send auto-accept friend request push:", pushErr);
+          }
+        }
+
         return NextResponse.json(updateData);
       }
 
@@ -73,6 +105,36 @@ export async function POST(req: Request) {
     if (error) {
       console.error("Error creating friend request:", error);
       return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    // Send push notification to recipient if notify_social is enabled
+    if (data) {
+      try {
+        const { data: sender } = await supabase
+          .from('users')
+          .select('username')
+          .eq('id', session.user.id)
+          .single();
+
+        const { data: recipient } = await supabase
+          .from('users')
+          .select('notify_social')
+          .eq('id', friendId)
+          .single();
+
+        if (recipient?.notify_social !== false) {
+          const senderName = sender?.username || 'An athlete';
+          await sendPushToUser(
+            supabase,
+            friendId,
+            'New Friend Request',
+            `🏃‍♂️ ${senderName} wants to connect with you on Vortixia Fit!`,
+            '/social'
+          );
+        }
+      } catch (pushErr) {
+        console.error("Failed to send friend request push:", pushErr);
+      }
     }
 
     return NextResponse.json(data);
@@ -118,6 +180,36 @@ export async function PATCH(req: Request) {
 
     const { data, error } = queryResult;
     if (error) throw error;
+
+    // Send push notification if request is accepted
+    if (data && status === 'accepted') {
+      try {
+        const { data: acceptor } = await supabase
+          .from('users')
+          .select('username')
+          .eq('id', session.user.id)
+          .single();
+
+        const { data: originalSender } = await supabase
+          .from('users')
+          .select('notify_social')
+          .eq('id', data.user_id)
+          .single();
+
+        if (originalSender?.notify_social !== false) {
+          const acceptorName = acceptor?.username || 'An athlete';
+          await sendPushToUser(
+            supabase,
+            data.user_id,
+            'Friend Request Accepted',
+            `🤝 ${acceptorName} accepted your friend request! Start a duel and test your limits.`,
+            '/social'
+          );
+        }
+      } catch (pushErr) {
+        console.error("Failed to send friend acceptance push:", pushErr);
+      }
+    }
 
     return NextResponse.json(data);
   } catch (error: any) {
