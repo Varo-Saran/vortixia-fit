@@ -179,3 +179,44 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
   }
 }
+
+export async function DELETE(req: Request) {
+  try {
+    const supabase = await createSupabaseServer();
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Verify is_admin check in database
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('is_admin')
+      .eq('id', session.user.id)
+      .single();
+
+    if (userError || !user || !user.is_admin) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const { ids } = await req.json();
+    if (!ids || !Array.isArray(ids)) {
+      return NextResponse.json({ error: 'Invalid body parameters (ids is required)' }, { status: 400 });
+    }
+
+    const { error: deleteError } = await supabase
+      .from('feedback')
+      .delete()
+      .in('id', ids);
+
+    if (deleteError) {
+      console.error('Supabase DELETE error:', deleteError);
+      return NextResponse.json({ error: deleteError.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    console.error("Unexpected error in feedback DELETE:", error);
+    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
+  }
+}

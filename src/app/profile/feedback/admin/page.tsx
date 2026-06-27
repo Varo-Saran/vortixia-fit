@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import { 
   ChevronLeft, ShieldAlert, RefreshCw, FileText, CheckCircle, 
   Archive, Copy, ChevronDown, ChevronUp, AlertTriangle, Lightbulb, 
-  Dumbbell, HelpCircle, Activity, CheckSquare, Square, Inbox
+  Dumbbell, HelpCircle, Activity, CheckSquare, Square, Inbox, Trash2
 } from "lucide-react";
 import { useProfileStore } from "@/store/useProfileStore";
 import { toast } from "@/components/ui/Toast";
@@ -46,6 +46,8 @@ export default function AdminFeedbackPage() {
   // Selections
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [expandedIds, setExpandedIds] = useState<string[]>([]);
+  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -127,6 +129,40 @@ export default function AdminFeedbackPage() {
       toast.error("Failed to update status on database.");
     } finally {
       toast.dismiss(updateToast);
+    }
+  };
+
+  const handleDeleteFeedback = async () => {
+    const idsToDelete = itemToDelete ? [itemToDelete] : selectedIds;
+    if (idsToDelete.length === 0) return;
+
+    const deleteToast = toast.loading(`Deleting ${idsToDelete.length} items...`);
+    try {
+      const response = await fetch("/api/feedback", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ids: idsToDelete,
+        }),
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || `HTTP error ${response.status}`);
+      }
+
+      toast.success(`Successfully deleted ${idsToDelete.length} items!`);
+      setSelectedIds(selectedIds.filter(id => !idsToDelete.includes(id)));
+      fetchFeedback();
+      setShowDeleteConfirmModal(false);
+      setItemToDelete(null);
+    } catch (err: any) {
+      console.error("Error deleting feedback:", err);
+      toast.error(`Failed to delete: ${err.message}`);
+    } finally {
+      toast.dismiss(deleteToast);
     }
   };
 
@@ -356,34 +392,6 @@ export default function AdminFeedbackPage() {
           </div>
         </div>
 
-        {/* Bulk Action Buttons */}
-        {selectedIds.length > 0 && (
-          <div className="flex items-center gap-2 p-2 bg-black/40 rounded-xl border border-white/5 mt-1 animate-fade-in">
-            <span className="text-[10px] text-text-muted font-bold">
-              {selectedIds.length} selected
-            </span>
-            <div className="flex gap-1.5 ml-auto">
-              <button
-                onClick={() => handleBulkStatusUpdate("reviewed")}
-                className="flex items-center gap-1 px-2 py-1 rounded-lg bg-green-500/20 text-green-400 border border-green-500/30 text-[10px] font-bold hover:bg-green-500/30 transition-colors"
-              >
-                <CheckCircle className="w-3 h-3" /> Reviewed
-              </button>
-              <button
-                onClick={() => handleBulkStatusUpdate("archived")}
-                className="flex items-center gap-1 px-2 py-1 rounded-lg bg-red-500/20 text-red-400 border border-red-500/30 text-[10px] font-bold hover:bg-red-500/30 transition-colors"
-              >
-                <Archive className="w-3 h-3" /> Archive
-              </button>
-              <button
-                onClick={() => setSelectedIds([])}
-                className="text-[10px] text-text-muted hover:text-white px-2 py-1"
-              >
-                Clear
-              </button>
-            </div>
-          </div>
-        )}
       </section>
 
       {/* Main Feedback List */}
@@ -402,19 +410,63 @@ export default function AdminFeedbackPage() {
           </div>
         ) : (
           <>
-            <div className="flex items-center justify-between px-2 py-1 border-b border-white/5 mb-1">
-              <button 
-                onClick={toggleSelectAll} 
-                className="flex items-center gap-2 text-xs text-text-muted hover:text-white font-bold transition-colors"
-              >
-                {isAllVisibleSelected ? (
-                  <CheckSquare className="w-4 h-4 text-accent-green" />
-                ) : (
-                  <Square className="w-4 h-4 text-white/30" />
-                )}
-                Select All Visible ({filteredFeedback.length})
-              </button>
-              <span className="text-[10px] text-text-muted uppercase tracking-widest font-bold">List</span>
+            <div className="flex items-center justify-between px-2 py-1.5 border-b border-white/5 mb-1 bg-white/3 rounded-lg min-h-[46px]">
+              {selectedIds.length > 0 ? (
+                <div className="flex items-center justify-between w-full">
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={toggleSelectAll}
+                      className="flex items-center text-accent-green"
+                    >
+                      {isAllVisibleSelected ? (
+                        <CheckSquare className="w-4 h-4" />
+                      ) : (
+                        <Square className="w-4 h-4 text-white/30" />
+                      )}
+                    </button>
+                    <span className="text-xs font-bold text-accent-green">{selectedIds.length} Selected</span>
+                  </div>
+                  
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => handleBulkStatusUpdate("reviewed")}
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-green-500/10 text-green-400 border border-green-500/20 text-[10px] font-black uppercase hover:bg-green-500/20 transition-all"
+                    >
+                      <CheckCircle className="w-3.5 h-3.5" /> Reviewed
+                    </button>
+                    <button
+                      onClick={() => handleBulkStatusUpdate("archived")}
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/10 text-white/70 border border-white/10 text-[10px] font-black uppercase hover:bg-white/15 transition-all"
+                    >
+                      <Archive className="w-3.5 h-3.5" /> Archive
+                    </button>
+                    <button
+                      onClick={() => {
+                        setItemToDelete(null);
+                        setShowDeleteConfirmModal(true);
+                      }}
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-red-500/10 text-red-400 border border-red-500/20 text-[10px] font-black uppercase hover:bg-red-500/20 transition-all"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" /> Delete
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <button 
+                    onClick={toggleSelectAll} 
+                    className="flex items-center gap-2 text-xs text-text-muted hover:text-white font-bold transition-colors"
+                  >
+                    {isAllVisibleSelected ? (
+                      <CheckSquare className="w-4 h-4 text-accent-green" />
+                    ) : (
+                      <Square className="w-4 h-4 text-white/30" />
+                    )}
+                    Select All Visible ({filteredFeedback.length})
+                  </button>
+                  <span className="text-[10px] text-text-muted uppercase tracking-widest font-bold">List</span>
+                </>
+              )}
             </div>
 
             <div className="flex flex-col gap-3">
@@ -539,6 +591,20 @@ export default function AdminFeedbackPage() {
                             </div>
                           </div>
                         )}
+
+                        <div className="flex justify-between items-center mt-3 pt-3 border-t border-white/5">
+                          <span className="text-[9px] uppercase font-bold text-text-muted tracking-wider">Item Actions</span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setItemToDelete(item.id);
+                              setShowDeleteConfirmModal(true);
+                            }}
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-red-500/10 text-red-400 border border-red-500/20 text-[10px] font-black uppercase hover:bg-red-500/20 transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" /> Delete Item
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -559,6 +625,42 @@ export default function AdminFeedbackPage() {
           Copy Markdown for Antigravity {selectedIds.length > 0 ? `(${selectedIds.length})` : ""}
         </button>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirmModal && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="glass-card max-w-sm w-full p-6 rounded-3xl border border-red-500/20 bg-[#0f0a0a] flex flex-col gap-4 animate-scale-in">
+            <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center border border-red-500/30 text-red-500 mx-auto">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+            
+            <div className="text-center">
+              <h2 className="text-base font-black uppercase tracking-wide text-white">Delete Feedback?</h2>
+              <p className="text-xs text-text-muted mt-2">
+                Are you sure you want to delete {itemToDelete ? "this feedback item" : `${selectedIds.length} selected items`}? This action is permanent and cannot be undone.
+              </p>
+            </div>
+            
+            <div className="flex gap-2.5 mt-2">
+              <button
+                onClick={() => {
+                  setShowDeleteConfirmModal(false);
+                  setItemToDelete(null);
+                }}
+                className="flex-1 py-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors text-white text-xs font-bold"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteFeedback}
+                className="flex-1 py-3 rounded-xl bg-red-500 text-white hover:bg-red-600 transition-colors text-xs font-bold"
+              >
+                Delete Permanent
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
