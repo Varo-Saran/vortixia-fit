@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Calculator, ChevronLeft, Save, Loader2, ChevronDown } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
@@ -25,6 +25,7 @@ export default function EditProfile() {
   const [usernameSuggestions, setUsernameSuggestions] = useState<string[]>([]);
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
   const [checkingUsername, setCheckingUsername] = useState(false);
+  const saveTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!profile) {
@@ -112,6 +113,12 @@ export default function EditProfile() {
     if (isLoading && (profile === null || metrics === null)) {
       return;
     }
+    // Prevent double execution in the same tick (e.g. mousedown + click)
+    if (saveTimeoutRef.current && Date.now() - saveTimeoutRef.current < 100) {
+      return;
+    }
+    saveTimeoutRef.current = Date.now();
+
     setIsSaving(true);
     setSaveSuccess(false);
     try {
@@ -227,6 +234,16 @@ export default function EditProfile() {
         </div>
         <button
           onClick={handleSave}
+          onMouseDown={(e) => {
+            // Prevent input blur to avoid keyboard layout shift cancelling the click
+            e.preventDefault();
+            handleSave();
+          }}
+          onTouchStart={(e) => {
+            // Prevent default touch behavior that causes keyboard retract layout shifts
+            e.preventDefault();
+            handleSave();
+          }}
           disabled={isSaving || usernameAvailable === false || (isLoading && (profile === null || metrics === null))}
           className={`flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-sm transition-all active:scale-95 ${
             saveSuccess

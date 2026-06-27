@@ -43,6 +43,7 @@ export const viewport: Viewport = {
   maximumScale: 1, // Crucial for preventing zoom on input focus in mobile
   userScalable: false,
   themeColor: "#050505",
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
