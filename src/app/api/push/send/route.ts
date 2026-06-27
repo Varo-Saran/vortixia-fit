@@ -3,7 +3,7 @@ import { createSupabaseServer } from '@/lib/supabase-server';
 import webpush from 'web-push';
 
 // Configure VAPID details
-const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
+const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || 'BIIueWulwJKMBwrYNWiU4Rrp0Pea6HliZUOqy8uXme3sdKqXj9UVo5f6xR4ZkPB9IFLcYG7Y8GVwAu1n6XmFffU';
 const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY || '';
 
 if (vapidPublicKey && vapidPrivateKey) {

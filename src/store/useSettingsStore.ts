@@ -175,8 +175,8 @@ export const useSettingsStore = create<SettingsStore>()(
             return;
           }
 
-          const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-          console.log("NEXT_PUBLIC_VAPID_PUBLIC_KEY value:", vapidKey);
+          const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || 'BIIueWulwJKMBwrYNWiU4Rrp0Pea6HliZUOqy8uXme3sdKqXj9UVo5f6xR4ZkPB9IFLcYG7Y8GVwAu1n6XmFffU';
+          console.log("Resolved VAPID public key value (using fallback if env was empty):", vapidKey);
           if (!vapidKey) {
             console.error('VAPID public key is not set');
             return;
