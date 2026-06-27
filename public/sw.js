@@ -1,4 +1,4 @@
-const CACHE_NAME = 'vortixia-fit-cache-v2';
+const CACHE_NAME = 'vortixia-fit-cache-v3';
 const STATIC_ASSETS = [
   '/',
   '/favicon.ico',
@@ -34,15 +34,14 @@ self.addEventListener('activate', (event) => {
 // Fetch event: specific caching strategies
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
-  if (!event.request.url.startsWith(self.location.origin) && !event.request.url.includes('supabase.co')) return;
+  if (event.request.url.includes('supabase.co')) return;
 
   const url = new URL(event.request.url);
+  if (url.pathname.startsWith('/api/')) return;
+  if (!event.request.url.startsWith(self.location.origin)) return;
 
-  // Do not intercept or cache push notification API requests
-  if (url.pathname.startsWith('/api/push/')) return;
-
-  // Stale-while-revalidate for API (Supabase / Next.js Data)
-  if (url.origin.includes('supabase.co') || url.pathname.startsWith('/api/') || url.pathname.startsWith('/_next/data/')) {
+  // Stale-while-revalidate for Next.js Data
+  if (url.pathname.startsWith('/_next/data/')) {
     event.respondWith(
       caches.open(CACHE_NAME).then((cache) => {
         return cache.match(event.request).then((cachedResponse) => {
