@@ -82,9 +82,7 @@ export default function FeedbackPage() {
       }
     };
 
-    if (navigator.onLine) {
-      syncOfflineFeedback();
-    }
+    syncOfflineFeedback();
 
     window.addEventListener("online", syncOfflineFeedback);
     return () => {
