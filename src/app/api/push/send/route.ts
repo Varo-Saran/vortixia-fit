@@ -80,6 +80,13 @@ export async function POST(req: Request) {
     // 1. Direct Target Test Notification
     if (userId && title && message) {
       const result = await sendPushToUser(supabase, userId, title, message, url);
+      console.log(`Push dispatch result for user ${userId}:`, result);
+      if (!result.sent || result.sent === 0) {
+        return NextResponse.json({ 
+          error: `Failed to deliver push. Reason: ${result.reason || 'No successful delivery'} (Sent: ${result.sent || 0}, Failed: ${result.failed || 0})`,
+          result 
+        }, { status: 500 });
+      }
       return NextResponse.json({ success: true, result });
     }
 
