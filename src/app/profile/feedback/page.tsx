@@ -182,7 +182,8 @@ export default function FeedbackPage() {
       });
 
       if (!response.ok) {
-        throw new Error("HTTP error " + response.status);
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || `HTTP error ${response.status}`);
       }
 
       toast.success("Feedback submitted! Thank you.");
@@ -202,21 +203,30 @@ export default function FeedbackPage() {
       } else if (activeTab === "general") {
         setGeneralMessage("");
       }
-    } catch (error) {
-      console.warn("Feedback POST failed. Saving locally:", error);
+    } catch (error: any) {
+      console.warn("Feedback POST failed:", error);
       
-      // Offline fallback: save to localStorage
-      try {
-        const unsynced = JSON.parse(localStorage.getItem("unsynced_feedback") || "[]");
-        unsynced.push({
-          ...payload,
-          created_at: new Date().toISOString(),
-        });
-        localStorage.setItem("unsynced_feedback", JSON.stringify(unsynced));
-        toast.success("Offline: Feedback saved locally and will sync when network is restored.");
-      } catch (localErr) {
-        console.error("Failed to save to localStorage:", localErr);
-        toast.error("Unable to send feedback. Please check your network connection.");
+      const isNetworkError = error.message?.includes("Failed to fetch") || 
+                             error.name === "TypeError" || 
+                             (typeof navigator !== 'undefined' && !navigator.onLine);
+
+      if (isNetworkError) {
+        // Offline fallback: save to localStorage
+        try {
+          const unsynced = JSON.parse(localStorage.getItem("unsynced_feedback") || "[]");
+          unsynced.push({
+            ...payload,
+            created_at: new Date().toISOString(),
+          });
+          localStorage.setItem("unsynced_feedback", JSON.stringify(unsynced));
+          toast.success("Offline: Feedback saved locally and will sync when network is restored.");
+        } catch (localErr) {
+          console.error("Failed to save to localStorage:", localErr);
+          toast.error("Unable to send feedback. Please check your network connection.");
+        }
+      } else {
+        // Real validation or database rejection: show the actual error message
+        toast.error(`Submission rejected: ${error.message}`);
       }
     } finally {
       setSubmitting(false);
