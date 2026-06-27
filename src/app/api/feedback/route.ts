@@ -62,7 +62,7 @@ export async function POST(req: Request) {
     const deviceMetadata = body.deviceMetadata || body.device_metadata || {};
 
     const supabase = await createSupabaseServer();
-    const { data: dbData, error: dbError } = await supabase
+    const { error: dbError } = await supabase
       .from('feedback')
       .insert({
         user_id: userId,
@@ -72,16 +72,14 @@ export async function POST(req: Request) {
         data,
         device_metadata: deviceMetadata,
         status: 'pending',
-      })
-      .select()
-      .single();
+      });
 
     if (dbError) {
       console.error('Error inserting feedback to database:', dbError);
       return NextResponse.json({ error: dbError.message }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, data: dbData });
+    return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error("Unexpected error in feedback POST:", error);
     return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
