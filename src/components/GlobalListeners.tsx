@@ -16,11 +16,22 @@ export function GlobalListeners() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
+      if (typeof window === 'undefined') return;
+
+      const userAgent = window.navigator.userAgent.toLowerCase();
+      const isIOS = /ipad|iphone|ipod/.test(userAgent) && !(window as any).MSStream;
+
+      // iOS strictly blocks programmatic requestPermission calls without a user gesture.
+      // Calling it on-mount permanently marks the permission as 'denied' on iOS.
+      if (isIOS) {
+        console.log("Skipping programmatic mount prompt on iOS to prevent WebKit gesture block");
+        return;
+      }
+
       const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
       
       if (
         isStandalone &&
-        typeof window !== 'undefined' &&
         'Notification' in window &&
         Notification.permission === 'default'
       ) {

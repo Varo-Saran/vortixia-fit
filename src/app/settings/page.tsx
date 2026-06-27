@@ -79,6 +79,12 @@ export default function Settings() {
 
     try {
       if (newVal) {
+        if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'denied') {
+          setShowTroubleshoot(true);
+          toast.error("Notifications are blocked by your device settings.");
+          setter(currentVal); // revert toggle
+          return;
+        }
         await subscribeToPush();
         if (typeof window !== 'undefined' && 'Notification' in window) {
           setPermissionGranted(Notification.permission === 'granted');
