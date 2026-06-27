@@ -4,12 +4,40 @@ import { useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "@/components/ui/Toast";
 import { useRouter } from "next/navigation";
+import { useSettingsStore } from "@/store/useSettingsStore";
 import { useNotificationStore } from "@/store/useNotificationStore";
 
 export function GlobalListeners() {
   const router = useRouter();
 
   useEffect(() => {
+    // Pre-emptive push check for standalone PWA layout mode
+    const checkAndPromptPush = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
+      
+      if (
+        isStandalone &&
+        typeof window !== 'undefined' &&
+        'Notification' in window &&
+        Notification.permission === 'default'
+      ) {
+        console.log("Pre-emptive PWA push notification permission prompt triggered...");
+        try {
+          const permission = await Notification.requestPermission();
+          if (permission === 'granted') {
+            const { subscribeToPush } = useSettingsStore.getState();
+            await subscribeToPush();
+            toast("Notifications enabled successfully!", { icon: "🔔" });
+          }
+        } catch (err) {
+          console.error("Failed to request push permissions on-mount:", err);
+        }
+      }
+    };
+
     // Helper to load notifications & init realtime
     const initNotifications = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -17,6 +45,9 @@ export function GlobalListeners() {
         const store = useNotificationStore.getState();
         await store.fetchNotifications();
         store.initRealtime();
+        
+        // Trigger pre-emptive prompt check
+        checkAndPromptPush();
       }
     };
 

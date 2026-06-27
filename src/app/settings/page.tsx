@@ -33,6 +33,11 @@ export default function Settings() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
+  
+  const [permissionGranted, setPermissionGranted] = useState(false);
+  const [showTroubleshoot, setShowTroubleshoot] = useState(false);
+  const [isAndroid, setIsAndroid] = useState(false);
+  const [isTestingPush, setIsTestingPush] = useState(false);
 
   useEffect(() => {
     fetchSettings();
@@ -46,10 +51,25 @@ export default function Settings() {
       const userAgent = window.navigator.userAgent.toLowerCase();
       const isIOSDevice = /ipad|iphone|ipod/.test(userAgent) && !(window as any).MSStream;
       setIsIOS(isIOSDevice);
+      setIsAndroid(/android/.test(userAgent));
       
       const isInStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
       setIsStandalone(isInStandalone);
     }
+  }, []);
+
+  // Sync state to current Notification permission state dynamically
+  useEffect(() => {
+    const checkPermission = () => {
+      if (typeof window !== 'undefined' && 'Notification' in window) {
+        setPermissionGranted(Notification.permission === 'granted');
+      }
+    };
+    checkPermission();
+    
+    // Check when window regains focus in case permissions are updated in device OS settings
+    window.addEventListener('focus', checkPermission);
+    return () => window.removeEventListener('focus', checkPermission);
   }, []);
 
   const handleNotificationToggle = async (setter: (val: boolean) => void, fieldName: 'notifyWorkouts' | 'notifySocial' | 'notifyInactivity', currentVal: boolean) => {
@@ -60,6 +80,9 @@ export default function Settings() {
     try {
       if (newVal) {
         await subscribeToPush();
+        if (typeof window !== 'undefined' && 'Notification' in window) {
+          setPermissionGranted(Notification.permission === 'granted');
+        }
       } else {
         const { notifyWorkouts: w, notifySocial: s, notifyInactivity: i } = useSettingsStore.getState();
         const nextW = fieldName === 'notifyWorkouts' ? newVal : w;
@@ -74,6 +97,45 @@ export default function Settings() {
       console.error('Failed to update push subscription:', err);
       toast.error("Failed to update push notifications permission.");
       setter(currentVal); // revert toggle
+    }
+  };
+
+  const handleSendTestPush = async () => {
+    if (!profile?.id) {
+      toast.error("User profile not loaded.");
+      return;
+    }
+    
+    triggerHaptic();
+    setIsTestingPush(true);
+    const loadingToast = toast.loading("Sending test push notification...");
+
+    try {
+      const res = await fetch('/api/push/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: profile.id,
+          title: "⚔️ Social Arena Active!",
+          message: "Your push notification system is 100% operational. Let's crush today's split!",
+          url: "/settings"
+        })
+      });
+
+      toast.dismiss(loadingToast);
+
+      if (res.ok) {
+        toast.success("Test push sent! Check your device lock screen.");
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        toast.error(errData.error || "Failed to send test push.");
+      }
+    } catch (err) {
+      toast.dismiss(loadingToast);
+      console.error("Test push error:", err);
+      toast.error("Failed to send test push.");
+    } finally {
+      setIsTestingPush(false);
     }
   };
 
@@ -382,8 +444,8 @@ export default function Settings() {
               </div>
               <div className="flex-shrink-0">
                 <ToggleSwitch 
-                  checked={notifyWorkouts} 
-                  onChange={() => handleNotificationToggle(setNotifyWorkouts, 'notifyWorkouts', notifyWorkouts)} 
+                  checked={permissionGranted && notifyWorkouts} 
+                  onChange={() => handleNotificationToggle(setNotifyWorkouts, 'notifyWorkouts', permissionGranted && notifyWorkouts)} 
                 />
               </div>
             </div>
@@ -401,8 +463,8 @@ export default function Settings() {
               </div>
               <div className="flex-shrink-0">
                 <ToggleSwitch 
-                  checked={notifySocial} 
-                  onChange={() => handleNotificationToggle(setNotifySocial, 'notifySocial', notifySocial)} 
+                  checked={permissionGranted && notifySocial} 
+                  onChange={() => handleNotificationToggle(setNotifySocial, 'notifySocial', permissionGranted && notifySocial)} 
                 />
               </div>
             </div>
@@ -420,11 +482,22 @@ export default function Settings() {
               </div>
               <div className="flex-shrink-0">
                 <ToggleSwitch 
-                  checked={notifyInactivity} 
-                  onChange={() => handleNotificationToggle(setNotifyInactivity, 'notifyInactivity', notifyInactivity)} 
+                  checked={permissionGranted && notifyInactivity} 
+                  onChange={() => handleNotificationToggle(setNotifyInactivity, 'notifyInactivity', permissionGranted && notifyInactivity)} 
                 />
               </div>
             </div>
+          </div>
+
+          {/* Troubleshooting Link */}
+          <div className="pt-2.5 flex justify-start border-t border-zinc-800/40">
+            <button
+              type="button"
+              onClick={() => { triggerHaptic(); setShowTroubleshoot(true); }}
+              className="text-xs text-zinc-500 hover:text-emerald-400/80 transition-all text-left ml-1 underline underline-offset-4 cursor-pointer"
+            >
+              Not receiving alerts? Tap to check system settings.
+            </button>
           </div>
 
         </div>
@@ -525,6 +598,79 @@ export default function Settings() {
                 className="flex-1 py-3 bg-red-500 text-white font-bold rounded-xl disabled:opacity-30 disabled:cursor-not-allowed hover:bg-red-600 transition-all shadow-lg active:scale-95"
               >
                 {isDeleting ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* Troubleshooting Modal */}
+      {showTroubleshoot && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-4 animate-fade-in">
+          <div className="bg-zinc-950 border border-white/10 w-full max-w-md rounded-t-[2.5rem] sm:rounded-[2.5rem] p-6 flex flex-col shadow-[0_0_50px_rgba(16,185,129,0.1)] animate-scale-in max-h-[85vh] overflow-y-auto">
+            
+            <div className="flex justify-between items-center mb-5">
+              <h3 className="text-lg font-black text-white tracking-wide">🔔 Troubleshooting Alerts</h3>
+              <button 
+                onClick={() => { triggerHaptic(); setShowTroubleshoot(false); }}
+                className="text-zinc-400 hover:text-white p-1"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="space-y-4 mb-6">
+              <p className="text-zinc-400 text-xs leading-relaxed">
+                PWAs (Progressive Web Apps) rely on system-level OS permissions. Follow the steps below to make sure notifications are enabled:
+              </p>
+
+              {isIOS ? (
+                <div className="bg-zinc-900/60 border border-white/5 rounded-2xl p-4 space-y-3">
+                  <div className="text-emerald-400 text-xs font-bold uppercase tracking-wider">iOS Safe Setup</div>
+                  <ol className="list-decimal list-inside text-zinc-300 text-xs space-y-2 leading-relaxed">
+                    <li>Open your native iOS <strong className="text-white">Settings</strong> app.</li>
+                    <li>Scroll down to the apps list and tap <strong className="text-white">V Fit</strong>.</li>
+                    <li>Tap <strong className="text-white">Notifications</strong>.</li>
+                    <li>Toggle <strong className="text-white">Allow Notifications</strong> to <strong className="text-emerald-400">ON</strong>.</li>
+                  </ol>
+                </div>
+              ) : isAndroid ? (
+                <div className="bg-zinc-900/60 border border-white/5 rounded-2xl p-4 space-y-3">
+                  <div className="text-emerald-400 text-xs font-bold uppercase tracking-wider">Android Safe Setup</div>
+                  <ol className="list-decimal list-inside text-zinc-300 text-xs space-y-2 leading-relaxed">
+                    <li>Long-press the <strong className="text-white">Vortixia Fit</strong> app icon on your home screen.</li>
+                    <li>Select <strong className="text-white">App Info</strong> (or the <strong className="text-white">ⓘ</strong> icon).</li>
+                    <li>Tap <strong className="text-white">Notifications</strong>.</li>
+                    <li>Ensure <strong className="text-white">Show Notifications</strong> and <strong className="text-emerald-400">Lock Screen</strong> are toggled <strong className="text-emerald-400">ON</strong>.</li>
+                  </ol>
+                </div>
+              ) : (
+                <div className="bg-zinc-900/60 border border-white/5 rounded-2xl p-4 space-y-3">
+                  <div className="text-emerald-400 text-xs font-bold uppercase tracking-wider">Desktop / Browser Setup</div>
+                  <ol className="list-decimal list-inside text-zinc-300 text-xs space-y-2 leading-relaxed">
+                    <li>Click the settings icon (lock/sliders) to the left of the URL in the address bar.</li>
+                    <li>Change <strong className="text-white">Notifications</strong> to <strong className="text-emerald-400">Allow</strong>.</li>
+                    <li>Refresh the browser tab.</li>
+                  </ol>
+                </div>
+              )}
+            </div>
+
+            {/* Send Test Notification Button */}
+            <div className="mt-auto border-t border-white/5 pt-5 flex flex-col gap-3">
+              <button
+                onClick={handleSendTestPush}
+                disabled={isTestingPush}
+                className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-600 active:scale-[0.98] text-white font-bold rounded-xl transition-all shadow-lg shadow-emerald-500/20 disabled:opacity-40 flex items-center justify-center gap-2"
+              >
+                {isTestingPush ? 'Sending...' : '⚡ Send Test Notification'}
+              </button>
+              <button
+                onClick={() => { triggerHaptic(); setShowTroubleshoot(false); }}
+                className="w-full py-3 bg-white/5 border border-white/10 hover:bg-white/10 text-white font-semibold rounded-xl transition-all"
+              >
+                Done
               </button>
             </div>
 
