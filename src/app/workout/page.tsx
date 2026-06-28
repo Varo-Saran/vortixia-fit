@@ -234,7 +234,7 @@ export default function ActiveWorkoutPage() {
       )}
       
       {/* Sticky Header */}
-      <header className="sticky top-0 z-40 w-full bg-background/80 backdrop-blur-md border-b border-white/5 px-4 pt-[var(--notch-top)] pb-4 flex items-center justify-between">
+      <header className="sticky top-0 z-40 w-full bg-background/80 backdrop-blur-md border-b border-white/5 px-4 pt-[calc(var(--notch-top)+1rem)] pb-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button 
             onClick={handleCancelWorkout}
