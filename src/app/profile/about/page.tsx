@@ -339,7 +339,7 @@ export default function AboutPage() {
       {/* Footer Attributions */}
       <div className="w-full text-center mt-6">
         <p className="text-[9px] text-text-muted font-extrabold uppercase tracking-widest">
-          Created by Coach Vathsaran
+          Engineered with Precision & Fitness Science by Vathsaran
         </p>
         <p className="text-[8px] text-text-muted font-mono mt-1 opacity-50">
           © 2026 Vortixia Inc. All Rights Reserved.
