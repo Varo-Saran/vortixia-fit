@@ -212,10 +212,10 @@ export default function Settings() {
   );
 
   return (
-    <main className="flex min-h-screen flex-col pt-[var(--notch-top)] pb-32 px-6 bg-[#050505] text-white relative overflow-x-hidden">
+    <main className="flex min-h-screen flex-col pb-32 px-6 bg-[#050505] text-white relative overflow-x-hidden">
       
       {/* Header */}
-      <header className="w-full flex items-center py-4 mb-8 sticky top-[var(--notch-top)] z-20 bg-[#050505]/80 backdrop-blur-lg border-b border-white/5">
+      <header className="w-full flex items-center pt-[calc(var(--notch-top)+1rem)] pb-4 mb-8 sticky top-0 z-20 bg-[#050505]/80 backdrop-blur-lg border-b border-white/5">
         <button 
           onClick={() => router.back()} 
           className="mr-4 p-2 bg-white/5 rounded-full border border-white/10 hover:bg-white/10 transition-all active:scale-90"

@@ -116,9 +116,9 @@ export default function RoutineEditorPage() {
   };
 
   return (
-    <main className="flex min-h-screen flex-col pt-[var(--notch-top)] pb-28 px-4 bg-[#050505] relative overflow-x-hidden">
+    <main className="flex min-h-screen flex-col pb-28 px-4 bg-[#050505] relative overflow-x-hidden">
       
-      <header className="w-full flex items-center justify-between py-4 mb-4 sticky top-[var(--notch-top)] z-20 bg-[#050505]/80 backdrop-blur-lg">
+      <header className="w-full flex items-center justify-between pt-[calc(var(--notch-top)+1rem)] pb-4 mb-4 sticky top-0 z-20 bg-[#050505]/80 backdrop-blur-lg">
         <div className="flex items-center gap-4">
           <Link href="/routines" className="p-2 bg-white/5 rounded-full border border-white/10 hover:bg-white/10 transition-colors" aria-label="Go back">
             <ChevronLeft className="w-5 h-5 text-white" />

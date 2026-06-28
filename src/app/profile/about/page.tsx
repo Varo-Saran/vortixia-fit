@@ -151,14 +151,14 @@ export default function AboutPage() {
   const mailtoUrl = `mailto:support@vortixia.fit?subject=${emailSubject}&body=${emailBody}`;
 
   return (
-    <main className="flex min-h-screen flex-col pt-[var(--notch-top)] pb-28 px-6 bg-[#050505] text-white relative overflow-x-hidden">
+    <main className="flex min-h-screen flex-col pb-28 px-6 bg-[#050505] text-white relative overflow-x-hidden">
       
       {/* Background glow highlights */}
       <div className="absolute top-0 right-0 w-64 h-64 bg-accent-green/5 blur-[120px] rounded-full pointer-events-none" />
       <div className="absolute bottom-20 left-0 w-48 h-48 bg-emerald-500/5 blur-[100px] rounded-full pointer-events-none" />
 
       {/* Sticky Header */}
-      <header className="w-full flex items-center py-4 mb-6 sticky top-[var(--notch-top)] z-20 bg-[#050505]/80 backdrop-blur-lg border-b border-white/5">
+      <header className="w-full flex items-center pt-[calc(var(--notch-top)+1rem)] pb-4 mb-6 sticky top-0 z-20 bg-[#050505]/80 backdrop-blur-lg border-b border-white/5">
         <button 
           onClick={() => router.back()} 
           className="mr-4 p-2 bg-white/5 rounded-full border border-white/10 hover:bg-white/10 transition-all active:scale-95"

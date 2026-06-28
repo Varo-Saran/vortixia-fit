@@ -22,10 +22,10 @@ export default function RecoveryArena() {
   if (!mounted || muscles.length === 0) return null;
 
   return (
-    <main className="flex min-h-screen flex-col items-center pt-[var(--notch-top)] pb-24 px-6 bg-background relative overflow-x-hidden">
+    <main className="flex min-h-screen flex-col items-center pb-24 px-6 bg-background relative overflow-x-hidden">
       
       {/* Header */}
-      <header className="w-full flex items-center justify-between py-4 mb-6 sticky top-[var(--notch-top)] z-20 bg-background/80 backdrop-blur-lg border-b border-white/5">
+      <header className="w-full flex items-center justify-between pt-[calc(var(--notch-top)+1rem)] pb-4 mb-6 sticky top-0 z-20 bg-background/80 backdrop-blur-lg border-b border-white/5">
         <h1 className="text-2xl font-extrabold tracking-tight flex items-center gap-2">
           <HeartPulse className="w-6 h-6 text-accent-green" />
           Recovery

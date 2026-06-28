@@ -120,10 +120,10 @@ export default function SocialArena() {
   }, [leaderboard.length, fetchSocialData]);
 
   return (
-    <main className="flex min-h-screen flex-col items-center pt-[var(--notch-top)] pb-24 px-6 bg-background relative overflow-x-hidden">
+    <main className="flex min-h-screen flex-col items-center pb-24 px-6 bg-background relative overflow-x-hidden">
       
       {/* Header */}
-      <header className="w-full flex items-center justify-between py-4 mb-6 sticky top-[var(--notch-top)] z-20 bg-background/80 backdrop-blur-lg border-b border-white/5">
+      <header className="w-full flex items-center justify-between pt-[calc(var(--notch-top)+1rem)] pb-4 mb-6 sticky top-0 z-20 bg-background/80 backdrop-blur-lg border-b border-white/5">
         <h1 className="text-2xl font-extrabold tracking-tight">Social Arena</h1>
         {profile && leaderboard.find(u => u.id === profile.id) && (
           <div className="bg-white/10 px-3 py-1.5 rounded-full flex items-center gap-2 border border-white/10">
