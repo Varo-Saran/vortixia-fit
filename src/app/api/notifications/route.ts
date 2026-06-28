@@ -98,13 +98,13 @@ export async function GET(req: Request) {
     const tipIndex = (currentDay + idHash) % SYSTEM_TIPS.length;
     const selectedTip = SYSTEM_TIPS[tipIndex];
 
-    // System tips are read by default and locked to start of the day to prevent unread badge locking
+    // System tips are unread by default so they trigger the dashboard badge until read/dismissed
     notifications.push({
       id: `system_tip_${currentDay}`,
       type: 'system_tip',
       title: selectedTip.title,
       message: selectedTip.message,
-      status: 'read',
+      status: 'unread',
       createdAt: new Date(currentDay * 86400000).toISOString(),
       avatar_url: null
     });
