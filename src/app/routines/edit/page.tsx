@@ -216,8 +216,8 @@ export default function RoutineEditorPage() {
 
       {/* EXERCISE CONFIG DRAWER */}
       {showConfigDrawer && selectedExercise && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex flex-col justify-end">
-          <div className="bg-[#111] border-t border-white/10 rounded-t-3xl p-6 animate-fade-in-up">
+        <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex flex-col justify-end">
+          <div className="bg-[#111] border-t border-white/10 rounded-t-3xl p-6 pb-safe-bottom max-h-[90vh] overflow-y-auto animate-fade-in-up">
             <div className="flex justify-between items-start mb-6">
               <div className="flex flex-col">
                 <h3 className="text-xl font-black text-white capitalize">{selectedExercise.name}</h3>
