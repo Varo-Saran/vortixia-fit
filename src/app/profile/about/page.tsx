@@ -337,14 +337,17 @@ export default function AboutPage() {
       </section>
 
       {/* Footer Attributions */}
-      <div className="w-full text-center mt-6">
-        <p className="text-[9px] text-text-muted font-extrabold uppercase tracking-widest">
-          Engineered with Precision & Fitness Science by Vathsaran
+      <footer className="w-full pt-8 pb-12 mt-6 flex flex-col items-center justify-center gap-2 text-center">
+        <div className="w-16 h-[1px] bg-gradient-to-r from-transparent via-zinc-800 to-transparent mb-4" />
+        
+        <p className="text-zinc-400 text-xs font-medium tracking-[0.15em] uppercase">
+          Engineered with Precision & <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-400 font-semibold">Fitness Science</span> by Vathsaran
         </p>
-        <p className="text-[8px] text-text-muted font-mono mt-1 opacity-50">
-          © 2026 Vortixia Inc. All Rights Reserved.
+        
+        <p className="text-zinc-600 text-[10px] tracking-wider font-normal mt-1 opacity-80">
+          &copy; 2026 Vortixia Inc. All Rights Reserved.
         </p>
-      </div>
+      </footer>
 
     </main>
   );
