@@ -80,8 +80,9 @@ export function GlobalListeners() {
     // Initial check
     initNotifications();
 
-    // 2. Realtime listener for friend requests (to show interactive Toast notifications)
+    // 2. Realtime listener for friend requests & duel challenges (to show interactive Toast notifications)
     let friendRequestSubscription: ReturnType<typeof supabase.channel> | null = null;
+    let duelChallengeSubscription: ReturnType<typeof supabase.channel> | null = null;
     
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user?.id) {
@@ -98,6 +99,24 @@ export function GlobalListeners() {
             (payload: any) => {
               if (payload.new.status === 'pending') {
                 toast("You have a new friend request!", { icon: "👋" });
+              }
+            }
+          )
+          .subscribe();
+
+        duelChallengeSubscription = supabase
+          .channel('public:duels_toast')
+          .on(
+            'postgres_changes',
+            {
+              event: 'INSERT',
+              schema: 'public',
+              table: 'duels',
+              filter: `opponent_id=eq.${session.user.id}`,
+            },
+            (payload: any) => {
+              if (payload.new.status === 'pending') {
+                toast("You have been challenged to a duel! ⚔️", { icon: "⚔️" });
               }
             }
           )
@@ -289,6 +308,9 @@ export function GlobalListeners() {
       window.removeEventListener('online', syncFeedback);
       if (friendRequestSubscription) {
         supabase.removeChannel(friendRequestSubscription);
+      }
+      if (duelChallengeSubscription) {
+        supabase.removeChannel(duelChallengeSubscription);
       }
     };
   }, [router]);
