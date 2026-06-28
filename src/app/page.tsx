@@ -35,11 +35,14 @@ export default function Dashboard() {
   const { isActive, startTime, routineName, startWorkout } = useWorkoutStore();
   const weather = useWeather();
 
+  const { unreadCount, fetchNotifications, initRealtime } = useNotificationStore();
+
   useEffect(() => {
     fetchFriends();
-  }, [fetchFriends]);
+    fetchNotifications();
+    initRealtime();
+  }, [fetchFriends, fetchNotifications, initRealtime]);
   
-  const { unreadCount } = useNotificationStore();
   const [showCelebration, setShowCelebration] = useState(false);
   const [showBanner, setShowBanner] = useState(false);
 
