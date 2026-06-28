@@ -109,6 +109,83 @@ export async function GET(req: Request) {
       avatar_url: null
     });
 
+    // Dynamic, timezone-aware workout reminder notification
+    const { data: userProfile } = await supabase
+      .from('users')
+      .select('username, timezone')
+      .eq('id', userId)
+      .single();
+
+    const timezone = userProfile?.timezone || 'UTC';
+    const username = userProfile?.username || 'athlete';
+
+    const { data: lastSession } = await supabase
+      .from('workout_sessions')
+      .select('end_time')
+      .eq('user_id', userId)
+      .order('end_time', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    let hasWorkoutToday = false;
+    if (lastSession) {
+      try {
+        const options: Intl.DateTimeFormatOptions = { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' };
+        const dtf = new Intl.DateTimeFormat('en-US', options);
+        const lastSessionDate = dtf.format(new Date(lastSession.end_time));
+        const currentDate = dtf.format(new Date());
+        if (lastSessionDate === currentDate) {
+          hasWorkoutToday = true;
+        }
+      } catch (e) {
+        console.error("Timezone comparison error:", e);
+      }
+    }
+
+    if (!hasWorkoutToday) {
+      let localHour = new Date().getUTCHours();
+      try {
+        const formatter = new Intl.DateTimeFormat('en-US', {
+          timeZone: timezone,
+          hour: 'numeric',
+          hour12: false
+        });
+        localHour = parseInt(formatter.format(new Date()), 10);
+      } catch (e) {
+        console.error("Error formatting local time:", e);
+      }
+
+      if (localHour >= 5 && localHour < 24) {
+        let title = '🏋️‍♂️ Workout Reminder';
+        let message = `Hey ${username}! Keep your fitness goals on track and log today's routine.`;
+
+        if (localHour >= 5 && localHour < 10) {
+          title = '🌅 Rise & Grind!';
+          message = `Hey ${username}! Start your morning with some movement to set the tone for today.`;
+        } else if (localHour >= 10 && localHour < 15) {
+          title = '📅 Squeeze It In';
+          message = `Hey ${username}, taking a break from study/work? Squeeze in a quick session to reset.`;
+        } else if (localHour >= 15 && localHour < 19) {
+          title = '⏳ Day is Slipping Away';
+          message = `The day is winding down, ${username}. Remember: a 15-minute workout is infinitely better than 0.`;
+        } else if (localHour >= 19 && localHour <= 23) {
+          title = '🔔 Last Call!';
+          message = `Last chance to train today! Crush a quick 45-minute session now, then hit the sheets on time.`;
+        }
+
+        const todayStr = new Date().toISOString().split('T')[0];
+        notifications.push({
+          id: `workout_reminder_${todayStr}`,
+          type: 'system_alert',
+          title,
+          message,
+          status: 'unread',
+          createdAt: new Date().toISOString(),
+          avatar_url: null
+        });
+      }
+    }
+
     // Sort by createdAt descending
     notifications.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
