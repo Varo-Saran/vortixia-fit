@@ -9,7 +9,7 @@ interface PlateCalculatorProps {
   onApplyWeight?: (weight: number) => void;
 }
 
-const PLATES = [
+const LBS_PLATES = [
   { weight: 45, color: '#FF3B30' }, // Red
   { weight: 35, color: '#007AFF' }, // Blue
   { weight: 25, color: '#34C759' }, // Green
@@ -18,7 +18,18 @@ const PLATES = [
   { weight: 2.5, color: '#1C1C1E' } // Dark Gray
 ];
 
+const KG_PLATES = [
+  { weight: 25, color: '#FF3B30' }, // Red
+  { weight: 20, color: '#007AFF' }, // Blue
+  { weight: 15, color: '#FFD60A' }, // Yellow
+  { weight: 10, color: '#34C759' }, // Green
+  { weight: 5, color: '#E5E5EA' },  // Light Gray / White
+  { weight: 2.5, color: '#1C1C1E' }, // Dark Gray
+  { weight: 1.25, color: '#8E8E93' } // Gray
+];
+
 export function PlateCalculator({ isOpen, onClose, targetWeight, onApplyWeight }: PlateCalculatorProps) {
+  const [unit, setUnit] = useState<'lbs' | 'kg'>('lbs');
   const [weight, setWeight] = useState(targetWeight);
   const [barWeight, setBarWeight] = useState(45);
 
@@ -26,10 +37,50 @@ export function PlateCalculator({ isOpen, onClose, targetWeight, onApplyWeight }
   useEffect(() => {
     if (isOpen) {
       setWeight(targetWeight);
+      setBarWeight(45);
+      setUnit('lbs');
     }
   }, [isOpen, targetWeight]);
 
   if (!isOpen) return null;
+
+  // Weight converter to gym rounded numbers
+  const convertWeight = (val: number, toUnit: 'lbs' | 'kg') => {
+    if (toUnit === 'kg') {
+      // LBS -> KG (round to nearest 2.5 kg)
+      return Math.round((val / 2.20462) / 2.5) * 2.5;
+    } else {
+      // KG -> LBS (round to nearest 5 lbs)
+      return Math.round((val * 2.20462) / 5) * 5;
+    }
+  };
+
+  const handleUnitChange = (newUnit: 'lbs' | 'kg') => {
+    if (newUnit === unit) return;
+
+    const convertedWeight = convertWeight(weight, newUnit);
+    setWeight(convertedWeight);
+
+    // Convert barWeight
+    let newBarWeight = 20;
+    if (newUnit === 'kg') {
+      if (barWeight === 45) newBarWeight = 20;
+      else if (barWeight === 35) newBarWeight = 15;
+      else if (barWeight === 15) newBarWeight = 7;
+      else newBarWeight = Math.round((barWeight / 2.20462) / 2.5) * 2.5;
+    } else {
+      if (barWeight === 20) newBarWeight = 45;
+      else if (barWeight === 15) newBarWeight = 35;
+      else if (barWeight === 7) newBarWeight = 15;
+      else newBarWeight = Math.round((barWeight * 2.20462) / 5) * 5;
+    }
+
+    setBarWeight(newBarWeight);
+    setUnit(newUnit);
+  };
+
+  // Set active plate configurations
+  const activePlates = unit === 'lbs' ? LBS_PLATES : KG_PLATES;
 
   // Calculate plates per side
   const weightToLoad = Math.max(0, weight - barWeight);
@@ -37,7 +88,7 @@ export function PlateCalculator({ isOpen, onClose, targetWeight, onApplyWeight }
   
   const platesNeeded: { weight: number, count: number, color: string }[] = [];
 
-  for (const plate of PLATES) {
+  for (const plate of activePlates) {
     if (perSide >= plate.weight) {
       const count = Math.floor(perSide / plate.weight);
       if (count > 0) {
@@ -50,10 +101,23 @@ export function PlateCalculator({ isOpen, onClose, targetWeight, onApplyWeight }
   // Generate legend summary
   const getLegendSummary = () => {
     if (platesNeeded.length === 0) {
-      return `Load 0 plates (just the empty ${barWeight}lb bar)`;
+      return `Load 0 plates (just the empty ${barWeight} ${unit} bar)`;
     }
-    const parts = platesNeeded.map(p => `${p.count}x ${p.weight}lb`);
+    const parts = platesNeeded.map(p => `${p.count}x ${p.weight} ${unit}`);
     return `Load ${parts.join(', ')} plate${platesNeeded.some(p => p.count > 1 || platesNeeded.length > 1) ? 's' : ''} on each side`;
+  };
+
+  // Compute visual plate size offsets
+  const getPlateDims = (wt: number) => {
+    if (unit === 'lbs') {
+      const height = wt >= 45 ? 96 : wt >= 25 ? 72 : wt >= 10 ? 48 : 32;
+      const width = wt >= 25 ? 16 : 12;
+      return { height, width };
+    } else {
+      const height = wt >= 25 ? 96 : wt >= 15 ? 72 : wt >= 10 ? 56 : wt >= 5 ? 44 : 32;
+      const width = wt >= 10 ? 16 : 12;
+      return { height, width };
+    }
   };
 
   return (
@@ -73,7 +137,7 @@ export function PlateCalculator({ isOpen, onClose, targetWeight, onApplyWeight }
             exit={{ y: 300, opacity: 0 }}
             className="fixed bottom-0 left-0 right-0 z-[101] max-w-md mx-auto"
           >
-            <div className="bg-[#111] border-t border-white/10 rounded-t-3xl p-6 flex flex-col items-center max-h-[90vh] overflow-y-auto">
+            <div className="bg-[#111] border-t border-white/10 rounded-t-3xl p-6 flex flex-col items-center max-h-[90vh] overflow-y-auto pb-safe-bottom">
               <div className="w-12 h-1 bg-white/20 rounded-full mb-6 flex-shrink-0" />
               
               <div className="w-full flex items-center justify-between mb-6 flex-shrink-0">
@@ -83,50 +147,80 @@ export function PlateCalculator({ isOpen, onClose, targetWeight, onApplyWeight }
                   </div>
                   <div>
                     <h2 className="text-xl font-black text-white">Plate Math</h2>
-                    <p className="text-xs text-text-muted font-bold tracking-widest uppercase">Target: {weight} lbs</p>
+                    <p className="text-xs text-text-muted font-bold tracking-widest uppercase">Target: {weight} {unit.toUpperCase()}</p>
                   </div>
                 </div>
-                <button onClick={onClose} className="p-2 bg-white/5 rounded-full hover:bg-white/10" aria-label="Close">
-                  <X className="w-5 h-5 text-white" />
-                </button>
+
+                <div className="flex items-center gap-3">
+                  {/* Unit Toggle Control */}
+                  <div className="flex bg-white/5 p-0.5 rounded-lg border border-white/10 text-[10px] uppercase font-bold tracking-wider">
+                    <button
+                      onClick={() => handleUnitChange('lbs')}
+                      className={`px-3 py-1 rounded-md transition-all ${unit === 'lbs' ? 'bg-accent-green text-black' : 'text-white/60 hover:text-white'}`}
+                    >
+                      LBS
+                    </button>
+                    <button
+                      onClick={() => handleUnitChange('kg')}
+                      className={`px-3 py-1 rounded-md transition-all ${unit === 'kg' ? 'bg-accent-green text-black' : 'text-white/60 hover:text-white'}`}
+                    >
+                      KG
+                    </button>
+                  </div>
+
+                  <button onClick={onClose} className="p-2 bg-white/5 rounded-full hover:bg-white/10" aria-label="Close">
+                    <X className="w-5 h-5 text-white" />
+                  </button>
+                </div>
               </div>
 
               {/* Input controls at the top */}
               <div className="w-full flex flex-col gap-4 mb-6">
-                <div className="flex items-center gap-4 w-full justify-between">
+                <div className="flex flex-col gap-4">
                   <div className="flex flex-col">
-                    <span className="text-[10px] text-text-muted font-bold uppercase tracking-widest mb-1">Target Weight (lbs)</span>
+                    <span className="text-[10px] text-text-muted font-bold uppercase tracking-widest mb-1 text-center">Target Weight ({unit.toUpperCase()})</span>
                     <input
                       type="number"
                       min="0"
                       value={weight === 0 ? "" : weight}
                       onChange={(e) => setWeight(e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)))}
-                      className="bg-black/50 border border-white/10 rounded-lg py-2 px-3 text-white font-bold text-base w-32 focus:outline-none focus:border-accent-green"
+                      className="bg-black/50 border border-white/10 rounded-xl py-3 px-4 text-white font-black text-lg w-full focus:outline-none focus:border-accent-green text-center"
                     />
                   </div>
-                  <div className="flex flex-col items-end">
-                    <span className="text-[10px] text-text-muted font-bold uppercase tracking-widest mb-1">Bar Weight</span>
-                    <div className="flex bg-white/5 p-1 rounded-lg border border-white/10">
-                      {[45, 35, 15].map((w) => (
-                        <button
-                          key={w}
-                          onClick={() => setBarWeight(w)}
-                          className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${
-                            barWeight === w
-                              ? 'bg-accent-green text-black shadow-md'
-                              : 'text-white/60 hover:text-white'
-                          }`}
-                        >
-                          {w} lb
-                        </button>
-                      ))}
+
+                  {/* Barbell Profiles */}
+                  <div className="flex flex-col w-full">
+                    <span className="text-[10px] text-text-muted font-bold uppercase tracking-widest mb-2 text-center">Barbell Profile</span>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { id: 'olympic', label: 'Olympic', lbs: 45, kg: 20 },
+                        { id: 'womens', label: "Women's", lbs: 35, kg: 15 },
+                        { id: 'ezbar', label: 'EZ-Bar', lbs: 15, kg: 7 }
+                      ].map((bar) => {
+                        const wt = unit === 'lbs' ? bar.lbs : bar.kg;
+                        const isSelected = barWeight === wt;
+                        return (
+                          <button
+                            key={bar.id}
+                            onClick={() => setBarWeight(wt)}
+                            className={`flex flex-col items-center justify-center p-2.5 rounded-xl border text-center transition-all ${
+                              isSelected 
+                                ? 'bg-accent-green/10 text-accent-green border-accent-green/30 shadow-md' 
+                                : 'bg-white/5 text-white/85 border-white/5 hover:bg-white/10'
+                            }`}
+                          >
+                            <span className="text-[11px] font-black tracking-wide leading-tight">{bar.label}</span>
+                            <span className="text-[9px] text-text-muted font-bold mt-0.5">{wt} {unit}</span>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
 
                 {/* Preset adjustment buttons */}
                 <div className="flex flex-wrap gap-2 justify-center w-full">
-                  {[-45, -10, -5, 5, 10, 45].map((adj) => (
+                  {(unit === 'lbs' ? [-45, -10, -5, 5, 10, 45] : [-25, -10, -5, 5, 10, 25]).map((adj) => (
                     <button
                       key={adj}
                       onClick={() => setWeight((prev) => Math.max(0, prev + adj))}
@@ -158,13 +252,12 @@ export function PlateCalculator({ isOpen, onClose, targetWeight, onApplyWeight }
                   <div className="flex items-center z-20 gap-0.5">
                     {platesNeeded.map((p, i) => (
                       Array.from({ length: p.count }).map((_, j) => {
-                        const height = p.weight >= 45 ? 96 : p.weight >= 25 ? 72 : p.weight >= 10 ? 48 : 32;
-                        const width = p.weight >= 25 ? 16 : 12;
+                        const dims = getPlateDims(p.weight);
                         return (
                           <div 
                             key={`${i}-${j}`}
                             className="rounded-sm flex items-center justify-center shadow-[-2px_0_10px_rgba(0,0,0,0.5)] border-r border-black/30 text-white font-bold select-none text-[8px] overflow-hidden"
-                            style={{ height: `${height}px`, width: `${width}px`, backgroundColor: p.color }}
+                            style={{ height: `${dims.height}px`, width: `${dims.width}px`, backgroundColor: p.color }}
                           >
                             <span className="rotate-90 origin-center whitespace-nowrap block leading-none">
                               {p.weight}
@@ -197,13 +290,13 @@ export function PlateCalculator({ isOpen, onClose, targetWeight, onApplyWeight }
                 <div className="w-full flex flex-col gap-2 mb-4 flex-shrink-0">
                   <div className="flex items-center justify-between text-xs font-bold text-text-muted uppercase tracking-widest px-2 mb-1">
                     <span>Per Side</span>
-                    {perSide > 0 && <span>{perSide} lbs remaining</span>}
+                    {perSide > 0 && <span>{perSide} {unit} remaining</span>}
                   </div>
                   {platesNeeded.map((p, idx) => (
                     <div key={idx} className="flex items-center justify-between bg-white/5 border border-white/5 rounded-xl p-3">
                       <div className="flex items-center gap-3">
                         <div className="w-4 h-8 rounded-sm" style={{ backgroundColor: p.color }} />
-                        <span className="text-white font-bold">{p.weight} lbs</span>
+                        <span className="text-white font-bold">{p.weight} {unit}</span>
                       </div>
                       <span className="text-accent-green font-black">x {p.count}</span>
                     </div>
