@@ -1,5 +1,53 @@
 [
   {
+    "id": "9009",
+    "name": "pull-up",
+    "bodyPart": "back",
+    "target": "lats",
+    "equipment": "body weight",
+    "muscleGroup": "back / lats"
+  },
+  {
+    "id": "9010",
+    "name": "chin-up",
+    "bodyPart": "back",
+    "target": "lats",
+    "equipment": "body weight",
+    "muscleGroup": "back / biceps"
+  },
+  {
+    "id": "9011",
+    "name": "dead hang",
+    "bodyPart": "back",
+    "target": "lats",
+    "equipment": "body weight",
+    "muscleGroup": "forearms / back"
+  },
+  {
+    "id": "9012",
+    "name": "bodyweight floor hip thrust",
+    "bodyPart": "upper legs",
+    "target": "glutes",
+    "equipment": "body weight",
+    "muscleGroup": "glutes"
+  },
+  {
+    "id": "9013",
+    "name": "machine glute kickback",
+    "bodyPart": "upper legs",
+    "target": "glutes",
+    "equipment": "machine",
+    "muscleGroup": "glutes"
+  },
+  {
+    "id": "9014",
+    "name": "machine seated crunch",
+    "bodyPart": "waist",
+    "target": "abs",
+    "equipment": "machine",
+    "muscleGroup": "abs"
+  },
+  {
     "id": "9001",
     "name": "walking (outdoor/treadmill)",
     "bodyPart": "cardio",

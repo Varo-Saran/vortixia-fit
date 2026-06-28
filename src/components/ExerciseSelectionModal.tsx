@@ -64,12 +64,26 @@ export function ExerciseSelectionModal({ isOpen, onClose, onSelect }: ExerciseSe
   }, [isOpen, exerciseData.length]);
 
   const filteredExercises = useMemo(() => {
+    const sanitize = (str: string) => str.toLowerCase().replace(/-/g, " ").trim();
+    
+    const getFuzzyTokens = (token: string): string[] => {
+      const list = [token];
+      if (token.length > 2 && token.endsWith("s")) {
+        if (token.endsWith("es")) {
+          list.push(token.slice(0, -2));
+        } else {
+          list.push(token.slice(0, -1));
+        }
+      }
+      return list;
+    };
+
     let query = searchQuery.toLowerCase().trim();
     
     // Check aliases
     for (const [alias, targets] of Object.entries(COMMON_ALIASES)) {
       if (query === alias.toLowerCase()) {
-        query = targets[0]; // just pick the first mapped target for basic fuzzy
+        query = targets[0];
         break;
       }
     }
@@ -81,37 +95,58 @@ export function ExerciseSelectionModal({ isOpen, onClose, onSelect }: ExerciseSe
       results = results.filter(e => e.bodyPart.toLowerCase() === selectedCategory.toLowerCase());
     }
 
-    // Filter by Search
-    if (query) {
-      if (query === "cardio") {
-        results = results.filter(e => 
-          e.name.toLowerCase().includes("cardio") || 
-          e.bodyPart.toLowerCase().includes("cardio") ||
-          e.target.toLowerCase().includes("cardiovascular system")
-        );
-      } else if (query === "core") {
-        results = results.filter(e => 
-          e.name.toLowerCase().includes("core") || 
-          e.target.toLowerCase() === "abs" ||
-          (e.muscleGroup && e.muscleGroup.toLowerCase().includes("core"))
-        );
-      } else if (query === "tibialis" || query === "tibial") {
-        results = results.filter(e => 
-          e.name.toLowerCase().includes("tibial") || 
-          (e.muscleGroup && e.muscleGroup.toLowerCase().includes("tibial"))
-        );
-      } else {
-        results = results.filter(e => 
-          e.name.toLowerCase().includes(query) || 
-          e.target.toLowerCase().includes(query) ||
-          e.equipment.toLowerCase().includes(query) ||
-          (e.muscleGroup && e.muscleGroup.toLowerCase().includes(query))
-        );
-      }
+    const queryClean = sanitize(query);
+
+    if (queryClean) {
+      const tokens = queryClean.split(/\s+/).filter(Boolean);
+      
+      results = results.filter(e => {
+        return tokens.every(token => {
+          // Special alias token matches
+          if (token === "cardio") {
+            if (
+              e.name.toLowerCase().includes("cardio") || 
+              e.bodyPart.toLowerCase().includes("cardio") ||
+              e.target.toLowerCase().includes("cardiovascular system")
+            ) {
+              return true;
+            }
+          }
+          if (token === "core") {
+            if (
+              e.name.toLowerCase().includes("core") || 
+              e.target.toLowerCase() === "abs" ||
+              (e.muscleGroup && e.muscleGroup.toLowerCase().includes("core"))
+            ) {
+              return true;
+            }
+          }
+          if (token === "tibialis" || token === "tibial") {
+            if (
+              e.name.toLowerCase().includes("tibial") || 
+              (e.muscleGroup && e.muscleGroup.toLowerCase().includes("tibial"))
+            ) {
+              return true;
+            }
+          }
+
+          // General token matching with singular/plural variants
+          const variants = getFuzzyTokens(token);
+          const nameSanitized = sanitize(e.name);
+          const targetSanitized = sanitize(e.target);
+          const equipmentSanitized = sanitize(e.equipment);
+          const muscleGroupSanitized = e.muscleGroup ? sanitize(e.muscleGroup) : "";
+          
+          return variants.some(v => 
+            nameSanitized.includes(v) ||
+            targetSanitized.includes(v) ||
+            equipmentSanitized.includes(v) ||
+            muscleGroupSanitized.includes(v)
+          );
+        });
+      });
     }
 
-    // To prevent lagging the DOM with 1300 DOM nodes, we just slice the top 50 results.
-    // Real virtualization (e.g. react-window) would be better, but slice is perfectly fast for UX.
     return results.slice(0, 50);
   }, [searchQuery, selectedCategory, exerciseData]);
 
