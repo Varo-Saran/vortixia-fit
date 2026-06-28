@@ -1,5 +1,69 @@
 [
   {
+    "id": "9001",
+    "name": "walking (outdoor/treadmill)",
+    "bodyPart": "cardio",
+    "target": "cardiovascular system",
+    "equipment": "body weight / treadmill",
+    "muscleGroup": "whole body"
+  },
+  {
+    "id": "9002",
+    "name": "jogging / running",
+    "bodyPart": "cardio",
+    "target": "cardiovascular system",
+    "equipment": "body weight",
+    "muscleGroup": "lower legs / quads"
+  },
+  {
+    "id": "9003",
+    "name": "indoor cycling",
+    "bodyPart": "cardio",
+    "target": "cardiovascular system",
+    "equipment": "stationary bike",
+    "muscleGroup": "quads"
+  },
+  {
+    "id": "9004",
+    "name": "barbell hip thrust",
+    "bodyPart": "upper legs",
+    "target": "glutes",
+    "equipment": "barbell",
+    "muscleGroup": "glutes"
+  },
+  {
+    "id": "9005",
+    "name": "dumbbell glute bridge",
+    "bodyPart": "upper legs",
+    "target": "glutes",
+    "equipment": "dumbbell",
+    "muscleGroup": "glutes"
+  },
+  {
+    "id": "9006",
+    "name": "cable glute kickback",
+    "bodyPart": "upper legs",
+    "target": "glutes",
+    "equipment": "cable",
+    "muscleGroup": "glutes"
+  },
+  {
+    "id": "9007",
+    "name": "bodyweight tibialis raise",
+    "bodyPart": "lower legs",
+    "target": "calves",
+    "equipment": "body weight",
+    "muscleGroup": "tibialis / calves"
+  },
+  {
+    "id": "9008",
+    "name": "plank hold",
+    "bodyPart": "waist",
+    "target": "abs",
+    "equipment": "body weight",
+    "muscleGroup": "abs / core"
+  },
+  {
     "id": "0001",
     "name": "3/4 sit-up",
     "bodyPart": "waist",

@@ -83,17 +83,37 @@ export function ExerciseSelectionModal({ isOpen, onClose, onSelect }: ExerciseSe
 
     // Filter by Search
     if (query) {
-      results = results.filter(e => 
-        e.name.toLowerCase().includes(query) || 
-        e.target.toLowerCase().includes(query) ||
-        e.equipment.toLowerCase().includes(query)
-      );
+      if (query === "cardio") {
+        results = results.filter(e => 
+          e.name.toLowerCase().includes("cardio") || 
+          e.bodyPart.toLowerCase().includes("cardio") ||
+          e.target.toLowerCase().includes("cardiovascular system")
+        );
+      } else if (query === "core") {
+        results = results.filter(e => 
+          e.name.toLowerCase().includes("core") || 
+          e.target.toLowerCase() === "abs" ||
+          (e.muscleGroup && e.muscleGroup.toLowerCase().includes("core"))
+        );
+      } else if (query === "tibialis" || query === "tibial") {
+        results = results.filter(e => 
+          e.name.toLowerCase().includes("tibial") || 
+          (e.muscleGroup && e.muscleGroup.toLowerCase().includes("tibial"))
+        );
+      } else {
+        results = results.filter(e => 
+          e.name.toLowerCase().includes(query) || 
+          e.target.toLowerCase().includes(query) ||
+          e.equipment.toLowerCase().includes(query) ||
+          (e.muscleGroup && e.muscleGroup.toLowerCase().includes(query))
+        );
+      }
     }
 
     // To prevent lagging the DOM with 1300 DOM nodes, we just slice the top 50 results.
     // Real virtualization (e.g. react-window) would be better, but slice is perfectly fast for UX.
     return results.slice(0, 50);
-  }, [searchQuery, selectedCategory]);
+  }, [searchQuery, selectedCategory, exerciseData]);
 
   if (!isOpen) return null;
 
