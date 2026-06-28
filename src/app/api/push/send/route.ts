@@ -92,40 +92,74 @@ export async function POST(req: Request) {
 
     // 2. Stateless Background Scheduler Triggers
     if (type === 'workout_reminders') {
-      // Find users who have not logged a workout session today
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
+      // Fetch targeted list of users using the optimized timezone-aware database function
+      const { data: users, error: rpcErr } = await supabase
+        .rpc('get_users_needing_reminders');
 
-      // Query active users who have notify_workouts enabled
-      const { data: users, error: usersErr } = await supabase
-        .from('users')
-        .select('id, username')
-        .eq('notify_workouts', true);
+      if (rpcErr) {
+        console.error("Supabase RPC get_users_needing_reminders error:", rpcErr);
+        return NextResponse.json({ error: rpcErr.message }, { status: 500 });
+      }
 
-      if (usersErr || !users) {
-        return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 });
+      if (!users || users.length === 0) {
+        return NextResponse.json({ success: true, processed: 0, message: "No users need reminders in this hour slot." });
       }
 
       let reminderCount = 0;
       for (const u of users) {
-        // Check if user has logged a workout session today
-        const { data: sessions, error: sessionErr } = await supabase
-          .from('workout_sessions')
-          .select('id')
-          .eq('user_id', u.id)
-          .gte('end_time', todayStart.toISOString());
+        const localHour = u.local_hour;
+        let title = '🏋️‍♂️ Workout Reminder';
+        let message = `Hey ${u.username || 'athlete'}! Keep your fitness goals on track and log today's routine.`;
 
-        if (!sessionErr && (!sessions || sessions.length === 0)) {
-          await sendPushToUser(
-            supabase, 
-            u.id, 
-            '🏋️‍♂️ Workout Reminder', 
-            `Hey ${u.username || 'athlete'}! Keep your fitness goals on track and log today's routine.`,
-            '/workout'
-          );
+        // 5:00 AM - 9:59 AM: Morning Motivation (Hour 7 Checkpoint)
+        if (localHour >= 5 && localHour < 10) {
+          title = '🌅 Rise & Grind!';
+          const quotes = [
+            `Hey ${u.username || 'champion'}! Start your morning with some movement to set the tone for today.`,
+            `Morning ${u.username || 'athlete'}! Wake up your muscles and boost your energy for the day ahead.`,
+            `A fresh morning is the perfect time to stack some wins. Log today's session!`
+          ];
+          message = quotes[Math.floor(Math.random() * quotes.length)];
+        } 
+        // 10:00 AM - 2:59 PM: Midday Planning (Hour 12 Checkpoint)
+        else if (localHour >= 10 && localHour < 15) {
+          title = '📅 Squeeze It In';
+          const quotes = [
+            `Hey ${u.username || 'athlete'}, taking a break from study/work? Squeeze in a quick session to reset.`,
+            `Busy day? Block off 25 minutes between classes/meetings to keep your goals on track.`,
+            `Plan your move! Even a quick lunch-hour session keeps the momentum going.`
+          ];
+          message = quotes[Math.floor(Math.random() * quotes.length)];
+        }
+        // 3:00 PM - 6:59 PM: Afternoon/Evening Urgency (Hour 16 Checkpoint)
+        else if (localHour >= 15 && localHour < 19) {
+          title = '⏳ Day is Slipping Away';
+          const quotes = [
+            `The day is winding down, ${u.username || 'athlete'}. Remember: a 15-minute workout is infinitely better than 0.`,
+            `No time for a full session? Squeeze in a quick 10-minute burn. Consistency is key!`,
+            `Don't let today be a zero day. Squeeze in some active minutes before the sun sets.`
+          ];
+          message = quotes[Math.floor(Math.random() * quotes.length)];
+        }
+        // 7:00 PM - 8:59 PM: Last Call (Hour 20 Checkpoint)
+        else if (localHour >= 19 && localHour <= 20) {
+          title = '🔔 Last Call!';
+          const quotes = [
+            `Last chance to train today! Crush a quick 45-minute session now, then hit the sheets on time.`,
+            `Workout window is closing, ${u.username || 'athlete'}! Hit it hard now, get to sleep, and wake up fresh tomorrow.`,
+            `One hour is all you need to win the day. Get in, get it done, and go to bed victorious!`
+          ];
+          message = quotes[Math.floor(Math.random() * quotes.length)];
+        }
+
+        try {
+          await sendPushToUser(supabase, u.id, title, message, '/workout');
           reminderCount++;
+        } catch (pushErr) {
+          console.error(`Failed to send time-based workout push to user ${u.id}:`, pushErr);
         }
       }
+
       return NextResponse.json({ success: true, processed: reminderCount });
     }
 

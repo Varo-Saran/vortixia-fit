@@ -10,6 +10,7 @@ export interface UserProfile {
   total_xp: number;
   unclaimed_rewards?: number;
   is_admin?: boolean;
+  timezone?: string;
 }
 
 export interface UserMetrics {
@@ -86,6 +87,21 @@ export const useProfileStore = create<ProfileStore>((set) => ({
         }
       } else if (userErr) {
         throw userErr;
+      }
+
+      // Sync client timezone to database if it doesn't match
+      if (user) {
+        const clientTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        if (user.timezone !== clientTimezone) {
+          supabase
+            .from('users')
+            .update({ timezone: clientTimezone })
+            .eq('id', userId)
+            .then(({ error }) => {
+              if (error) console.error("Failed to sync client timezone:", error);
+            });
+          user.timezone = clientTimezone;
+        }
       }
 
       const { data: metrics, error: metricsErr } = await supabase
