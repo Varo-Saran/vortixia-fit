@@ -131,32 +131,25 @@ export const useSettingsStore = create<SettingsStore>()(
           return;
         }
 
-        console.log("Push Notification registration initiated. Requesting permission...");
         try {
           const permission = await Notification.requestPermission();
-          console.log("Notification permission state:", permission);
           if (permission !== 'granted') {
             throw new Error('Notification permission was denied');
           }
 
           const registration = await navigator.serviceWorker.ready;
-          console.log("Service worker ready scope:", registration.scope);
 
           const existingSubscription = await registration.pushManager.getSubscription();
-          console.log("Existing subscription search result:", existingSubscription);
 
           if (existingSubscription) {
-            console.log("Existing subscription found:", existingSubscription.endpoint);
             const p256dh = existingSubscription.getKey('p256dh');
             const auth = existingSubscription.getKey('auth');
-            console.log("Existing keys - p256dh:", !!p256dh, "auth:", !!auth);
 
             if (p256dh && auth) {
               const p256dhStr = btoa(String.fromCharCode(...Array.from(new Uint8Array(p256dh))));
               const authStr = btoa(String.fromCharCode(...Array.from(new Uint8Array(auth))));
-              console.log("Sending existing subscription to API...");
               
-              const res = await fetch('/api/push/subscribe', {
+              await fetch('/api/push/subscribe', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -167,40 +160,30 @@ export const useSettingsStore = create<SettingsStore>()(
                   }
                 })
               });
-              
-              console.log("Existing subscription sync response status:", res.status, res.statusText);
-              const resData = await res.json().catch(() => ({}));
-              console.log("Existing subscription sync response body:", resData);
             }
             return;
           }
 
-          const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || 'BIIueWulwJKMBwrYNWiU4Rrp0Pea6HliZUOqy8uXme3sdKqXj9UVo5f6xR4ZkPB9IFLcYG7Y8GVwAu1n6XmFffU';
-          console.log("Resolved VAPID public key value (using fallback if env was empty):", vapidKey);
+          const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
           if (!vapidKey) {
             console.error('VAPID public key is not set');
             return;
           }
 
           const convertedVapidKey = urlBase64ToUint8Array(vapidKey);
-          console.log("Converted Vapid Key Uint8Array length:", convertedVapidKey.length);
 
-          console.log("Subscribing via pushManager...");
           const subscription = await registration.pushManager.subscribe({
             userVisibleOnly: true,
             applicationServerKey: convertedVapidKey
           });
 
-          console.log("New Browser Subscription generated:", subscription.endpoint);
 
           const p256dh = subscription.getKey('p256dh');
           const auth = subscription.getKey('auth');
-          console.log("New keys - p256dh:", !!p256dh, "auth:", !!auth);
 
           if (p256dh && auth) {
             const p256dhStr = btoa(String.fromCharCode(...Array.from(new Uint8Array(p256dh))));
             const authStr = btoa(String.fromCharCode(...Array.from(new Uint8Array(auth))));
-            console.log("Sending new subscription to API...");
 
             const res = await fetch('/api/push/subscribe', {
               method: 'POST',
@@ -214,9 +197,6 @@ export const useSettingsStore = create<SettingsStore>()(
               })
             });
 
-            console.log("New subscription API response status:", res.status, res.statusText);
-            const resData = await res.json().catch(() => ({}));
-            console.log("New subscription API response body:", resData);
 
             if (!res.ok) {
               throw new Error(`Failed to register subscription on backend. Status: ${res.status}`);

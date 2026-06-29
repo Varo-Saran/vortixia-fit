@@ -66,8 +66,7 @@ export const useProfileStore = create<ProfileStore>((set) => ({
             id: userId,
             full_name: fallbackName,
             username: fallbackUsername,
-            avatar_url: fallbackAvatar,
-            total_xp: 0
+            avatar_url: fallbackAvatar
           })
           .select()
           .single();

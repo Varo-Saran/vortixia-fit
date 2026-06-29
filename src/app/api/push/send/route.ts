@@ -3,8 +3,10 @@ import { createSupabaseServer } from '@/lib/supabase-server';
 import webpush from 'web-push';
 
 // Configure VAPID details
-const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || 'BIIueWulwJKMBwrYNWiU4Rrp0Pea6HliZUOqy8uXme3sdKqXj9UVo5f6xR4ZkPB9IFLcYG7Y8GVwAu1n6XmFffU';
-const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY || '';
+const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
+
+const isVapidConfigured = Boolean(vapidPublicKey && vapidPrivateKey);
 
 if (vapidPublicKey && vapidPrivateKey) {
   webpush.setVapidDetails(
@@ -15,6 +17,10 @@ if (vapidPublicKey && vapidPrivateKey) {
 }
 
 export async function sendPushToUser(supabase: any, userId: string, title: string, message: string, url: string = '/') {
+  if (!isVapidConfigured) {
+    return { success: false, reason: 'Push service is not configured', sent: 0, failed: 0 };
+  }
+
   // Get active subscriptions for this user
   const { data: subscriptions, error } = await supabase
     .from('push_subscriptions')
@@ -44,7 +50,7 @@ export async function sendPushToUser(supabase: any, userId: string, title: strin
       );
       successCount++;
     } catch (err: any) {
-      console.error('Failed to send notification to endpoint:', sub.endpoint, err);
+      console.error('Push delivery failed', { statusCode: err?.statusCode });
       failCount++;
       // If subscription has expired or is invalid (gone/410/404), clean it up from database
       if (err.statusCode === 410 || err.statusCode === 404) {
@@ -61,6 +67,10 @@ export async function sendPushToUser(supabase: any, userId: string, title: strin
 
 export async function POST(req: Request) {
   try {
+    if (!isVapidConfigured) {
+      return NextResponse.json({ error: 'Push service is not configured' }, { status: 503 });
+    }
+
     const supabase = await createSupabaseServer();
     
     // Check authentication or Cron authorization header
