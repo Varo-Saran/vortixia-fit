@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Heart, MessageSquare, UserPlus, Zap, Info, ArrowLeft, Trash2, CheckCircle2, Swords, Settings } from "lucide-react";
+import { Heart, MessageSquare, UserPlus, Zap, Info, ArrowLeft, Trash2, CheckCircle2, Swords, Settings, X, Dumbbell, Check } from "lucide-react";
 import Link from "next/link";
 import { useNotificationStore } from "@/store/useNotificationStore";
 import { toast } from "@/components/ui/Toast";
@@ -104,7 +104,7 @@ export default function NotificationsPage() {
       if (!res.ok) {
         throw new Error('Failed to update duel');
       }
-      toast.success(status === 'active' ? 'Duel challenge accepted! ⚔️' : 'Duel challenge declined');
+      toast.success(status === 'active' ? 'Duel challenge accepted!' : 'Duel challenge declined');
       await fetchNotifications(); // Refresh notifications
     } catch (error) {
       toast.error('An error occurred');
@@ -249,7 +249,7 @@ export default function NotificationsPage() {
                     className="relative group"
                   >
                     {/* Background Swipe Red Delete Strip */}
-                    <div className="absolute inset-0 bg-red-500/20 rounded-2xl flex items-center justify-end px-6 border border-red-500/30">
+                    <div className="absolute inset-0 bg-red-500/20 rounded-2xl flex items-center justify-end px-6 border border-red-500/30 z-0">
                       <Trash2 className="w-6 h-6 text-red-500" />
                     </div>
 
@@ -269,13 +269,13 @@ export default function NotificationsPage() {
                         }
                         setExpandedId(prev => prev === notif.id ? null : notif.id);
                       }}
-                      className={`relative w-full p-4 rounded-2xl border transition-all cursor-pointer select-none ${
+                      className={`relative w-full p-4 rounded-2xl border transition-all cursor-pointer select-none z-10 ${
                         notif.type === 'pwa_install'
                           ? 'bg-[#081225] border-blue-500/30 shadow-[0_0_20px_rgba(59,130,246,0.15)]'
                           : notif.type === 'system_tip'
                           ? 'bg-[#111111] border-white/5 hover:border-white/10'
                           : isUnread
-                          ? 'bg-gradient-to-r from-emerald-500/5 to-transparent border-l-2 border-l-accent-green border-y-white/10 border-r-white/10 shadow-[0_0_15px_rgba(16,185,129,0.02)]'
+                          ? 'bg-gradient-to-r from-[#0b1a13] to-[#0a0a0a] border-l-2 border-l-accent-green border-y-white/10 border-r-white/10 shadow-[0_0_15px_rgba(16,185,129,0.02)]'
                           : 'bg-[#0a0a0a] border-white/5 hover:border-white/10'
                       }`}
                     >
@@ -325,27 +325,30 @@ export default function NotificationsPage() {
                                 {(notif.id.startsWith('workout_reminder_') || notif.type === 'system_alert') && (
                                   <Link 
                                     href="/workout"
-                                    className="w-full bg-accent-green text-black font-black uppercase text-center py-2.5 rounded-xl hover:bg-accent-green/90 transition-all text-[11px] tracking-wider shadow-[0_0_15px_rgba(74,222,128,0.25)] flex items-center justify-center gap-1.5"
+                                    className="w-full bg-accent-green hover:bg-accent-green/90 text-black font-black uppercase text-center py-2.5 rounded-xl transition-all text-[11px] tracking-wider shadow-[0_0_15px_rgba(74,222,128,0.25)] flex items-center justify-center gap-2"
                                   >
-                                    Start Workout Now 🏋️‍♂️
+                                    <Dumbbell className="w-4 h-4" />
+                                    Start Workout Now
                                   </Link>
                                 )}
 
                                 {(notif.type === 'duel_challenge' || notif.type === 'friend_request') && (
                                   <Link 
                                     href="/social"
-                                    className="w-full bg-zinc-800 text-white hover:bg-zinc-700 font-bold uppercase text-center py-2.5 rounded-xl transition-all text-[11px] tracking-wider border border-white/10 flex items-center justify-center gap-1.5"
+                                    className="w-full bg-white/5 hover:bg-white/10 text-white font-bold uppercase text-center py-2.5 rounded-xl transition-all text-[11px] tracking-wider border border-white/10 flex items-center justify-center gap-2"
                                   >
-                                    View Social Arena ⚔️
+                                    <Swords className="w-4 h-4 text-accent-red" />
+                                    View Social Arena
                                   </Link>
                                 )}
 
                                 {notif.type === 'system_tip' && (
                                   <Link 
                                     href={notif.title.toLowerCase().includes('social') ? "/social" : "/settings"}
-                                    className="w-full bg-zinc-800 text-white hover:bg-zinc-700 font-bold uppercase text-center py-2.5 rounded-xl transition-all text-[11px] tracking-wider border border-white/10 flex items-center justify-center gap-1.5"
+                                    className="w-full bg-white/5 hover:bg-white/10 text-white font-bold uppercase text-center py-2.5 rounded-xl transition-all text-[11px] tracking-wider border border-white/10 flex items-center justify-center gap-2"
                                   >
-                                    Explore Feature 🚀
+                                    <Zap className="w-4 h-4 text-accent-green" />
+                                    Explore Feature
                                   </Link>
                                 )}
 
@@ -355,15 +358,17 @@ export default function NotificationsPage() {
                                     <button
                                       onClick={() => handleFriendRequest(notif.id, 'accepted')}
                                       disabled={processingId === notif.id}
-                                      className="flex-1 py-2 bg-accent-green text-black text-xs font-black uppercase tracking-wider rounded-lg active:scale-95 transition-transform disabled:opacity-50"
+                                      className="flex-grow flex items-center justify-center gap-1.5 py-2.5 bg-accent-green hover:bg-accent-green/90 text-black text-xs font-black uppercase tracking-wider rounded-xl active:scale-95 transition-all disabled:opacity-50"
                                     >
+                                      <Check className="w-3.5 h-3.5" />
                                       Accept Request
                                     </button>
                                     <button
                                       onClick={() => handleFriendRequest(notif.id, 'rejected')}
                                       disabled={processingId === notif.id}
-                                      className="flex-1 py-2 bg-white/10 text-white text-xs font-black uppercase tracking-wider rounded-lg active:scale-95 transition-transform disabled:opacity-50"
+                                      className="flex-grow flex items-center justify-center gap-1.5 py-2.5 bg-white/5 hover:bg-white/10 text-white text-xs font-bold uppercase tracking-wider rounded-xl border border-white/5 active:scale-95 transition-all disabled:opacity-50"
                                     >
+                                      <X className="w-3.5 h-3.5 text-text-muted" />
                                       Decline
                                     </button>
                                   </div>
@@ -375,15 +380,17 @@ export default function NotificationsPage() {
                                     <button
                                       onClick={() => handleDuelChallenge(notif.id, 'active')}
                                       disabled={processingId === notif.id}
-                                      className="flex-1 py-2 bg-accent-red text-white text-xs font-black uppercase tracking-wider rounded-lg active:scale-95 transition-transform disabled:opacity-50"
+                                      className="flex-grow flex items-center justify-center gap-1.5 py-2.5 bg-accent-red hover:bg-accent-red/90 text-white text-xs font-black uppercase tracking-wider rounded-xl active:scale-95 transition-all disabled:opacity-50"
                                     >
+                                      <Swords className="w-3.5 h-3.5" />
                                       Accept Challenge
                                     </button>
                                     <button
                                       onClick={() => handleDuelChallenge(notif.id, 'declined')}
                                       disabled={processingId === notif.id}
-                                      className="flex-1 py-2 bg-white/10 text-white text-xs font-black uppercase tracking-wider rounded-lg active:scale-95 transition-transform disabled:opacity-50"
+                                      className="flex-grow flex items-center justify-center gap-1.5 py-2.5 bg-white/5 hover:bg-white/10 text-white text-xs font-bold uppercase tracking-wider rounded-xl border border-white/5 active:scale-95 transition-all disabled:opacity-50"
                                     >
+                                      <X className="w-3.5 h-3.5 text-text-muted" />
                                       Decline
                                     </button>
                                   </div>
