@@ -18,6 +18,16 @@ export function GlobalListeners() {
 
       if (typeof window === 'undefined') return;
 
+      if ('Notification' in window && Notification.permission === 'granted') {
+        try {
+          const { subscribeToPush } = useSettingsStore.getState();
+          await subscribeToPush();
+        } catch (err) {
+          console.error('Failed to synchronize push notifications:', err);
+        }
+        return;
+      }
+
       const userAgent = window.navigator.userAgent.toLowerCase();
       const isIOS = /ipad|iphone|ipod/.test(userAgent) && !(window as any).MSStream;
 

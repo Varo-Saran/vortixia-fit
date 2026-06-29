@@ -1,6 +1,164 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { supabase } from '@/lib/supabase';
+import {
+  deriveVapidPublicKeyFingerprint,
+  subscriptionUsesCurrentVapidKey,
+  vapidPublicKeyToUint8Array,
+  VAPID_PUBLIC_KEY_FINGERPRINT_STORAGE_KEY,
+} from '@/lib/push-subscription';
+
+let pushSubscriptionAttempt: Promise<void> | null = null;
+
+function runPushSubscriptionSingleFlight(operation: () => Promise<void>): Promise<void> {
+  if (pushSubscriptionAttempt) {
+    return pushSubscriptionAttempt;
+  }
+
+  const attempt = operation().finally(() => {
+    if (pushSubscriptionAttempt === attempt) {
+      pushSubscriptionAttempt = null;
+    }
+  });
+
+  pushSubscriptionAttempt = attempt;
+  return attempt;
+}
+
+function isPushSupported(): boolean {
+  return typeof window !== 'undefined'
+    && 'Notification' in window
+    && 'serviceWorker' in navigator
+    && 'PushManager' in window;
+}
+
+function readStoredVapidFingerprint(): string | null {
+  try {
+    return window.localStorage.getItem(VAPID_PUBLIC_KEY_FINGERPRINT_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function storeVapidFingerprint(fingerprint: string): void {
+  try {
+    window.localStorage.setItem(VAPID_PUBLIC_KEY_FINGERPRINT_STORAGE_KEY, fingerprint);
+  } catch {
+    console.warn('Unable to persist the push key fingerprint');
+  }
+}
+
+function clearStoredVapidFingerprint(): void {
+  try {
+    window.localStorage.removeItem(VAPID_PUBLIC_KEY_FINGERPRINT_STORAGE_KEY);
+  } catch {
+    console.warn('Unable to clear the push key fingerprint');
+  }
+}
+
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  let binary = '';
+
+  for (const byte of new Uint8Array(buffer)) {
+    binary += String.fromCharCode(byte);
+  }
+
+  return btoa(binary);
+}
+
+async function registerPushSubscription(subscription: PushSubscription): Promise<void> {
+  const p256dh = subscription.getKey('p256dh');
+  const auth = subscription.getKey('auth');
+
+  if (!p256dh || !auth) {
+    throw new Error('Push subscription encryption keys are unavailable');
+  }
+
+  const response = await fetch('/api/push/subscribe', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      endpoint: subscription.endpoint,
+      keys: {
+        p256dh: arrayBufferToBase64(p256dh),
+        auth: arrayBufferToBase64(auth),
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to register push subscription. Status: ${response.status}`);
+  }
+}
+
+async function deletePushSubscriptionFromServer(endpoint: string): Promise<void> {
+  const response = await fetch('/api/push/subscribe', {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ endpoint }),
+  });
+
+  if (!response.ok && response.status !== 404) {
+    throw new Error(`Failed to remove push subscription. Status: ${response.status}`);
+  }
+}
+
+async function retirePushSubscription(subscription: PushSubscription): Promise<void> {
+  let serverCleanupFailed = false;
+
+  try {
+    await deletePushSubscriptionFromServer(subscription.endpoint);
+  } catch {
+    serverCleanupFailed = true;
+  }
+
+  const unsubscribed = await subscription.unsubscribe();
+
+  if (!unsubscribed) {
+    throw new Error('The previous browser push subscription could not be removed');
+  }
+
+  if (serverCleanupFailed) {
+    console.warn('Previous push subscription server cleanup is pending');
+  }
+}
+
+async function ensurePushSubscription(): Promise<void> {
+  const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+
+  if (!vapidPublicKey) {
+    throw new Error('Push notifications are not configured');
+  }
+
+  const fingerprint = await deriveVapidPublicKeyFingerprint(vapidPublicKey);
+  const registration = await navigator.serviceWorker.ready;
+  let subscription = await registration.pushManager.getSubscription();
+
+  if (subscription) {
+    const usesCurrentKey = await subscriptionUsesCurrentVapidKey(
+      subscription,
+      vapidPublicKey,
+      readStoredVapidFingerprint(),
+    );
+
+    if (usesCurrentKey) {
+      await registerPushSubscription(subscription);
+      storeVapidFingerprint(fingerprint);
+      return;
+    }
+
+    await retirePushSubscription(subscription);
+    subscription = null;
+  }
+
+  subscription = await registration.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: vapidPublicKeyToUint8Array(vapidPublicKey).buffer,
+  });
+
+  await registerPushSubscription(subscription);
+  storeVapidFingerprint(fingerprint);
+}
 
 interface SettingsStore {
   heroGender: 'male' | 'female';
@@ -125,105 +283,44 @@ export const useSettingsStore = create<SettingsStore>()(
         }
       },
 
-      subscribeToPush: async () => {
-        if (typeof window === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+      subscribeToPush: () => runPushSubscriptionSingleFlight(async () => {
+        if (!isPushSupported()) {
           console.warn('Push messaging is not supported in this browser');
           return;
         }
 
         try {
-          const permission = await Notification.requestPermission();
+          const permission = Notification.permission === 'granted'
+            ? 'granted'
+            : await Notification.requestPermission();
+
           if (permission !== 'granted') {
             throw new Error('Notification permission was denied');
           }
 
-          const registration = await navigator.serviceWorker.ready;
-
-          const existingSubscription = await registration.pushManager.getSubscription();
-
-          if (existingSubscription) {
-            const p256dh = existingSubscription.getKey('p256dh');
-            const auth = existingSubscription.getKey('auth');
-
-            if (p256dh && auth) {
-              const p256dhStr = btoa(String.fromCharCode(...Array.from(new Uint8Array(p256dh))));
-              const authStr = btoa(String.fromCharCode(...Array.from(new Uint8Array(auth))));
-              
-              await fetch('/api/push/subscribe', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  endpoint: existingSubscription.endpoint,
-                  keys: {
-                    p256dh: p256dhStr,
-                    auth: authStr,
-                  }
-                })
-              });
-            }
-            return;
-          }
-
-          const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-          if (!vapidKey) {
-            console.error('VAPID public key is not set');
-            return;
-          }
-
-          const convertedVapidKey = urlBase64ToUint8Array(vapidKey);
-
-          const subscription = await registration.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: convertedVapidKey
-          });
-
-
-          const p256dh = subscription.getKey('p256dh');
-          const auth = subscription.getKey('auth');
-
-          if (p256dh && auth) {
-            const p256dhStr = btoa(String.fromCharCode(...Array.from(new Uint8Array(p256dh))));
-            const authStr = btoa(String.fromCharCode(...Array.from(new Uint8Array(auth))));
-
-            const res = await fetch('/api/push/subscribe', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                endpoint: subscription.endpoint,
-                keys: {
-                  p256dh: p256dhStr,
-                  auth: authStr,
-                }
-              })
-            });
-
-
-            if (!res.ok) {
-              throw new Error(`Failed to register subscription on backend. Status: ${res.status}`);
-            }
-          }
+          await ensurePushSubscription();
         } catch (err) {
-          console.error('Error during push subscription trace:', err);
+          console.error('Failed to configure push notifications:', err);
           throw err;
         }
-      },
+      }),
 
       unsubscribeFromPush: async () => {
-        if (typeof window === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in window)) return;
+        if (!isPushSupported()) return;
 
         try {
+          if (pushSubscriptionAttempt) {
+            await pushSubscriptionAttempt.catch(() => undefined);
+          }
+
           const registration = await navigator.serviceWorker.ready;
           const subscription = await registration.pushManager.getSubscription();
 
           if (subscription) {
-            await fetch('/api/push/subscribe', {
-              method: 'DELETE',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ endpoint: subscription.endpoint })
-            });
-
-            await subscription.unsubscribe();
+            await retirePushSubscription(subscription);
           }
+
+          clearStoredVapidFingerprint();
         } catch (err) {
           console.error('Error unsubscribing from push:', err);
         }
@@ -232,18 +329,3 @@ export const useSettingsStore = create<SettingsStore>()(
     { name: 'vortixia-settings' }
   )
 );
-
-function urlBase64ToUint8Array(base64String: string) {
-  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding)
-    .replace(/\-/g, '+')
-    .replace(/_/g, '/');
-
-  const rawData = window.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
-  }
-  return outputArray;
-}
