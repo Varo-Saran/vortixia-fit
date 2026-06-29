@@ -1,0 +1,24 @@
+title = "Vortixia Fit secret scanning"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "vapid-private-key-literal"
+description = "Hardcoded VAPID private-key material"
+regex = '''(?i)(?:VAPID_PRIVATE_KEY|vapidPrivateKey)[^\n]{0,100}['"]([A-Za-z0-9_-]{32,})['"]'''
+secretGroup = 1
+keywords = ["VAPID_PRIVATE_KEY", "vapidPrivateKey"]
+
+[[rules]]
+id = "web-push-subscription-endpoint"
+description = "Hardcoded web-push subscription endpoint"
+regex = '''https://(?:fcm\.googleapis\.com|[^/\s"']*\.push\.apple\.com)/[^\s"']{20,}'''
+keywords = ["fcm.googleapis.com", "push.apple.com"]
+
+[[rules]]
+id = "web-push-subscription-key"
+description = "Hardcoded web-push subscription key material"
+regex = '''(?i)(?:p256dh|auth)\s*:\s*['"]([A-Za-z0-9_=+-]{16,})['"]'''
+secretGroup = 1
+keywords = ["p256dh", "auth"]
