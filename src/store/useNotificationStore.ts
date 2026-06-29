@@ -19,6 +19,7 @@ export interface NotificationStore {
   markAsRead: (id: string) => void;
   markAllAsRead: () => void;
   dismissNotification: (id: string) => void;
+  dismissAll: (ids: string[]) => void;
 }
 
 interface CacheItem {
@@ -86,13 +87,31 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
       const readCache = getCleanedCache(readKey);
       const dismissedCache = getCleanedCache(dismissedKey);
 
-      const readIds = new Set(readCache.map(c => c.id));
-      const dismissedIds = new Set(dismissedCache.map(c => c.id));
+      // Fetch persistent states from database users table
+      const { data: userData } = await supabase
+        .from('users')
+        .select('read_notifications, dismissed_notifications')
+        .eq('id', userId)
+        .single();
+
+      const dbRead = userData?.read_notifications || [];
+      const dbDismissed = userData?.dismissed_notifications || [];
+
+      // Combine database states with local storage cache
+      const combinedRead = Array.from(new Set([...readCache.map(c => c.id), ...dbRead]));
+      const combinedDismissed = Array.from(new Set([...dismissedCache.map(c => c.id), ...dbDismissed]));
+
+      // Update local cache to match
+      combinedRead.forEach(id => saveToCache(readKey, id));
+      combinedDismissed.forEach(id => saveToCache(dismissedKey, id));
+
+      const readIds = new Set(combinedRead);
+      const dismissedIds = new Set(combinedDismissed);
 
       // Filter out dismissed notifications
       const activeNotifs = data.filter(n => !dismissedIds.has(n.id));
 
-      // Map read status based on cache (also keeping system tips/pwa installs read by default if not set otherwise)
+      // Map read status based on cache
       const mappedNotifs = activeNotifs.map(n => {
         const isRead = readIds.has(n.id) || n.status === 'read';
         return {
@@ -178,6 +197,20 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
 
     saveToCache(readKey, id);
 
+    // Sync to database users table
+    const { data: userData } = await supabase
+      .from('users')
+      .select('read_notifications')
+      .eq('id', userId)
+      .single();
+    const existing = userData?.read_notifications || [];
+    if (!existing.includes(id)) {
+      await supabase
+        .from('users')
+        .update({ read_notifications: [...existing, id] })
+        .eq('id', userId);
+    }
+
     set((state) => {
       const notifs = state.notifications.map(n => 
         n.id === id ? { ...n, status: 'read' as const } : n
@@ -202,6 +235,21 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
       }
     });
 
+    // Sync all unread IDs to database users table
+    const { data: userData } = await supabase
+      .from('users')
+      .select('read_notifications')
+      .eq('id', userId)
+      .single();
+    const existing = userData?.read_notifications || [];
+    const unreadIds = activeNotifications.filter(n => n.status === 'unread').map(n => n.id);
+    const updatedRead = Array.from(new Set([...existing, ...unreadIds]));
+    
+    await supabase
+      .from('users')
+      .update({ read_notifications: updatedRead })
+      .eq('id', userId);
+
     set((state) => ({
       notifications: state.notifications.map(n => ({ ...n, status: 'read' as const })),
       unreadCount: 0,
@@ -216,8 +264,53 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
 
     saveToCache(dismissedKey, id);
 
+    // Sync to database users table
+    const { data: userData } = await supabase
+      .from('users')
+      .select('dismissed_notifications')
+      .eq('id', userId)
+      .single();
+    const existing = userData?.dismissed_notifications || [];
+    if (!existing.includes(id)) {
+      await supabase
+        .from('users')
+        .update({ dismissed_notifications: [...existing, id] })
+        .eq('id', userId);
+    }
+
     set((state) => {
       const filtered = state.notifications.filter(n => n.id !== id);
+      return {
+        notifications: filtered,
+        unreadCount: filtered.filter(n => n.status === 'unread').length,
+      };
+    });
+  },
+
+  dismissAll: async (ids) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    const userId = session.user.id;
+    const dismissedKey = `user_${userId}_dismissed_ids`;
+
+    ids.forEach(id => saveToCache(dismissedKey, id));
+
+    // Sync visible IDs dismissal to database users table
+    const { data: userData } = await supabase
+      .from('users')
+      .select('dismissed_notifications')
+      .eq('id', userId)
+      .single();
+    const existing = userData?.dismissed_notifications || [];
+    const updatedDismissed = Array.from(new Set([...existing, ...ids]));
+    
+    await supabase
+      .from('users')
+      .update({ dismissed_notifications: updatedDismissed })
+      .eq('id', userId);
+
+    set((state) => {
+      const filtered = state.notifications.filter(n => !ids.includes(n.id));
       return {
         notifications: filtered,
         unreadCount: filtered.filter(n => n.status === 'unread').length,

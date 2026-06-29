@@ -2,17 +2,25 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Heart, MessageSquare, UserPlus, Zap, Info, ArrowLeft, Trash2, CheckCircle2, Swords } from "lucide-react";
+import { Heart, MessageSquare, UserPlus, Zap, Info, ArrowLeft, Trash2, CheckCircle2, Swords, Settings } from "lucide-react";
 import Link from "next/link";
 import { useNotificationStore } from "@/store/useNotificationStore";
 import { toast } from "@/components/ui/Toast";
 
 export default function NotificationsPage() {
-  const { notifications, fetchNotifications, markAsRead, dismissNotification } = useNotificationStore();
+  const { 
+    notifications, 
+    fetchNotifications, 
+    markAsRead, 
+    dismissNotification, 
+    markAllAsRead, 
+    dismissAll 
+  } = useNotificationStore();
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"system" | "community">("system");
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [isPWA, setIsPWA] = useState(true);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
     async function init() {
@@ -105,6 +113,27 @@ export default function NotificationsPage() {
     }
   };
 
+  const handleMarkAllRead = async () => {
+    try {
+      await markAllAsRead();
+      toast.success("All notifications marked as read");
+    } catch (e) {
+      toast.error("Failed to mark read");
+    }
+  };
+
+  const handleClearAll = async () => {
+    try {
+      const ids = displayNotifications.map(n => n.id);
+      if (ids.length > 0) {
+        await dismissAll(ids);
+        toast.success("Notifications cleared");
+      }
+    } catch (e) {
+      toast.error("Failed to clear notifications");
+    }
+  };
+
   const filteredNotifications = notifications.filter(n => {
     if (activeTab === "community") {
       return ["friend_request", "duel_challenge"].includes(n.type);
@@ -133,22 +162,24 @@ export default function NotificationsPage() {
       {/* Header */}
       <header className="sticky top-0 z-40 bg-black/80 backdrop-blur-xl border-b border-white/10 pt-[env(safe-area-inset-top,20px)]">
         <div className="flex items-center justify-between px-6 py-4 max-w-2xl mx-auto">
-          <Link href="/" className="p-2 -ml-2 rounded-full hover:bg-white/10 transition-colors">
+          <Link href="/" className="p-2 -ml-2 rounded-full hover:bg-white/10 transition-colors" aria-label="Back">
             <ArrowLeft className="w-6 h-6" />
           </Link>
           <h1 className="text-xl font-bold tracking-tight">Notifications</h1>
-          <div className="w-10"></div> {/* Spacer for center alignment */}
+          <Link href="/profile/settings" className="p-2 -mr-2 rounded-full hover:bg-white/10 transition-colors" aria-label="Settings">
+            <Settings className="w-6 h-6 text-white" />
+          </Link>
         </div>
         <div className="flex px-6 gap-6 max-w-2xl mx-auto">
           <button 
-            onClick={() => setActiveTab('system')}
+            onClick={() => { setActiveTab('system'); setExpandedId(null); }}
             className={`pb-3 text-sm font-semibold border-b-2 transition-colors relative ${activeTab === 'system' ? 'border-accent-green text-white' : 'border-transparent text-text-muted hover:text-white/80'}`}
           >
             System
             {hasUnreadSystem && <span className="absolute top-1 -right-3 w-2 h-2 rounded-full bg-accent-green shadow-[0_0_8px_rgba(74,222,128,0.8)] animate-pulse" />}
           </button>
           <button 
-            onClick={() => setActiveTab('community')}
+            onClick={() => { setActiveTab('community'); setExpandedId(null); }}
             className={`pb-3 text-sm font-semibold border-b-2 transition-colors relative ${activeTab === 'community' ? 'border-accent-green text-white' : 'border-transparent text-text-muted hover:text-white/80'}`}
           >
             Community
@@ -157,145 +188,215 @@ export default function NotificationsPage() {
         </div>
       </header>
 
+      {/* Bulk Action Controls */}
+      {!isLoading && displayNotifications.length > 0 && (
+        <div className="bg-zinc-950/40 border-b border-white/5 py-3 px-6">
+          <div className="max-w-2xl mx-auto flex items-center justify-between text-xs text-text-muted">
+            <span className="font-bold tracking-wide">{displayNotifications.length} Alert{displayNotifications.length === 1 ? '' : 's'}</span>
+            <div className="flex gap-4">
+              {displayNotifications.some(n => n.status === 'unread') && (
+                <button 
+                  onClick={handleMarkAllRead}
+                  className="hover:text-accent-green transition-colors font-black uppercase tracking-wider text-[10px]"
+                >
+                  Mark all read
+                </button>
+              )}
+              <button 
+                onClick={handleClearAll}
+                className="hover:text-red-400 transition-colors font-black uppercase tracking-wider text-[10px] text-red-500/80"
+              >
+                Clear all
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Content */}
       <main className="max-w-2xl mx-auto px-4 pt-6">
         {isLoading ? (
           <div className="flex justify-center items-center h-40">
             <div className="w-8 h-8 border-2 border-accent-green border-t-transparent rounded-full animate-spin"></div>
           </div>
-        ) : notifications.length === 0 ? (
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col items-center justify-center h-64 text-center"
-          >
-            <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mb-4">
-              <CheckCircle2 className="w-10 h-10 text-white/20" />
-            </div>
-            <h2 className="text-xl font-semibold mb-2">All caught up!</h2>
-            <p className="text-text-muted">You don't have any new notifications right now.</p>
-          </motion.div>
         ) : displayNotifications.length === 0 ? (
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col items-center justify-center h-64 text-center"
+            className="flex flex-col items-center justify-center h-72 text-center"
           >
-            <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mb-4">
-              <CheckCircle2 className="w-10 h-10 text-white/20" />
+            <div className="w-20 h-20 rounded-full bg-accent-green/10 border border-accent-green/20 flex items-center justify-center mb-6 shadow-[0_0_20px_rgba(74,222,128,0.1)]">
+              <CheckCircle2 className="w-10 h-10 text-accent-green" />
             </div>
-            <h2 className="text-xl font-semibold mb-2">All caught up!</h2>
-            <p className="text-text-muted">No {activeTab} notifications right now.</p>
+            <h2 className="text-xl font-black tracking-tight text-white mb-2">All caught up, Athlete!</h2>
+            <p className="text-sm text-text-muted max-w-xs">No pending alerts. Keep pushing forward and stay consistent!</p>
           </motion.div>
         ) : (
           <div className="flex flex-col gap-3">
             <AnimatePresence mode="popLayout">
-              {displayNotifications.map((notif) => (
-                <motion.div
-                  key={notif.id}
-                  layout
-                  initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.9, x: -100 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                  className="relative group"
-                >
-                  {/* Background Action (Swipe to delete) */}
-                  <div className="absolute inset-0 bg-red-500/20 rounded-2xl flex items-center justify-end px-6 border border-red-500/30">
-                    <Trash2 className="w-6 h-6 text-red-500" />
-                  </div>
+              {displayNotifications.map((notif) => {
+                const isExpanded = expandedId === notif.id;
+                const isUnread = notif.status === 'unread';
 
-                  {/* Foreground Card */}
+                return (
                   <motion.div
-                    drag="x"
-                    dragConstraints={{ left: -100, right: 0 }}
-                    dragElastic={0.2}
-                    onDragEnd={(e, info) => {
-                      if (info.offset.x < -80) {
-                        dismissNotification(notif.id);
-                      }
-                    }}
-                    onClick={() => notif.status === 'unread' && markAsRead(notif.id)}
-                    className={`relative w-full p-4 rounded-2xl border transition-colors ${
-                      notif.type === 'pwa_install'
-                        ? 'bg-[#081225] border-blue-500/30 shadow-[0_0_20px_rgba(59,130,246,0.15)]'
-                        : notif.type === 'system_tip'
-                        ? 'bg-[#111111] border-white/5'
-                        : notif.status === 'read'
-                        ? 'bg-[#0a0a0a] border-white/5' 
-                        : 'bg-[#1a1a1a] border-white/15'
-                    }`}
+                    key={notif.id}
+                    layout
+                    initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.9, x: -100 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                    className="relative group"
                   >
-                    <div className="flex gap-4 items-start">
-                      {/* Icon/Avatar */}
-                      <div className="relative shrink-0">
-                        {notif.avatar_url ? (
-                          <img src={notif.avatar_url} alt="avatar" className="w-12 h-12 rounded-full object-cover border border-white/20" />
-                        ) : (
-                          <div className={`w-12 h-12 rounded-full flex items-center justify-center border ${getBgColor(notif.type)}`}>
-                            {getIcon(notif.type)}
-                          </div>
-                        )}
-                        {/* Status dot for unread */}
-                        {notif.status === 'unread' && (
-                          <div className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-accent-green shadow-[0_0_10px_rgba(74,222,128,0.8)] border-2 border-black" />
-                        )}
-                      </div>
-
-                      {/* Content */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex justify-between items-start gap-2 mb-1">
-                          <h3 className={`text-sm font-semibold truncate ${notif.status === 'read' ? 'text-white/80' : 'text-white'}`}>
-                            {notif.title}
-                          </h3>
-                          <span className="text-xs text-text-muted whitespace-nowrap mt-0.5">
-                            {formatTime(notif.createdAt)}
-                          </span>
-                        </div>
-                        <p className={`text-sm line-clamp-2 ${notif.status === 'read' ? 'text-text-muted/80' : 'text-text-muted'}`}>
-                          {notif.message}
-                        </p>
-                        {notif.type === 'friend_request' && (
-                          <div className="flex gap-2 mt-3">
-                            <button
-                              onClick={(e) => { e.stopPropagation(); handleFriendRequest(notif.id, 'accepted'); }}
-                              disabled={processingId === notif.id}
-                              className="px-4 py-1.5 bg-accent-green text-black text-sm font-bold rounded-lg active:scale-95 transition-transform disabled:opacity-50"
-                            >
-                              Accept
-                            </button>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); handleFriendRequest(notif.id, 'rejected'); }}
-                              disabled={processingId === notif.id}
-                              className="px-4 py-1.5 bg-white/10 text-white text-sm font-bold rounded-lg active:scale-95 transition-transform disabled:opacity-50"
-                            >
-                              Decline
-                            </button>
-                          </div>
-                        )}
-                        {notif.type === 'duel_challenge' && (
-                          <div className="flex gap-2 mt-3">
-                            <button
-                              onClick={(e) => { e.stopPropagation(); handleDuelChallenge(notif.id, 'active'); }}
-                              disabled={processingId === notif.id}
-                              className="px-4 py-1.5 bg-accent-red text-white text-sm font-bold rounded-lg active:scale-95 transition-transform disabled:opacity-50"
-                            >
-                              Accept
-                            </button>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); handleDuelChallenge(notif.id, 'declined'); }}
-                              disabled={processingId === notif.id}
-                              className="px-4 py-1.5 bg-white/10 text-white text-sm font-bold rounded-lg active:scale-95 transition-transform disabled:opacity-50"
-                            >
-                              Decline
-                            </button>
-                          </div>
-                        )}
-                      </div>
+                    {/* Background Swipe Red Delete Strip */}
+                    <div className="absolute inset-0 bg-red-500/20 rounded-2xl flex items-center justify-end px-6 border border-red-500/30">
+                      <Trash2 className="w-6 h-6 text-red-500" />
                     </div>
+
+                    {/* Foreground Card */}
+                    <motion.div
+                      drag="x"
+                      dragConstraints={{ left: -100, right: 0 }}
+                      dragElastic={0.2}
+                      onDragEnd={(e, info) => {
+                        if (info.offset.x < -80) {
+                          dismissNotification(notif.id);
+                        }
+                      }}
+                      onClick={() => {
+                        if (isUnread) {
+                          markAsRead(notif.id);
+                        }
+                        setExpandedId(prev => prev === notif.id ? null : notif.id);
+                      }}
+                      className={`relative w-full p-4 rounded-2xl border transition-all cursor-pointer select-none ${
+                        notif.type === 'pwa_install'
+                          ? 'bg-[#081225] border-blue-500/30 shadow-[0_0_20px_rgba(59,130,246,0.15)]'
+                          : notif.type === 'system_tip'
+                          ? 'bg-[#111111] border-white/5 hover:border-white/10'
+                          : isUnread
+                          ? 'bg-gradient-to-r from-emerald-500/5 to-transparent border-l-2 border-l-accent-green border-y-white/10 border-r-white/10 shadow-[0_0_15px_rgba(16,185,129,0.02)]'
+                          : 'bg-[#0a0a0a] border-white/5 hover:border-white/10'
+                      }`}
+                    >
+                      <div className="flex gap-4 items-start">
+                        {/* Icon/Avatar */}
+                        <div className="relative shrink-0">
+                          {notif.avatar_url ? (
+                            <img src={notif.avatar_url} alt="avatar" className="w-12 h-12 rounded-full object-cover border border-white/20" />
+                          ) : (
+                            <div className={`w-12 h-12 rounded-full flex items-center justify-center border ${getBgColor(notif.type)}`}>
+                              {getIcon(notif.type)}
+                            </div>
+                          )}
+                          {/* Unread indicator dot */}
+                          {isUnread && (
+                            <div className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-accent-green shadow-[0_0_10px_rgba(74,222,128,0.8)] border-2 border-black" />
+                          )}
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex justify-between items-start gap-2 mb-1">
+                            <h3 className={`text-sm font-semibold truncate ${notif.status === 'read' ? 'text-white/80' : 'text-white'}`}>
+                              {notif.title}
+                            </h3>
+                            <span className="text-xs text-text-muted whitespace-nowrap mt-0.5">
+                              {formatTime(notif.createdAt)}
+                            </span>
+                          </div>
+                          
+                          <p className={`text-sm transition-all ${isExpanded ? '' : 'line-clamp-2'} ${notif.status === 'read' ? 'text-text-muted/80' : 'text-text-muted'}`}>
+                            {notif.message}
+                          </p>
+
+                          {/* Expandable CTA Drawer */}
+                          <AnimatePresence>
+                            {isExpanded && (
+                              <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                exit={{ opacity: 0, height: 0 }}
+                                transition={{ duration: 0.2 }}
+                                className="mt-4 pt-4 border-t border-white/5 flex flex-col gap-2"
+                                onClick={(e) => e.stopPropagation()} // Prevent collapse on button click
+                              >
+                                {/* Contextual Call-to-Actions */}
+                                {(notif.id.startsWith('workout_reminder_') || notif.type === 'system_alert') && (
+                                  <Link 
+                                    href="/workout"
+                                    className="w-full bg-accent-green text-black font-black uppercase text-center py-2.5 rounded-xl hover:bg-accent-green/90 transition-all text-[11px] tracking-wider shadow-[0_0_15px_rgba(74,222,128,0.25)] flex items-center justify-center gap-1.5"
+                                  >
+                                    Start Workout Now 🏋️‍♂️
+                                  </Link>
+                                )}
+
+                                {(notif.type === 'duel_challenge' || notif.type === 'friend_request') && (
+                                  <Link 
+                                    href="/social"
+                                    className="w-full bg-zinc-800 text-white hover:bg-zinc-700 font-bold uppercase text-center py-2.5 rounded-xl transition-all text-[11px] tracking-wider border border-white/10 flex items-center justify-center gap-1.5"
+                                  >
+                                    View Social Arena ⚔️
+                                  </Link>
+                                )}
+
+                                {notif.type === 'system_tip' && (
+                                  <Link 
+                                    href={notif.title.toLowerCase().includes('social') ? "/social" : "/settings"}
+                                    className="w-full bg-zinc-800 text-white hover:bg-zinc-700 font-bold uppercase text-center py-2.5 rounded-xl transition-all text-[11px] tracking-wider border border-white/10 flex items-center justify-center gap-1.5"
+                                  >
+                                    Explore Feature 🚀
+                                  </Link>
+                                )}
+
+                                {/* Action buttons for Friend Request */}
+                                {notif.type === 'friend_request' && (
+                                  <div className="flex gap-2 mt-2">
+                                    <button
+                                      onClick={() => handleFriendRequest(notif.id, 'accepted')}
+                                      disabled={processingId === notif.id}
+                                      className="flex-1 py-2 bg-accent-green text-black text-xs font-black uppercase tracking-wider rounded-lg active:scale-95 transition-transform disabled:opacity-50"
+                                    >
+                                      Accept Request
+                                    </button>
+                                    <button
+                                      onClick={() => handleFriendRequest(notif.id, 'rejected')}
+                                      disabled={processingId === notif.id}
+                                      className="flex-1 py-2 bg-white/10 text-white text-xs font-black uppercase tracking-wider rounded-lg active:scale-95 transition-transform disabled:opacity-50"
+                                    >
+                                      Decline
+                                    </button>
+                                  </div>
+                                )}
+
+                                {/* Action buttons for Duel Challenge */}
+                                {notif.type === 'duel_challenge' && (
+                                  <div className="flex gap-2 mt-2">
+                                    <button
+                                      onClick={() => handleDuelChallenge(notif.id, 'active')}
+                                      disabled={processingId === notif.id}
+                                      className="flex-1 py-2 bg-accent-red text-white text-xs font-black uppercase tracking-wider rounded-lg active:scale-95 transition-transform disabled:opacity-50"
+                                    >
+                                      Accept Challenge
+                                    </button>
+                                    <button
+                                      onClick={() => handleDuelChallenge(notif.id, 'declined')}
+                                      disabled={processingId === notif.id}
+                                      className="flex-1 py-2 bg-white/10 text-white text-xs font-black uppercase tracking-wider rounded-lg active:scale-95 transition-transform disabled:opacity-50"
+                                    >
+                                      Decline
+                                    </button>
+                                  </div>
+                                )}
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      </div>
+                    </motion.div>
                   </motion.div>
-                </motion.div>
-              ))}
+                );
+              })}
             </AnimatePresence>
           </div>
         )}
@@ -303,4 +404,3 @@ export default function NotificationsPage() {
     </div>
   );
 }
-
