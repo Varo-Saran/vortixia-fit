@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Heart, MessageSquare, UserPlus, Zap, Info, ArrowLeft, Trash2, CheckCircle2, Swords, Settings, X, Dumbbell, Check } from "lucide-react";
+import { Heart, MessageSquare, UserPlus, Zap, Info, ArrowLeft, Trash2, CheckCircle2, Swords, Settings, X, Dumbbell, Check, Smartphone } from "lucide-react";
 import Link from "next/link";
 import { useNotificationStore } from "@/store/useNotificationStore";
 import { toast } from "@/components/ui/Toast";
@@ -322,6 +322,16 @@ export default function NotificationsPage() {
                                 onClick={(e) => e.stopPropagation()} // Prevent collapse on button click
                               >
                                 {/* Contextual Call-to-Actions */}
+                                {notif.type === 'pwa_install' && (
+                                  <Link 
+                                    href="/profile/about#pwa-guide"
+                                    className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold uppercase text-center py-2.5 rounded-xl transition-all text-[11px] tracking-wider flex items-center justify-center gap-2"
+                                  >
+                                    <Smartphone className="w-4 h-4 text-white" />
+                                    Open Setup Guide
+                                  </Link>
+                                )}
+
                                 {(notif.id.startsWith('workout_reminder_') || notif.type === 'system_alert') && (
                                   <Link 
                                     href="/workout"

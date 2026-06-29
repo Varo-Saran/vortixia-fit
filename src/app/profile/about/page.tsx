@@ -264,7 +264,99 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* 3. Help & FAQ Section */}
+      {/* 3. PWA Installation Guide */}
+      <section id="pwa-guide" className="w-full mb-8 animate-fade-in-up" style={{ animationDelay: '0.08s' }}>
+        <h3 className="text-xs font-bold text-text-muted uppercase tracking-widest mb-4 ml-2 flex items-center gap-1.5">
+          <Smartphone className="w-3.5 h-3.5 text-accent-green" /> PWA Installation Guide
+        </h3>
+
+        {isPWA ? (
+          <div className="bg-emerald-950/20 border border-accent-green/30 rounded-3xl p-5 text-center flex flex-col items-center gap-3 backdrop-blur-sm shadow-[0_0_20px_rgba(16,185,129,0.05)]">
+            <div className="w-12 h-12 rounded-full bg-accent-green/20 flex items-center justify-center border border-accent-green/30">
+              <ShieldCheck className="w-6 h-6 text-accent-green" />
+            </div>
+            <h4 className="text-sm font-black text-white">Vortixia Fit Installed!</h4>
+            <p className="text-xs text-text-muted leading-relaxed font-medium max-w-xs">
+              Vortixia Fit is running in standalone PWA mode. You have full access to native status blurs, offline cache syncing, and real-time push workout reminders.
+            </p>
+          </div>
+        ) : (
+          <div className="bg-[#0a0a0a] border border-white/5 rounded-3xl p-5 flex flex-col gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-accent-green/10 rounded-full flex items-center justify-center border border-white/5">
+                <Smartphone className="w-5 h-5 text-accent-green" />
+              </div>
+              <div>
+                <h4 className="text-sm font-black text-white">Install on {os === "Unknown" ? "your Device" : os}</h4>
+                <p className="text-[10px] text-text-muted font-bold uppercase tracking-wider mt-0.5">Quick Step-by-Step setup</p>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3 text-xs font-medium text-text-muted">
+              {os === "iOS" ? (
+                <>
+                  <div className="flex gap-3 items-start bg-black/30 border border-white/5 rounded-2xl p-3">
+                    <span className="w-5 h-5 rounded-full bg-accent-green/10 border border-accent-green/20 text-[10px] font-black text-accent-green flex items-center justify-center shrink-0">1</span>
+                    <p className="leading-relaxed">
+                      Tap the <span className="text-white font-bold">Share</span> button in Safari's bottom browser bar (a square box with an upward-pointing arrow).
+                    </p>
+                  </div>
+                  <div className="flex gap-3 items-start bg-black/30 border border-white/5 rounded-2xl p-3">
+                    <span className="w-5 h-5 rounded-full bg-accent-green/10 border border-accent-green/20 text-[10px] font-black text-accent-green flex items-center justify-center shrink-0">2</span>
+                    <p className="leading-relaxed">
+                      Scroll down the share options list and select <span className="text-white font-bold">"Add to Home Screen"</span>.
+                    </p>
+                  </div>
+                  <div className="flex gap-3 items-start bg-black/30 border border-white/5 rounded-2xl p-3">
+                    <span className="w-5 h-5 rounded-full bg-accent-green/10 border border-accent-green/20 text-[10px] font-black text-accent-green flex items-center justify-center shrink-0">3</span>
+                    <p className="leading-relaxed">
+                      Confirm the title and tap <span className="text-accent-green font-black">"Add"</span> in the top-right corner to pin Vortixia to your home screen.
+                    </p>
+                  </div>
+                </>
+              ) : os === "Android" ? (
+                <>
+                  <div className="flex gap-3 items-start bg-black/30 border border-white/5 rounded-2xl p-3">
+                    <span className="w-5 h-5 rounded-full bg-accent-green/10 border border-accent-green/20 text-[10px] font-black text-accent-green flex items-center justify-center shrink-0">1</span>
+                    <p className="leading-relaxed">
+                      Tap the browser <span className="text-white font-bold">menu button</span> (three vertical dots in the top-right corner).
+                    </p>
+                  </div>
+                  <div className="flex gap-3 items-start bg-black/30 border border-white/5 rounded-2xl p-3">
+                    <span className="w-5 h-5 rounded-full bg-accent-green/10 border border-accent-green/20 text-[10px] font-black text-accent-green flex items-center justify-center shrink-0">2</span>
+                    <p className="leading-relaxed">
+                      Select <span className="text-white font-bold">"Install app"</span> or <span className="text-white font-bold">"Add to Home screen"</span> from the list.
+                    </p>
+                  </div>
+                  <div className="flex gap-3 items-start bg-black/30 border border-white/5 rounded-2xl p-3">
+                    <span className="w-5 h-5 rounded-full bg-accent-green/10 border border-accent-green/20 text-[10px] font-black text-accent-green flex items-center justify-center shrink-0">3</span>
+                    <p className="leading-relaxed">
+                      Click <span className="text-accent-green font-black">"Install"</span> on the browser prompt to add it to your apps drawer.
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex gap-3 items-start bg-black/30 border border-white/5 rounded-2xl p-3">
+                    <span className="w-5 h-5 rounded-full bg-accent-green/10 border border-accent-green/20 text-[10px] font-black text-accent-green flex items-center justify-center shrink-0">1</span>
+                    <p className="leading-relaxed">
+                      Look at the browser URL address bar in Chrome, Edge, or Brave and click the <span className="text-white font-bold">Install Monitor icon</span> on the right.
+                    </p>
+                  </div>
+                  <div className="flex gap-3 items-start bg-black/30 border border-white/5 rounded-2xl p-3">
+                    <span className="w-5 h-5 rounded-full bg-accent-green/10 border border-accent-green/20 text-[10px] font-black text-accent-green flex items-center justify-center shrink-0">2</span>
+                    <p className="leading-relaxed">
+                      Click <span className="text-accent-green font-black">"Install"</span> on the browser confirmation bubble popup.
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* 4. Help & FAQ Section */}
       <section className="w-full mb-8 animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
         <h3 className="text-xs font-bold text-text-muted uppercase tracking-widest mb-4 ml-2 flex items-center gap-1.5">
           <HelpCircle className="w-3.5 h-3.5 text-accent-green" /> Help & Frequently Asked Questions
@@ -299,7 +391,7 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* 4. Support Contact Section */}
+      {/* 5. Support Contact Section */}
       <section className="w-full mb-6 animate-fade-in-up" style={{ animationDelay: '0.15s' }}>
         <h3 className="text-xs font-bold text-text-muted uppercase tracking-widest mb-4 ml-2">
           Support & Feedback
