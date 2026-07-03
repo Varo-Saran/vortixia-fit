@@ -1,80 +1,118 @@
 import { NextResponse } from 'next/server';
 import { createSupabaseServer } from '@/lib/supabase-server';
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
+function registrationFailureResponse() {
+  return NextResponse.json(
+    { error: 'subscription_registration_failed' },
+    { status: 500 },
+  );
+}
+
 export async function POST(req: Request) {
   try {
     const supabase = await createSupabaseServer();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user } } = await supabase.auth.getUser();
 
-    if (!session) {
-      console.warn("Unauthorized access attempt to POST /api/push/subscribe");
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const userId = session.user.id;
-    const body = await req.json();
+    const body: unknown = await req.json().catch(() => null);
 
-    const { endpoint, keys } = body;
-
-    if (!endpoint || !keys || !keys.p256dh || !keys.auth) {
+    if (!isRecord(body) || !isNonEmptyString(body.endpoint) || !isRecord(body.keys)) {
       return NextResponse.json({ error: 'Missing subscription parameters' }, { status: 400 });
     }
 
-    // Upsert subscription (endpoint is unique)
-    const { error } = await supabase
-      .from('push_subscriptions')
-      .upsert({
-        user_id: userId,
-        endpoint,
-        keys_p256dh: keys.p256dh,
-        keys_auth: keys.auth,
-      }, { onConflict: 'endpoint' });
+    const { p256dh, auth } = body.keys;
 
-    if (error) {
-      console.error('Failed to upsert push subscription in Supabase:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    if (!isNonEmptyString(p256dh) || !isNonEmptyString(auth)) {
+      return NextResponse.json({ error: 'Missing subscription parameters' }, { status: 400 });
+    }
+
+    const { data: ownedRows, error: updateError } = await supabase
+      .from('push_subscriptions')
+      .update({
+        keys_p256dh: p256dh,
+        keys_auth: auth,
+      })
+      .eq('user_id', user.id)
+      .eq('endpoint', body.endpoint)
+      .select('id');
+
+    if (updateError) {
+      console.error('Push subscription refresh failed');
+      return registrationFailureResponse();
+    }
+
+    if (ownedRows && ownedRows.length > 0) {
+      return NextResponse.json({ success: true });
+    }
+
+    const { error: insertError } = await supabase
+      .from('push_subscriptions')
+      .insert({
+        user_id: user.id,
+        endpoint: body.endpoint,
+        keys_p256dh: p256dh,
+        keys_auth: auth,
+      });
+
+    if (insertError?.code === '23505') {
+      return NextResponse.json(
+        { error: 'subscription_conflict', retryable: true },
+        { status: 409 },
+      );
+    }
+
+    if (insertError) {
+      console.error('Push subscription registration failed');
+      return registrationFailureResponse();
     }
 
     return NextResponse.json({ success: true });
-  } catch (err: any) {
-    console.error('Error in push subscription registration:', err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch {
+    console.error('Push subscription registration failed');
+    return registrationFailureResponse();
   }
 }
 
 export async function DELETE(req: Request) {
   try {
     const supabase = await createSupabaseServer();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user } } = await supabase.auth.getUser();
 
-    if (!session) {
-      console.warn("Unauthorized access attempt to DELETE /api/push/subscribe");
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const userId = session.user.id;
-    const body = await req.json();
-    const { endpoint } = body;
+    const body: unknown = await req.json().catch(() => null);
 
-    if (!endpoint) {
+    if (!isRecord(body) || !isNonEmptyString(body.endpoint)) {
       return NextResponse.json({ error: 'Missing endpoint parameter' }, { status: 400 });
     }
 
-    // Delete the subscription linked to this user
     const { error } = await supabase
       .from('push_subscriptions')
       .delete()
-      .eq('user_id', userId)
-      .eq('endpoint', endpoint);
+      .eq('user_id', user.id)
+      .eq('endpoint', body.endpoint);
 
     if (error) {
-      console.error('Failed to delete push subscription:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error('Push subscription removal failed');
+      return NextResponse.json({ error: 'subscription_removal_failed' }, { status: 500 });
     }
 
     return NextResponse.json({ success: true });
-  } catch (err: any) {
-    console.error('Error deleting push subscription:', err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch {
+    console.error('Push subscription removal failed');
+    return NextResponse.json({ error: 'subscription_removal_failed' }, { status: 500 });
   }
 }
