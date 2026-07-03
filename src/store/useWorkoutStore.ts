@@ -1,8 +1,31 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { PlannedExercise, TrackingType, WeightUnit } from './useRoutineStore';
+import {
+  type PlannedExercise,
+  type TrackingType,
+  type WeightUnit,
+} from './useRoutineStore';
 import { useTrophyStore } from './useTrophyStore';
-import { supabase } from '@/lib/supabase';
+import { type MuscleGroup, useRecoveryStore } from './useRecoveryStore';
+import { useSocialStore } from './useSocialStore';
+import { useProfileStore } from './useProfileStore';
+import {
+  createWorkoutCompletionRequest,
+  createWorkoutOperationId,
+  enqueueWorkoutCompletion,
+  submitWorkoutCompletion,
+} from '@/lib/workout-completion-client';
+import type {
+  WorkoutCompletionRequest,
+  WorkoutCompletionResult,
+  WorkoutCompletionSet,
+} from '@/lib/workout-authority';
+
+const MAX_HANDLED_EFFECT_OPERATIONS = 100;
+const completionFlights = new Map<
+  string,
+  Promise<WorkoutCompletionUiOutcome>
+>();
 
 export interface WorkoutSet {
   id: string;
@@ -21,6 +44,47 @@ export interface WorkoutExercise {
   weightUnit?: WeightUnit;
 }
 
+export interface WorkoutSummary {
+  operationId: string;
+  sessionId?: string;
+  totalSets: number;
+  totalVolume: number;
+  durationMins: number;
+  xpEarned: number;
+  totalXp?: number;
+  authoritative: boolean;
+  replayed?: boolean;
+  syncStatus: 'committed' | 'queued';
+}
+
+export type WorkoutCompletionStatus =
+  | 'idle'
+  | 'saving'
+  | 'queued'
+  | 'committed'
+  | 'terminal-error';
+
+export type WorkoutCompletionError =
+  | 'validation'
+  | 'conflict'
+  | 'storage'
+  | null;
+
+export type WorkoutCompletionUiOutcome =
+  | {
+      kind: 'committed';
+      summary: WorkoutSummary;
+      result: WorkoutCompletionResult;
+    }
+  | {
+      kind: 'queued';
+      summary: WorkoutSummary;
+    }
+  | {
+      kind: 'terminal';
+      reason: Exclude<WorkoutCompletionError, null>;
+    };
+
 interface WorkoutStore {
   isActive: boolean;
   startTime: string | null;
@@ -29,12 +93,31 @@ interface WorkoutStore {
   restTimeRemaining: number;
   isResting: boolean;
   isSaving: boolean;
-  lastWorkoutSummary: { totalSets: number; totalVolume: number; durationMins: number; xpEarned: number } | null;
-  
+  operationId: string | null;
+  completionRequest: WorkoutCompletionRequest | null;
+  completionStatus: WorkoutCompletionStatus;
+  completionError: WorkoutCompletionError;
+  handledEffectOperationIds: string[];
+  lastWorkoutSummary: WorkoutSummary | null;
+
   startWorkout: (routineName: string, plannedExercises: PlannedExercise[]) => void;
   finishWorkout: () => void;
-  saveWorkoutToDb: () => Promise<void>;
-  updateSet: (exerciseId: string, setId: string, weight: number | '', reps: number | '') => void;
+  completeWorkout: () => Promise<WorkoutCompletionUiOutcome>;
+  applyCompletionResult: (
+    request: WorkoutCompletionRequest,
+    result: WorkoutCompletionResult,
+  ) => void;
+  applyLocalEffectsOnce: (
+    request: WorkoutCompletionRequest,
+    summary: WorkoutSummary,
+  ) => boolean;
+  markLocalEffectsHandled: (operationId: string) => void;
+  updateSet: (
+    exerciseId: string,
+    setId: string,
+    weight: number | '',
+    reps: number | '',
+  ) => void;
   toggleSetComplete: (exerciseId: string, setId: string) => void;
   startRest: (seconds?: number) => void;
   stopRest: () => void;
@@ -42,345 +125,457 @@ interface WorkoutStore {
   addRestTime: (seconds: number) => void;
   addSet: (exerciseId: string) => void;
   addExerciseToWorkout: (exerciseName: string) => void;
-  changeExerciseTracking: (exerciseId: string, trackingType: TrackingType, weightUnit: WeightUnit) => void;
+  changeExerciseTracking: (
+    exerciseId: string,
+    trackingType: TrackingType,
+    weightUnit: WeightUnit,
+  ) => void;
   resetWorkout: () => void;
+}
+
+function completedSetsFromExercises(
+  exercises: WorkoutExercise[],
+): WorkoutCompletionSet[] {
+  return exercises.flatMap((exercise) =>
+    exercise.sets.flatMap((workoutSet, index) => {
+      if (!workoutSet.isCompleted) return [];
+      return [{
+        exerciseName: exercise.name,
+        setNumber: index + 1,
+        weight: typeof workoutSet.weight === 'number' ? workoutSet.weight : 0,
+        reps: typeof workoutSet.reps === 'number' ? workoutSet.reps : 0,
+        trackingType: exercise.trackingType ?? 'reps_weight',
+        weightUnit: exercise.weightUnit ?? 'kg',
+        isWarmup: false,
+      }];
+    }),
+  );
+}
+
+function provisionalSummary(
+  request: WorkoutCompletionRequest,
+): WorkoutSummary {
+  const totalVolume = request.sets.reduce(
+    (total, workoutSet) => total + workoutSet.weight * workoutSet.reps,
+    0,
+  );
+  const durationMins = Math.round(
+    (Date.parse(request.endTime) - Date.parse(request.startTime)) / 60_000,
+  );
+  return {
+    operationId: request.operationId,
+    totalSets: request.sets.length,
+    totalVolume,
+    durationMins,
+    xpEarned: Math.round(request.sets.length * 50 + totalVolume * 0.1),
+    authoritative: false,
+    syncStatus: 'queued',
+  };
+}
+
+function authoritativeSummary(
+  result: WorkoutCompletionResult,
+): WorkoutSummary {
+  return {
+    operationId: result.operationId,
+    sessionId: result.sessionId,
+    totalSets: result.totalSets,
+    totalVolume: result.totalVolume,
+    durationMins: result.durationMinutes,
+    xpEarned: result.xpAwarded,
+    totalXp: result.totalXp,
+    authoritative: true,
+    replayed: result.replayed,
+    syncStatus: 'committed',
+  };
+}
+
+function muscleForExercise(exerciseName: string): MuscleGroup {
+  const name = exerciseName.toLowerCase();
+  if (name.includes('bench') || name.includes('push') || name.includes('chest') || name.includes('fly')) return 'chest';
+  if (name.includes('row') || name.includes('pull') || name.includes('deadlift') || name.includes('lat')) return 'back';
+  if (name.includes('squat') || name.includes('leg') || name.includes('calf') || name.includes('lunge')) return 'legs';
+  if (name.includes('curl') || name.includes('tricep') || name.includes('extension')) return 'arms';
+  if ((name.includes('press') && name.includes('overhead')) || name.includes('raise') || name.includes('shoulder')) return 'shoulders';
+  return 'core';
 }
 
 export const useWorkoutStore = create<WorkoutStore>()(
   persist(
-    (set, get) => ({
-      isActive: false,
-      startTime: null,
-  routineName: "",
-  exercises: [],
-  restTimeRemaining: 0,
-  isResting: false,
-  isSaving: false,
-  lastWorkoutSummary: null,
-
-  startWorkout: (routineName, plannedExercises) => {
-    const activeExercises: WorkoutExercise[] = plannedExercises.map(ex => {
-      const sets: WorkoutSet[] = Array.from({ length: ex.targetSets }).map((_, i) => ({
-        id: `${ex.id}-set-${i}`,
-        weight: '',
-        reps: '',
-        isCompleted: false,
-        previousWeight: 135 + Math.floor(Math.random() * 4) * 10,
-        previousReps: 10
-      }));
-      return {
-        id: ex.id,
-        name: ex.name,
-        sets,
-        trackingType: ex.trackingType,
-        weightUnit: ex.weightUnit
+    (set, get) => {
+      const markLocalEffectsHandled = (operationId: string) => {
+        const handled = get().handledEffectOperationIds;
+        if (handled.includes(operationId)) return;
+        set({
+          handledEffectOperationIds: [...handled, operationId]
+            .slice(-MAX_HANDLED_EFFECT_OPERATIONS),
+        });
       };
-    });
 
-    set({
-      isActive: true,
-      startTime: new Date().toISOString(),
-      routineName,
-      exercises: activeExercises,
-      restTimeRemaining: 0,
-      isResting: false,
-      lastWorkoutSummary: null,
-    });
-  },
+      const applyLocalEffectsOnce = (
+        request: WorkoutCompletionRequest,
+        summary: WorkoutSummary,
+      ): boolean => {
+        if (get().handledEffectOperationIds.includes(request.operationId)) {
+          return false;
+        }
 
-  finishWorkout: () => {
-    // Stop the workout but keep exercises for summary display
-    set({ isActive: false, isResting: false, restTimeRemaining: 0 });
-  },
+        // Mark first. These are local presentation effects, so at-most-once is
+        // safer than duplicating fatigue or duel progress after a reload.
+        markLocalEffectsHandled(request.operationId);
 
-  saveWorkoutToDb: async () => {
-    const { exercises, startTime, routineName } = get();
-    set({ isSaving: true });
+        useSocialStore.getState().updateDuelProgress(
+          summary.totalVolume,
+          summary.xpEarned,
+        );
 
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        set({ isSaving: false });
-        return;
-      }
-
-      const userId = session.user.id;
-      const endTime = new Date();
-      const durationMins = startTime ? Math.round((endTime.getTime() - new Date(startTime).getTime()) / 60000) : 0;
-
-      // Calculate totals
-      const completedSets = exercises.flatMap(ex =>
-        ex.sets.filter(s => s.isCompleted).map(s => ({
-          exerciseName: ex.name,
-          setNumber: ex.sets.indexOf(s) + 1,
-          weight: typeof s.weight === 'number' ? s.weight : 0,
-          reps: typeof s.reps === 'number' ? s.reps : 0,
-          trackingType: ex.trackingType,
-          weightUnit: ex.weightUnit,
-        }))
-      );
-
-      const totalSets = completedSets.length;
-      const totalVolume = completedSets.reduce((sum, s) => sum + (s.weight * s.reps), 0);
-      const xpEarned = Math.round(totalSets * 50 + totalVolume * 0.1);
-
-      if (!navigator.onLine) {
-        const payload = {
-          startTime: startTime || undefined,
-          endTime: endTime.toISOString(),
-          totalVolume,
-          xpEarned,
-          durationMins,
-          completedSets,
-          routineName: routineName || undefined,
-        };
-        const unsynced = JSON.parse(localStorage.getItem('unsynced_workouts') || '[]');
-        unsynced.push(payload);
-        localStorage.setItem('unsynced_workouts', JSON.stringify(unsynced));
-        
-        useTrophyStore.getState().checkAchievements({
-          totalVolume,
-          durationMins,
+        const fatigueByMuscle = new Map<MuscleGroup, number>();
+        request.sets.forEach((workoutSet) => {
+          const muscle = muscleForExercise(workoutSet.exerciseName);
+          fatigueByMuscle.set(muscle, (fatigueByMuscle.get(muscle) ?? 0) + 5);
+        });
+        fatigueByMuscle.forEach((fatigue, muscle) => {
+          useRecoveryStore.getState().applyFatigue(muscle, fatigue);
         });
 
+        useTrophyStore.getState().checkAchievements({
+          isFirstWorkout: true,
+          totalVolume: summary.totalVolume,
+          durationMins: summary.durationMins,
+          isAiGenerated:
+            request.routineName.startsWith('AI')
+            || request.routineName.includes('AI'),
+        });
+        return true;
+      };
+
+      const applyCompletionResult = (
+        request: WorkoutCompletionRequest,
+        result: WorkoutCompletionResult,
+      ) => {
+        const summary = authoritativeSummary(result);
+        const state = get();
+        if (
+          state.operationId === request.operationId
+          || state.lastWorkoutSummary?.operationId === request.operationId
+        ) {
+          set({
+            completionStatus: 'committed',
+            completionError: null,
+            lastWorkoutSummary: summary,
+          });
+        }
+        applyLocalEffectsOnce(request, summary);
+        void useProfileStore.getState().fetchProfile();
+      };
+
+      const queueCompletion = (
+        request: WorkoutCompletionRequest,
+      ): WorkoutCompletionUiOutcome => {
+        try {
+          enqueueWorkoutCompletion(request);
+          const summary = provisionalSummary(request);
+          set({
+            isSaving: false,
+            completionStatus: 'queued',
+            completionError: null,
+            lastWorkoutSummary: summary,
+          });
+          applyLocalEffectsOnce(request, summary);
+          return { kind: 'queued', summary };
+        } catch {
+          set({
+            isSaving: false,
+            completionStatus: 'terminal-error',
+            completionError: 'storage',
+          });
+          return { kind: 'terminal', reason: 'storage' };
+        }
+      };
+
+      const performCompletion = async (
+        request: WorkoutCompletionRequest,
+      ): Promise<WorkoutCompletionUiOutcome> => {
+        if (!navigator.onLine) return queueCompletion(request);
+
+        const outcome = await submitWorkoutCompletion(request);
+        if (outcome.kind === 'committed') {
+          const summary = authoritativeSummary(outcome.result);
+          set({
+            isSaving: false,
+            completionStatus: 'committed',
+            completionError: null,
+            lastWorkoutSummary: summary,
+          });
+          applyLocalEffectsOnce(request, summary);
+          void useProfileStore.getState().fetchProfile();
+          return { kind: 'committed', summary, result: outcome.result };
+        }
+
+        if (outcome.kind === 'retryable') return queueCompletion(request);
+
+        const reason = outcome.reason === 'conflict' ? 'conflict' : 'validation';
         set({
           isSaving: false,
-          lastWorkoutSummary: { totalSets, totalVolume, durationMins, xpEarned },
+          completionStatus: 'terminal-error',
+          completionError: reason,
         });
-        return;
-      }
+        return { kind: 'terminal', reason };
+      };
 
-      // 1. Insert workout_sessions row
-      const { data: sessionRow, error: sessionErr } = await supabase
-        .from('workout_sessions')
-        .insert({
-          user_id: userId,
-          start_time: startTime || null,
-          end_time: endTime.toISOString(),
-          total_volume_kg: totalVolume,
-          prs_broken: 0,
-        })
-        .select('id')
-        .single();
-
-      if (sessionErr || !sessionRow) {
-        console.error('Failed to save workout session:', sessionErr);
-        set({ isSaving: false });
-        return;
-      }
-
-      // 2. Batch insert workout_sets
-      if (completedSets.length > 0) {
-        const setsToInsert = completedSets.map(s => ({
-          session_id: sessionRow.id,
-          exercise_name: s.exerciseName,
-          set_number: s.setNumber,
-          weight: s.weight,
-          reps: s.reps,
-          weight_unit: s.weightUnit || 'kg',
-          tracking_type: s.trackingType || 'reps_weight',
-        }));
-
-        const { error: setsErr } = await supabase
-          .from('workout_sets')
-          .insert(setsToInsert);
-
-        if (setsErr) {
-          console.error('Failed to save workout sets:', setsErr);
-        }
-      }
-
-      // 3. Update user XP atomically via RPC
-      await supabase.rpc('increment_user_xp', { user_id: userId, xp_to_add: xpEarned });
-
-      // Update active duels in Supabase
-      try {
-        const { data: duels } = await supabase
-          .from('duels')
-          .select('id, challenger_id, opponent_id, user_1_score, user_2_score')
-          .or(`challenger_id.eq.${userId},opponent_id.eq.${userId}`)
-          .eq('status', 'active');
-
-        if (duels && duels.length > 0) {
-          for (const duel of duels) {
-            const isChallenger = duel.challenger_id === userId;
-            if (isChallenger) {
-              await supabase
-                .from('duels')
-                .update({ user_1_score: (duel.user_1_score || 0) + xpEarned })
-                .eq('id', duel.id);
-            } else {
-              await supabase
-                .from('duels')
-                .update({ user_2_score: (duel.user_2_score || 0) + xpEarned })
-                .eq('id', duel.id);
-            }
-          }
-        }
-      } catch (duelErr) {
-        console.error('Failed to update active duels:', duelErr);
-      }
-
-      // 4. Check trophy achievements
-      useTrophyStore.getState().checkAchievements({
-        totalVolume,
-        durationMins,
-      });
-
-      // Trigger workout completion push notification to friends
-      try {
-        await fetch('/api/push/workout-complete', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            routineName: routineName || 'Workout',
-            xpEarned
-          })
-        });
-      } catch (pushErr) {
-        console.error('Failed to trigger workout completion push:', pushErr);
-      }
-
-      // 5. Store summary for UI
-      set({
-        isSaving: false,
-        lastWorkoutSummary: { totalSets, totalVolume, durationMins, xpEarned },
-      });
-
-    } catch (err) {
-      console.error('Error saving workout:', err);
-      set({ isSaving: false });
-    }
-  },
-
-  resetWorkout: () => {
-    set({
-      isActive: false,
-      startTime: null,
-      routineName: "",
-      exercises: [],
-      restTimeRemaining: 0,
-      isResting: false,
-      isSaving: false,
-      lastWorkoutSummary: null,
-    });
-  },
-
-  updateSet: (exerciseId, setId, weight, reps) => {
-    set(state => ({
-      exercises: state.exercises.map(ex => {
-        if (ex.id !== exerciseId) return ex;
-        return {
-          ...ex,
-          sets: ex.sets.map(s => s.id === setId ? { ...s, weight, reps } : s)
-        };
-      })
-    }));
-  },
-
-  toggleSetComplete: (exerciseId, setId) => {
-    const state = get();
-    let justCompleted = false;
-
-    const newExercises = state.exercises.map(ex => {
-      if (ex.id !== exerciseId) return ex;
       return {
-        ...ex,
-        sets: ex.sets.map(s => {
-          if (s.id === setId) {
-            justCompleted = !s.isCompleted;
-            return { ...s, isCompleted: !s.isCompleted };
+        isActive: false,
+        startTime: null,
+        routineName: '',
+        exercises: [],
+        restTimeRemaining: 0,
+        isResting: false,
+        isSaving: false,
+        operationId: null,
+        completionRequest: null,
+        completionStatus: 'idle',
+        completionError: null,
+        handledEffectOperationIds: [],
+        lastWorkoutSummary: null,
+
+        startWorkout: (routineName, plannedExercises) => {
+          const activeExercises: WorkoutExercise[] = plannedExercises.map((exercise) => {
+            const sets: WorkoutSet[] = Array.from(
+              { length: exercise.targetSets },
+              (_, index) => ({
+                id: `${exercise.id}-set-${index}`,
+                weight: '',
+                reps: '',
+                isCompleted: false,
+                previousWeight: 135 + Math.floor(Math.random() * 4) * 10,
+                previousReps: 10,
+              }),
+            );
+            return {
+              id: exercise.id,
+              name: exercise.name,
+              sets,
+              trackingType: exercise.trackingType,
+              weightUnit: exercise.weightUnit,
+            };
+          });
+
+          set({
+            isActive: true,
+            startTime: new Date().toISOString(),
+            routineName,
+            exercises: activeExercises,
+            restTimeRemaining: 0,
+            isResting: false,
+            isSaving: false,
+            operationId: createWorkoutOperationId(),
+            completionRequest: null,
+            completionStatus: 'idle',
+            completionError: null,
+            lastWorkoutSummary: null,
+          });
+        },
+
+        finishWorkout: () => {
+          set({ isActive: false, isResting: false, restTimeRemaining: 0 });
+        },
+
+        completeWorkout: async () => {
+          const state = get();
+          if (
+            state.completionStatus === 'terminal-error'
+            && state.completionError === 'conflict'
+          ) {
+            return { kind: 'terminal', reason: 'conflict' };
           }
-          return s;
-        })
+
+          let operationId = state.operationId;
+          if (!operationId) {
+            operationId = createWorkoutOperationId();
+            set({ operationId });
+          }
+
+          let request = state.completionRequest;
+          if (
+            !request
+            || (
+              state.completionStatus === 'terminal-error'
+              && state.completionError === 'validation'
+            )
+          ) {
+            const endTime = new Date().toISOString();
+            try {
+              request = createWorkoutCompletionRequest({
+                operationId,
+                startTime: state.startTime ?? endTime,
+                endTime,
+                routineName: state.routineName || 'Workout',
+                sets: completedSetsFromExercises(state.exercises),
+              });
+            } catch {
+              set({
+                isSaving: false,
+                completionStatus: 'terminal-error',
+                completionError: 'validation',
+              });
+              return { kind: 'terminal', reason: 'validation' };
+            }
+            // Zustand persist writes synchronously here, before any request or
+            // queue operation can observe the snapshot.
+            set({ completionRequest: request });
+          }
+
+          set({
+            isSaving: true,
+            completionStatus: 'saving',
+            completionError: null,
+          });
+
+          const existingFlight = completionFlights.get(request.operationId);
+          if (existingFlight) return existingFlight;
+
+          const flight = performCompletion(request).finally(() => {
+            completionFlights.delete(request.operationId);
+          });
+          completionFlights.set(request.operationId, flight);
+          return flight;
+        },
+
+        applyCompletionResult,
+        applyLocalEffectsOnce,
+        markLocalEffectsHandled,
+
+        resetWorkout: () => {
+          set({
+            isActive: false,
+            startTime: null,
+            routineName: '',
+            exercises: [],
+            restTimeRemaining: 0,
+            isResting: false,
+            isSaving: false,
+            operationId: null,
+            completionRequest: null,
+            completionStatus: 'idle',
+            completionError: null,
+            lastWorkoutSummary: null,
+          });
+        },
+
+        updateSet: (exerciseId, setId, weight, reps) => {
+          set((currentState) => ({
+            exercises: currentState.exercises.map((exercise) => {
+              if (exercise.id !== exerciseId) return exercise;
+              return {
+                ...exercise,
+                sets: exercise.sets.map((workoutSet) =>
+                  workoutSet.id === setId
+                    ? { ...workoutSet, weight, reps }
+                    : workoutSet,
+                ),
+              };
+            }),
+          }));
+        },
+
+        toggleSetComplete: (exerciseId, setId) => {
+          let justCompleted = false;
+          set((currentState) => ({
+            exercises: currentState.exercises.map((exercise) => {
+              if (exercise.id !== exerciseId) return exercise;
+              return {
+                ...exercise,
+                sets: exercise.sets.map((workoutSet) => {
+                  if (workoutSet.id !== setId) return workoutSet;
+                  justCompleted = !workoutSet.isCompleted;
+                  return { ...workoutSet, isCompleted: !workoutSet.isCompleted };
+                }),
+              };
+            }),
+          }));
+          if (justCompleted) get().startRest(90);
+        },
+
+        startRest: (seconds = 90) => {
+          set({ isResting: true, restTimeRemaining: seconds });
+        },
+
+        stopRest: () => {
+          set({ isResting: false, restTimeRemaining: 0 });
+        },
+
+        tickRest: () => {
+          const { isResting, restTimeRemaining } = get();
+          if (isResting && restTimeRemaining > 0) {
+            set({ restTimeRemaining: restTimeRemaining - 1 });
+          } else if (restTimeRemaining === 0) {
+            set({ isResting: false });
+          }
+        },
+
+        addRestTime: (seconds) => {
+          set({ restTimeRemaining: get().restTimeRemaining + seconds });
+        },
+
+        addSet: (exerciseId) => {
+          set((currentState) => ({
+            exercises: currentState.exercises.map((exercise) => {
+              if (exercise.id !== exerciseId) return exercise;
+              const lastSet = exercise.sets.at(-1);
+              return {
+                ...exercise,
+                sets: [...exercise.sets, {
+                  id: `${exercise.id}-set-${exercise.sets.length}`,
+                  weight: '',
+                  reps: '',
+                  isCompleted: false,
+                  previousWeight: lastSet?.previousWeight ?? 0,
+                  previousReps: lastSet?.previousReps ?? 0,
+                }],
+              };
+            }),
+          }));
+        },
+
+        addExerciseToWorkout: (exerciseName) => {
+          set((currentState) => {
+            const exerciseId = `custom-ex-${Date.now()}`;
+            const newExercise: WorkoutExercise = {
+              id: exerciseId,
+              name: exerciseName,
+              sets: [{
+                id: `${exerciseId}-set-0`,
+                weight: '',
+                reps: '',
+                isCompleted: false,
+                previousWeight: 0,
+                previousReps: 0,
+              }],
+              trackingType: 'reps_weight',
+              weightUnit: 'lbs',
+            };
+            return { exercises: [...currentState.exercises, newExercise] };
+          });
+        },
+
+        changeExerciseTracking: (exerciseId, trackingType, weightUnit) => {
+          set((currentState) => ({
+            exercises: currentState.exercises.map((exercise) =>
+              exercise.id === exerciseId
+                ? { ...exercise, trackingType, weightUnit }
+                : exercise,
+            ),
+          }));
+        },
       };
-    });
-
-    set({ exercises: newExercises });
-
-    if (justCompleted) {
-      get().startRest(90);
-    }
-  },
-
-  startRest: (seconds = 90) => {
-    set({ isResting: true, restTimeRemaining: seconds });
-  },
-
-  stopRest: () => {
-    set({ isResting: false, restTimeRemaining: 0 });
-  },
-
-  tickRest: () => {
-    const { isResting, restTimeRemaining } = get();
-    if (isResting && restTimeRemaining > 0) {
-      set({ restTimeRemaining: restTimeRemaining - 1 });
-    } else if (restTimeRemaining === 0) {
-      set({ isResting: false });
-    }
-  },
-
-  addRestTime: (seconds) => {
-    const { restTimeRemaining } = get();
-    set({ restTimeRemaining: restTimeRemaining + seconds });
-  },
-
-  addSet: (exerciseId) => {
-    set(state => ({
-      exercises: state.exercises.map(ex => {
-        if (ex.id !== exerciseId) return ex;
-        const newSetId = `${ex.id}-set-${ex.sets.length}`;
-        return {
-          ...ex,
-          sets: [...ex.sets, {
-            id: newSetId,
-            weight: '',
-            reps: '',
-            isCompleted: false,
-            previousWeight: ex.sets.length > 0 ? ex.sets[ex.sets.length - 1].previousWeight : 0,
-            previousReps: ex.sets.length > 0 ? ex.sets[ex.sets.length - 1].previousReps : 0
-          }]
-        };
-      })
-    }));
-  },
-
-  addExerciseToWorkout: (exerciseName) => {
-    set(state => {
-      const newExId = `custom-ex-${Date.now()}`;
-      const newExercise: WorkoutExercise = {
-        id: newExId,
-        name: exerciseName,
-        sets: [{
-          id: `${newExId}-set-0`,
-          weight: '',
-          reps: '',
-          isCompleted: false,
-          previousWeight: 0,
-          previousReps: 0
-        }],
-        trackingType: 'reps_weight',
-        weightUnit: 'lbs'
-      };
-      return { exercises: [...state.exercises, newExercise] };
-    });
-  },
-
-  changeExerciseTracking: (exerciseId, trackingType, weightUnit) => {
-    set(state => ({
-      exercises: state.exercises.map(ex => {
-        if (ex.id !== exerciseId) return ex;
-        return {
-          ...ex,
-          trackingType,
-          weightUnit
-        };
-      })
-    }));
-  }
-    }),
+    },
     {
       name: 'vortixia-workout-storage',
-    }
-  )
+      merge: (persistedState, currentState) => ({
+        ...currentState,
+        ...(persistedState as Partial<WorkoutStore>),
+        isSaving: false,
+      }),
+    },
+  ),
 );

@@ -1,49 +1,48 @@
 "use client";
 
-import { useWorkoutStore } from "@/store/useWorkoutStore";
-import { ChevronDown, Play, Check, Timer, X, Plus, Home, Settings2, Trophy, Star, Flame, TrendingUp, Dumbbell, Activity, Calendar, Calculator } from "lucide-react";
+import { type WorkoutSet, useWorkoutStore } from "@/store/useWorkoutStore";
+import type { TrackingType, WeightUnit } from "@/store/useRoutineStore";
+import { Check, X, Settings2, Calculator } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useTrophyStore } from "@/store/useTrophyStore";
 import { SuccessCarousel } from "@/components/SuccessCarousel";
 import { PlateCalculator } from "@/components/PlateCalculator";
 import { ExerciseSelectionModal } from "@/components/ExerciseSelectionModal";
-import { useRecoveryStore, MuscleGroup } from "@/store/useRecoveryStore";
-import { useSocialStore } from "@/store/useSocialStore";
 import { toast } from "react-hot-toast";
 
-// Add runtime implementation of changeExerciseTracking to the store if it doesn't exist
-if (typeof window !== "undefined") {
-  const store = useWorkoutStore as any;
-  if (store && !store.getState().changeExerciseTracking) {
-    store.getState().changeExerciseTracking = (exerciseId: string, trackingType: string, weightUnit: string) => {
-      store.setState((state: any) => ({
-        exercises: state.exercises.map((ex: any) => {
-          if (ex.id !== exerciseId) return ex;
-          return {
-            ...ex,
-            trackingType,
-            weightUnit
-          };
-        })
-      }));
-    };
-  }
-}
+const TRACKING_MODES: ReadonlyArray<{ id: TrackingType; label: string }> = [
+  { id: 'reps_weight', label: 'Weight & Reps' },
+  { id: 'reps_only', label: 'Reps Only' },
+  { id: 'time_weight', label: 'Time & Weight' },
+  { id: 'time_only', label: 'Time Only' },
+  { id: 'cardio_hr', label: 'Cardio & HR' },
+];
+
+const WEIGHT_UNITS: ReadonlyArray<{ id: WeightUnit; label: string }> = [
+  { id: 'lbs', label: 'LBS' },
+  { id: 'kg', label: 'KG' },
+  { id: 'plates', label: 'Plates' },
+  { id: 'unitless', label: 'Unitless' },
+];
 
 export default function ActiveWorkoutPage() {
   const router = useRouter();
   const { 
     isActive, startTime, routineName, exercises, 
-    isSaving,
+    isSaving, completionStatus, lastWorkoutSummary,
     finishWorkout, updateSet, toggleSetComplete, 
     addSet, addExerciseToWorkout,
-    saveWorkoutToDb, resetWorkout,
+    completeWorkout, resetWorkout,
     changeExerciseTracking
-  } = useWorkoutStore() as any;
+  } = useWorkoutStore();
 
   const [elapsed, setElapsed] = useState("00:00");
   const [showSummary, setShowSummary] = useState(false);
+  const isSummaryVisible = showSummary || Boolean(
+    isActive
+    && lastWorkoutSummary
+    && (completionStatus === 'committed' || completionStatus === 'queued'),
+  );
   
   // Plate Calculator State
   const [isPlateCalcOpen, setIsPlateCalcOpen] = useState(false);
@@ -58,7 +57,7 @@ export default function ActiveWorkoutPage() {
 
   // Global Timer
   useEffect(() => {
-    if (!isActive || !startTime || showSummary) return;
+    if (!isActive || !startTime || isSummaryVisible) return;
     
     const interval = setInterval(() => {
       // Calculate elapsed time safely
@@ -70,65 +69,31 @@ export default function ActiveWorkoutPage() {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [isActive, startTime, showSummary]);
+  }, [isActive, startTime, isSummaryVisible]);
 
   const handleFinish = async () => {
-    // Calculate volume for Gamification and Duels
-    const totalVolume = exercises.reduce((total: number, ex: any) => {
-      return total + ex.sets.reduce((setTotal: number, set: any) => {
-        if (set.isCompleted && typeof set.weight === 'number' && typeof set.reps === 'number') {
-          return setTotal + (set.weight * set.reps);
-        }
-        return setTotal;
-      }, 0);
-    }, 0);
-
-    const startTimeMs = startTime ? new Date(startTime).getTime() : Date.now();
-    const diff = Math.floor((Date.now() - startTimeMs) / 1000);
-    const durationMins = Math.max(0, Math.floor(diff / 60));
-    const isAiGenerated = routineName.startsWith('AI') || routineName.includes('AI');
-
-    // Calculate XP aligned with useWorkoutStore.ts saveWorkoutToDb
-    const totalSets = exercises.reduce((total: number, ex: any) => {
-      return total + ex.sets.filter((s: any) => s.isCompleted).length;
-    }, 0);
-    const earnedXP = Math.round(totalSets * 50 + totalVolume * 0.1);
-
-    // Push progress to Social Active Duels
-    useSocialStore.getState().updateDuelProgress(totalVolume, earnedXP);
-
-    // Apply fatigue based on completed sets
-    exercises.forEach((ex: any) => {
-      const completedSetsCount = ex.sets.filter((s: any) => s.isCompleted).length;
-      if (completedSetsCount > 0) {
-        let muscle: MuscleGroup = 'core';
-        const name = ex.name.toLowerCase();
-        if (name.includes('bench') || name.includes('push') || name.includes('chest') || name.includes('fly')) muscle = 'chest';
-        else if (name.includes('row') || name.includes('pull') || name.includes('deadlift') || name.includes('lat')) muscle = 'back';
-        else if (name.includes('squat') || name.includes('leg') || name.includes('calf') || name.includes('lunge')) muscle = 'legs';
-        else if (name.includes('curl') || name.includes('tricep') || name.includes('extension')) muscle = 'arms';
-        else if (name.includes('press') && name.includes('overhead') || name.includes('raise') || name.includes('shoulder')) muscle = 'shoulders';
-        
-        // 5% fatigue per completed set
-        useRecoveryStore.getState().applyFatigue(muscle, completedSetsCount * 5);
-      }
-    });
-
-    useTrophyStore.getState().checkAchievements({
-      isFirstWorkout: true, // Mocked to always grant for testing
-      totalVolume,
-      durationMins,
-      isAiGenerated
-    });
-
-    setShowSummary(true);
-
-    // Persist workout to Supabase / LocalStorage (handling offline queue automatically)
     try {
-      await saveWorkoutToDb();
-    } catch (e) {
-      console.error("Failed to save workout session:", e);
-      toast.error("Error saving workout to database.");
+      const outcome = await completeWorkout();
+      if (outcome.kind === 'committed') {
+        setShowSummary(true);
+        return;
+      }
+      if (outcome.kind === 'queued') {
+        toast("Workout saved on this device and pending sync.", { icon: "⏳" });
+        setShowSummary(true);
+        return;
+      }
+
+      if (outcome.reason === 'conflict') {
+        toast.error("This workout conflicts with an earlier completion. Your current workout was kept for review.");
+      } else if (outcome.reason === 'storage') {
+        toast.error("This workout could not be saved locally. Keep this page open and try again.");
+      } else {
+        toast.error("Complete at least one valid set before finishing your workout.");
+      }
+    } catch {
+      console.error("Workout completion failed");
+      toast.error("Workout completion failed. Your active workout was kept.");
     }
   };
 
@@ -150,7 +115,11 @@ export default function ActiveWorkoutPage() {
   };
 
   // Format the previous logs dynamically based on the tracking type
-  const formatPrevious = (set: any, trackingType: string, weightUnit: string) => {
+  const formatPrevious = (
+    set: WorkoutSet,
+    trackingType: TrackingType,
+    weightUnit: WeightUnit,
+  ) => {
     const weightVal = set.previousWeight || 0;
     const repsVal = set.previousReps || 0;
     
@@ -175,9 +144,10 @@ export default function ActiveWorkoutPage() {
   };
 
   // Offline State
-  const [isOffline, setIsOffline] = useState(false);
+  const [isOffline, setIsOffline] = useState(
+    () => typeof navigator !== 'undefined' && !navigator.onLine,
+  );
   useEffect(() => {
-    setIsOffline(!navigator.onLine);
     const handleOffline = () => setIsOffline(true);
     const handleOnline = () => setIsOffline(false);
     window.addEventListener('offline', handleOffline);
@@ -188,9 +158,9 @@ export default function ActiveWorkoutPage() {
     };
   }, []);
 
-  if (showSummary) {
-    const totalVolume = exercises.reduce((total: number, ex: any) => {
-      return total + ex.sets.reduce((setTotal: number, set: any) => {
+  if (isSummaryVisible) {
+    const fallbackTotalVolume = exercises.reduce((total, ex) => {
+      return total + ex.sets.reduce((setTotal, set) => {
         if (set.isCompleted && typeof set.weight === 'number' && typeof set.reps === 'number') {
           return setTotal + (set.weight * set.reps);
         }
@@ -198,17 +168,28 @@ export default function ActiveWorkoutPage() {
       }, 0);
     }, 0);
 
-    const totalSets = exercises.reduce((total: number, ex: any) => {
-      return total + ex.sets.filter((s: any) => s.isCompleted).length;
+    const fallbackTotalSets = exercises.reduce((total, ex) => {
+      return total + ex.sets.filter((set) => set.isCompleted).length;
     }, 0);
+
+    const totalVolume = lastWorkoutSummary?.totalVolume ?? fallbackTotalVolume;
+    const totalSets = lastWorkoutSummary?.totalSets ?? fallbackTotalSets;
+    const summaryElapsed = lastWorkoutSummary
+      ? `${String(lastWorkoutSummary.durationMins).padStart(2, '0')}:00`
+      : elapsed;
 
     return (
       <main className="flex min-h-screen flex-col items-center pt-8 p-4 bg-background relative overflow-y-auto overflow-x-hidden pb-24">
+        {completionStatus === 'queued' && (
+          <div className="mb-4 w-full max-w-xl rounded-xl border border-orange-500/30 bg-orange-500/10 px-4 py-3 text-center text-xs font-bold text-orange-300">
+            Saved on this device. This workout will sync automatically when your authenticated connection returns.
+          </div>
+        )}
         <SuccessCarousel 
           routineName={routineName}
           totalVolume={totalVolume}
           totalSets={totalSets}
-          elapsed={elapsed}
+          elapsed={summaryElapsed}
           exercises={exercises}
           onDone={() => handleCloseSummary("/")}
         />
@@ -259,9 +240,9 @@ export default function ActiveWorkoutPage() {
 
       {/* Exercises */}
       <div className="flex flex-col gap-6 p-4">
-        {exercises.map((ex: any, exIdx: number) => {
+        {exercises.map((ex, exIdx) => {
           const trackingType = ex.trackingType || 'reps_weight';
-          const weightUnit = ex.weightUnit || 'LBS';
+          const weightUnit = ex.weightUnit || 'lbs';
           return (
             <div key={ex.id} className="glass-card flex flex-col overflow-hidden animate-fade-in-up" style={{ animationDelay: `${exIdx * 0.1}s` }}>
               <div className="p-4 bg-white/5 border-b border-white/5 flex justify-between items-center">
@@ -285,10 +266,10 @@ export default function ActiveWorkoutPage() {
                   {trackingType === 'reps_weight' && (
                     <>
                       <div className="w-20 flex items-center justify-center gap-1">
-                        {weightUnit}
-                        {(weightUnit === 'LBS' || weightUnit === 'KG') && (
+                        {weightUnit.toUpperCase()}
+                        {(weightUnit === 'lbs' || weightUnit === 'kg') && (
                           <button onClick={() => {
-                            const lastWeight = ex.sets.findLast((s: any) => typeof s.weight === 'number' && s.weight > 0)?.weight || 135;
+                            const lastWeight = ex.sets.findLast((set) => typeof set.weight === 'number' && set.weight > 0)?.weight || 135;
                             setPlateCalcWeight(Number(lastWeight));
                             setPlateCalcContext({ exerciseId: ex.id, setId: ex.sets[ex.sets.length - 1]?.id || '', reps: ex.sets[ex.sets.length - 1]?.reps || '' });
                             setIsPlateCalcOpen(true);
@@ -308,10 +289,10 @@ export default function ActiveWorkoutPage() {
                   {trackingType === 'time_weight' && (
                     <>
                       <div className="w-20 flex items-center justify-center gap-1">
-                        {weightUnit}
-                        {(weightUnit === 'LBS' || weightUnit === 'KG') && (
+                        {weightUnit.toUpperCase()}
+                        {(weightUnit === 'lbs' || weightUnit === 'kg') && (
                           <button onClick={() => {
-                            const lastWeight = ex.sets.findLast((s: any) => typeof s.weight === 'number' && s.weight > 0)?.weight || 135;
+                            const lastWeight = ex.sets.findLast((set) => typeof set.weight === 'number' && set.weight > 0)?.weight || 135;
                             setPlateCalcWeight(Number(lastWeight));
                             setPlateCalcContext({ exerciseId: ex.id, setId: ex.sets[ex.sets.length - 1]?.id || '', reps: ex.sets[ex.sets.length - 1]?.reps || '' });
                             setIsPlateCalcOpen(true);
@@ -339,7 +320,7 @@ export default function ActiveWorkoutPage() {
                 </div>
 
                 {/* Sets */}
-                {ex.sets.map((set: any, i: number) => (
+                {ex.sets.map((set, i) => (
                   <div key={set.id} className={`flex items-center px-2 py-2 rounded-lg transition-colors ${set.isCompleted ? 'bg-accent-green/5' : ''}`}>
                     <div className="w-8 text-center text-xs font-bold text-text-muted">{i + 1}</div>
                     <div className="flex-1 text-center text-xs text-text-muted/50 font-medium truncate">
@@ -359,7 +340,7 @@ export default function ActiveWorkoutPage() {
                             className={`w-full bg-black/50 border rounded-md text-center text-base font-bold py-1 pr-6 outline-none transition-colors ${set.isCompleted ? 'border-transparent text-white/50' : 'border-white/10 text-white focus:border-accent-green focus:bg-accent-green/10'}`}
                             placeholder={weightUnit.toLowerCase()}
                           />
-                          {(weightUnit === 'LBS' || weightUnit === 'KG') && (
+                          {(weightUnit === 'lbs' || weightUnit === 'kg') && (
                             <button 
                               onClick={() => {
                                 setPlateCalcContext({ exerciseId: ex.id, setId: set.id, reps: set.reps });
@@ -412,7 +393,7 @@ export default function ActiveWorkoutPage() {
                             className={`w-full bg-black/50 border rounded-md text-center text-base font-bold py-1 pr-6 outline-none transition-colors ${set.isCompleted ? 'border-transparent text-white/50' : 'border-white/10 text-white focus:border-accent-green focus:bg-accent-green/10'}`}
                             placeholder={weightUnit.toLowerCase()}
                           />
-                          {(weightUnit === 'LBS' || weightUnit === 'KG') && (
+                          {(weightUnit === 'lbs' || weightUnit === 'kg') && (
                             <button 
                               onClick={() => {
                                 setPlateCalcContext({ exerciseId: ex.id, setId: set.id, reps: set.reps });
@@ -557,21 +538,15 @@ export default function ActiveWorkoutPage() {
             <div className="flex flex-col gap-2">
               <label className="text-xs font-bold text-text-muted uppercase tracking-widest">Tracking Mode</label>
               <div className="flex flex-col gap-1.5">
-                {[
-                  { id: 'reps_weight', label: 'Weight & Reps' },
-                  { id: 'reps_only', label: 'Reps Only' },
-                  { id: 'time_weight', label: 'Time & Weight' },
-                  { id: 'time_only', label: 'Time Only' },
-                  { id: 'cardio_hr', label: 'Cardio & HR' }
-                ].map((mode) => {
-                  const currentEx = exercises.find((e: any) => e.id === activeSettingsExerciseId);
+                {TRACKING_MODES.map((mode) => {
+                  const currentEx = exercises.find((exercise) => exercise.id === activeSettingsExerciseId);
                   const isSelected = (currentEx?.trackingType || 'reps_weight') === mode.id;
                   return (
                     <button
                       key={mode.id}
                       onClick={() => {
-                        const currentEx = exercises.find((e: any) => e.id === activeSettingsExerciseId);
-                        const currentUnit = currentEx?.weightUnit || 'LBS';
+                        const currentEx = exercises.find((exercise) => exercise.id === activeSettingsExerciseId);
+                        const currentUnit = currentEx?.weightUnit || 'lbs';
                         changeExerciseTracking(activeSettingsExerciseId, mode.id, currentUnit);
                       }}
                       className={`w-full py-2.5 px-4 rounded-xl border text-left font-bold text-sm transition-all flex justify-between items-center ${
@@ -592,16 +567,16 @@ export default function ActiveWorkoutPage() {
             <div className="flex flex-col gap-2">
               <label className="text-xs font-bold text-text-muted uppercase tracking-widest">Weight Unit</label>
               <div className="grid grid-cols-4 gap-1.5">
-                {['LBS', 'KG', 'Plates', 'Unitless'].map((unit) => {
-                  const currentEx = exercises.find((e: any) => e.id === activeSettingsExerciseId);
-                  const isSelected = (currentEx?.weightUnit || 'LBS') === unit;
+                {WEIGHT_UNITS.map((unit) => {
+                  const currentEx = exercises.find((exercise) => exercise.id === activeSettingsExerciseId);
+                  const isSelected = (currentEx?.weightUnit || 'lbs') === unit.id;
                   return (
                     <button
-                      key={unit}
+                      key={unit.id}
                       onClick={() => {
-                        const currentEx = exercises.find((e: any) => e.id === activeSettingsExerciseId);
+                        const currentEx = exercises.find((exercise) => exercise.id === activeSettingsExerciseId);
                         const currentMode = currentEx?.trackingType || 'reps_weight';
-                        changeExerciseTracking(activeSettingsExerciseId, currentMode, unit);
+                        changeExerciseTracking(activeSettingsExerciseId, currentMode, unit.id);
                       }}
                       className={`py-2 px-1 rounded-xl border text-center font-bold text-xs transition-all ${
                         isSelected 
@@ -609,7 +584,7 @@ export default function ActiveWorkoutPage() {
                           : 'bg-white/5 text-white/70 border-white/5 hover:bg-white/10'
                       }`}
                     >
-                      {unit}
+                      {unit.label}
                     </button>
                   );
                 })}
