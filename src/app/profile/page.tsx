@@ -4,10 +4,22 @@ import { useEffect } from "react";
 import { UserCircle, Edit3, BarChart3, Users, Swords, Settings, MessageSquarePlus, Info, Coffee, ChevronRight, User, LogOut } from "lucide-react";
 import Link from "next/link";
 import { useProfileStore } from "@/store/useProfileStore";
+import { useSettingsStore } from "@/store/useSettingsStore";
 
 
 export default function ProfileHub() {
   const { profile, fetchProfile, logout } = useProfileStore();
+  const unsubscribeFromPush = useSettingsStore((state) => state.unsubscribeFromPush);
+
+  const handleLogout = async () => {
+    try {
+      await unsubscribeFromPush();
+    } catch {
+      console.warn("Push subscription cleanup did not complete during logout");
+    }
+
+    await logout();
+  };
 
   useEffect(() => {
     if (!profile) {
@@ -150,7 +162,7 @@ export default function ProfileHub() {
                </div>
                <ChevronRight className="w-5 h-5 text-text-muted group-hover:text-white transition-colors" />
             </Link>
-            <button onClick={logout} className="flex items-center justify-between p-4 hover:bg-white/5 transition-colors group">
+            <button onClick={handleLogout} className="flex items-center justify-between p-4 hover:bg-white/5 transition-colors group">
                <div className="flex items-center gap-4">
                  <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center group-hover:bg-red-500/20 transition-colors">
                    <LogOut className="w-5 h-5 text-red-500" />

@@ -66,6 +66,17 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
   return btoa(binary);
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+class PushSubscriptionConflictError extends Error {
+  constructor() {
+    super('Push subscription ownership conflict');
+    this.name = 'PushSubscriptionConflictError';
+  }
+}
+
 async function registerPushSubscription(subscription: PushSubscription): Promise<void> {
   const p256dh = subscription.getKey('p256dh');
   const auth = subscription.getKey('auth');
@@ -86,8 +97,56 @@ async function registerPushSubscription(subscription: PushSubscription): Promise
     }),
   });
 
+  if (response.status === 409) {
+    const responseBody: unknown = await response.json().catch(() => null);
+
+    if (
+      isRecord(responseBody)
+      && responseBody.error === 'subscription_conflict'
+      && responseBody.retryable === true
+    ) {
+      throw new PushSubscriptionConflictError();
+    }
+  }
+
   if (!response.ok) {
     throw new Error(`Failed to register push subscription. Status: ${response.status}`);
+  }
+}
+
+async function createPushSubscription(
+  registration: ServiceWorkerRegistration,
+  vapidPublicKey: string,
+): Promise<PushSubscription> {
+  return registration.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: vapidPublicKeyToUint8Array(vapidPublicKey).buffer,
+  });
+}
+
+async function registerWithConflictRecovery(
+  registration: ServiceWorkerRegistration,
+  subscription: PushSubscription,
+  vapidPublicKey: string,
+): Promise<PushSubscription> {
+  try {
+    await registerPushSubscription(subscription);
+    return subscription;
+  } catch (error) {
+    if (!(error instanceof PushSubscriptionConflictError)) {
+      throw error;
+    }
+
+    clearStoredVapidFingerprint();
+    const unsubscribed = await subscription.unsubscribe();
+
+    if (!unsubscribed) {
+      throw new Error('The browser push subscription could not be replaced');
+    }
+
+    const replacement = await createPushSubscription(registration, vapidPublicKey);
+    await registerPushSubscription(replacement);
+    return replacement;
   }
 }
 
@@ -142,7 +201,7 @@ async function ensurePushSubscription(): Promise<void> {
     );
 
     if (usesCurrentKey) {
-      await registerPushSubscription(subscription);
+      await registerWithConflictRecovery(registration, subscription, vapidPublicKey);
       storeVapidFingerprint(fingerprint);
       return;
     }
@@ -151,12 +210,9 @@ async function ensurePushSubscription(): Promise<void> {
     subscription = null;
   }
 
-  subscription = await registration.pushManager.subscribe({
-    userVisibleOnly: true,
-    applicationServerKey: vapidPublicKeyToUint8Array(vapidPublicKey).buffer,
-  });
+  subscription = await createPushSubscription(registration, vapidPublicKey);
 
-  await registerPushSubscription(subscription);
+  await registerWithConflictRecovery(registration, subscription, vapidPublicKey);
   storeVapidFingerprint(fingerprint);
 }
 
@@ -299,9 +355,9 @@ export const useSettingsStore = create<SettingsStore>()(
           }
 
           await ensurePushSubscription();
-        } catch (err) {
-          console.error('Failed to configure push notifications:', err);
-          throw err;
+        } catch (error) {
+          console.error('Failed to configure push notifications');
+          throw error;
         }
       }),
 
@@ -321,8 +377,8 @@ export const useSettingsStore = create<SettingsStore>()(
           }
 
           clearStoredVapidFingerprint();
-        } catch (err) {
-          console.error('Error unsubscribing from push:', err);
+        } catch {
+          console.error('Failed to unsubscribe from push notifications');
         }
       },
     }),
