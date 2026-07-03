@@ -107,10 +107,10 @@ export const useProfileStore = create<ProfileStore>((set) => ({
         .from('user_metrics')
         .select('*')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
         
-      // metrics might not exist for new users, so don't throw if it's missing
-      if (metricsErr && metricsErr.code !== 'PGRST116') {
+      // Metrics are optional until the user saves them for the first time.
+      if (metricsErr) {
         console.error("Error fetching metrics", metricsErr);
       }
 
