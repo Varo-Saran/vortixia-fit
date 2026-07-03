@@ -25,12 +25,12 @@ export async function POST(req: Request) {
         .from('user_metrics')
         .select('*')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
 
-      if (metricsErr && metricsErr.code !== 'PGRST116') {
+      if (metricsErr) {
         console.error('Error fetching metrics:', metricsErr);
       }
-      metrics = metricsData;
+      metrics = metricsData ?? null;
     }
 
     // Prioritize metric's goal if the prompt meant that literally, else fallback to selected goal
