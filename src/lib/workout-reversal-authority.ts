@@ -1,7 +1,9 @@
 export const WORKOUT_REVERSAL_MAX_BODY_BYTES = 8 * 1024;
 
 const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i;
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const NIL_UUID = '00000000-0000-0000-0000-000000000000';
 
 const FORBIDDEN_TOP_LEVEL_FIELDS = new Set([
   'userId',
@@ -58,7 +60,9 @@ function assertAllowedFields(
 }
 
 export function isUuid(value: unknown): value is string {
-  return typeof value === 'string' && UUID_PATTERN.test(value);
+  return typeof value === 'string'
+    && UUID_PATTERN.test(value)
+    && value.toLowerCase() !== NIL_UUID;
 }
 
 export function parseWorkoutSessionId(value: unknown): string {
