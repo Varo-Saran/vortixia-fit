@@ -40,6 +40,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function readOperationStore(): ReversalOperationStore {
+  const storage = getStorage();
   const raw = getStorage().getItem(WORKOUT_REVERSAL_OPERATION_STORAGE_KEY);
   if (raw === null) return {};
 
@@ -47,10 +48,14 @@ function readOperationStore(): ReversalOperationStore {
   try {
     parsed = JSON.parse(raw) as unknown;
   } catch {
+    storage.removeItem(WORKOUT_REVERSAL_OPERATION_STORAGE_KEY);
     return {};
   }
 
-  if (!isRecord(parsed)) return {};
+  if (!isRecord(parsed)) {
+    storage.removeItem(WORKOUT_REVERSAL_OPERATION_STORAGE_KEY);
+    return {};
+  }
 
   const operations: ReversalOperationStore = {};
   Object.entries(parsed).forEach(([sessionIdValue, operationIdValue]) => {
@@ -110,6 +115,16 @@ export function getOrCreateWorkoutReversalOperationId(
   operations[sessionId] = operationId;
   writeOperationStore(operations);
   return operationId;
+}
+
+export function normalizeWorkoutReversalSessionId(
+  sessionIdValue: unknown,
+): string | null {
+  try {
+    return parseWorkoutSessionId(sessionIdValue);
+  } catch {
+    return null;
+  }
 }
 
 function isAuthenticationRedirect(response: Response): boolean {

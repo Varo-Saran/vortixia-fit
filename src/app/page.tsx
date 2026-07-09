@@ -16,7 +16,10 @@ import { CelebrationModal } from "@/components/ui/CelebrationModal";
 import { PlateCalculator } from "@/components/PlateCalculator";
 import { toast } from "react-hot-toast";
 import { useRouter } from "next/navigation";
-import { submitWorkoutReversal } from "@/lib/workout-reversal-client";
+import {
+  normalizeWorkoutReversalSessionId,
+  submitWorkoutReversal,
+} from "@/lib/workout-reversal-client";
 
 export default function Dashboard() {
   const [mounted, setMounted] = useState(false);
@@ -107,7 +110,7 @@ export default function Dashboard() {
       const { data, error } = await supabase
         .from('workout_sessions')
         .select(`
-          id,
+          session_id:id,
           start_time,
           end_time,
           total_volume_kg,
@@ -871,7 +874,10 @@ export default function Dashboard() {
                 </div>
               ) : (
                 <div className="flex flex-col gap-3 max-h-[30vh] overflow-y-auto pr-1">
-                  {streakSessions.map((session) => {
+                  {streakSessions.map((session, index) => {
+                    const sessionId = normalizeWorkoutReversalSessionId(
+                      session.session_id ?? session.id,
+                    );
                     const sessionDate = new Date(session.start_time);
                     const dateFormatted = sessionDate.toLocaleDateString('en-US', { 
                       month: 'short', 
@@ -889,7 +895,7 @@ export default function Dashboard() {
 
                     return (
                       <div 
-                        key={session.id} 
+                        key={sessionId ?? `session-${index}`}
                         className="bg-white/5 border border-white/5 rounded-2xl p-4 flex justify-between items-center"
                       >
                         <div className="flex flex-col gap-1 min-w-0 flex-1 pr-3">
@@ -901,11 +907,11 @@ export default function Dashboard() {
                         </div>
 
                         <div className="flex-shrink-0">
-                          {deletingSessionId === session.id ? (
+                          {sessionId && deletingSessionId === sessionId ? (
                             <div className="flex items-center gap-1.5 bg-black/40 border border-red-500/20 rounded-lg p-1.5 animate-fade-in">
                               <span className="text-[9px] text-accent-red font-black uppercase tracking-wider pl-1">Delete?</span>
                               <button 
-                                onClick={() => handleDeleteSession(session.id)}
+                                onClick={() => handleDeleteSession(sessionId)}
                                 className="bg-accent-red text-white text-[9px] font-black uppercase tracking-wider px-2 py-1 rounded"
                               >
                                 Yes
@@ -919,7 +925,13 @@ export default function Dashboard() {
                             </div>
                           ) : (
                             <button 
-                              onClick={() => setDeletingSessionId(session.id)}
+                              onClick={() => {
+                                if (!sessionId) {
+                                  toast.error("Invalid delete request. Please refresh and try again.");
+                                  return;
+                                }
+                                setDeletingSessionId(sessionId);
+                              }}
                               className="p-2 text-text-muted hover:text-accent-red hover:bg-accent-red/10 rounded-full transition-all active:scale-95"
                               aria-label="Delete workout session"
                             >
