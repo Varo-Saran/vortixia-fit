@@ -16,6 +16,10 @@ import { CelebrationModal } from "@/components/ui/CelebrationModal";
 import { PlateCalculator } from "@/components/PlateCalculator";
 import { toast } from "react-hot-toast";
 import { useRouter } from "next/navigation";
+import {
+  normalizeWorkoutReversalSessionId,
+  submitWorkoutReversal,
+} from "@/lib/workout-reversal-client";
 
 export default function Dashboard() {
   const [mounted, setMounted] = useState(false);
@@ -106,7 +110,7 @@ export default function Dashboard() {
       const { data, error } = await supabase
         .from('workout_sessions')
         .select(`
-          id,
+          session_id:id,
           start_time,
           end_time,
           total_volume_kg,
@@ -190,63 +194,54 @@ export default function Dashboard() {
     }
   }, []);
 
-  const handleDeleteSession = async (sessionId: string, volume: number, setsCount: number) => {
+  const handleDeleteSession = async (sessionId: string) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      const outcome = await submitWorkoutReversal(sessionId);
 
-      const xpToSubtract = Math.round(setsCount * 50 + volume * 0.1);
-
-      // 1. Delete the session from Supabase (cascades to workout_sets)
-      const { error: deleteErr } = await supabase
-        .from('workout_sessions')
-        .delete()
-        .eq('id', sessionId);
-
-      if (deleteErr) throw deleteErr;
-
-      // 2. Deduct XP from users table (negative write via RPC)
-      const { error: xpErr } = await supabase.rpc('increment_user_xp', {
-        user_id: user.id,
-        xp_to_add: -xpToSubtract
-      });
-      if (xpErr) console.error("Error decrementing XP:", xpErr);
-
-      // 3. Deduct XP from active duels
-      const { data: duels } = await supabase
-        .from('duels')
-        .select('id, challenger_id, opponent_id, user_1_score, user_2_score')
-        .or(`challenger_id.eq.${user.id},opponent_id.eq.${user.id}`)
-        .eq('status', 'active');
-
-      if (duels && duels.length > 0) {
-        for (const duel of duels) {
-          const isChallenger = duel.challenger_id === user.id;
-          if (isChallenger) {
-            await supabase
-              .from('duels')
-              .update({ user_1_score: Math.max(0, (duel.user_1_score || 0) - xpToSubtract) })
-              .eq('id', duel.id);
-          } else {
-            await supabase
-              .from('duels')
-              .update({ user_2_score: Math.max(0, (duel.user_2_score || 0) - xpToSubtract) })
-              .eq('id', duel.id);
-          }
-        }
+      if (outcome.kind === 'retryable') {
+        toast.error("Couldn’t delete workout right now. Please reconnect or sign in and try again.");
+        return;
       }
 
-      toast.success("Workout session deleted successfully!");
+      if (outcome.kind === 'terminal') {
+        if (outcome.reason === 'not-found') {
+          toast.error("Workout session was not found or is no longer available.");
+          setDeletingSessionId(null);
+          await fetchStreakSessions();
+          await fetchStreak();
+          return;
+        }
+
+        if (outcome.reason === 'conflict') {
+          toast.error("This workout deletion is already being processed or was already handled.");
+          setDeletingSessionId(null);
+          await fetchStreakSessions();
+          await fetchStreak();
+          await fetchProfile();
+          return;
+        }
+
+        if (outcome.reason === 'unsupported') {
+          toast.error("This workout needs support assistance before it can be deleted.");
+          setDeletingSessionId(null);
+          return;
+        }
+
+        toast.error("Invalid delete request. Please refresh and try again.");
+        setDeletingSessionId(null);
+        return;
+      }
+
+      toast.success("Workout session deleted.");
       setDeletingSessionId(null);
       
-      // 4. Refresh all states
       await fetchStreak();
       await fetchStreakSessions();
-      await fetchProfile(); // refresh XP on dashboard
+      await fetchProfile();
       await fetchSocialInfo();
-    } catch (err: any) {
-      console.error("Delete session error:", err);
-      toast.error(`Failed to delete session: ${err.message}`);
+    } catch {
+      console.error("Delete session failed");
+      toast.error("Couldn’t delete workout right now. Please reconnect or sign in and try again.");
     }
   };
 
@@ -879,7 +874,10 @@ export default function Dashboard() {
                 </div>
               ) : (
                 <div className="flex flex-col gap-3 max-h-[30vh] overflow-y-auto pr-1">
-                  {streakSessions.map((session) => {
+                  {streakSessions.map((session, index) => {
+                    const sessionId = normalizeWorkoutReversalSessionId(
+                      session.session_id ?? session.id,
+                    );
                     const sessionDate = new Date(session.start_time);
                     const dateFormatted = sessionDate.toLocaleDateString('en-US', { 
                       month: 'short', 
@@ -897,7 +895,7 @@ export default function Dashboard() {
 
                     return (
                       <div 
-                        key={session.id} 
+                        key={sessionId ?? `session-${index}`}
                         className="bg-white/5 border border-white/5 rounded-2xl p-4 flex justify-between items-center"
                       >
                         <div className="flex flex-col gap-1 min-w-0 flex-1 pr-3">
@@ -909,11 +907,11 @@ export default function Dashboard() {
                         </div>
 
                         <div className="flex-shrink-0">
-                          {deletingSessionId === session.id ? (
+                          {sessionId && deletingSessionId === sessionId ? (
                             <div className="flex items-center gap-1.5 bg-black/40 border border-red-500/20 rounded-lg p-1.5 animate-fade-in">
                               <span className="text-[9px] text-accent-red font-black uppercase tracking-wider pl-1">Delete?</span>
                               <button 
-                                onClick={() => handleDeleteSession(session.id, volume, setsCount)}
+                                onClick={() => handleDeleteSession(sessionId)}
                                 className="bg-accent-red text-white text-[9px] font-black uppercase tracking-wider px-2 py-1 rounded"
                               >
                                 Yes
@@ -927,7 +925,13 @@ export default function Dashboard() {
                             </div>
                           ) : (
                             <button 
-                              onClick={() => setDeletingSessionId(session.id)}
+                              onClick={() => {
+                                if (!sessionId) {
+                                  toast.error("Invalid delete request. Please refresh and try again.");
+                                  return;
+                                }
+                                setDeletingSessionId(sessionId);
+                              }}
                               className="p-2 text-text-muted hover:text-accent-red hover:bg-accent-red/10 rounded-full transition-all active:scale-95"
                               aria-label="Delete workout session"
                             >
