@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Plus, UserCircle, Settings, Bell, Swords, HeartPulse, Flame, Check, Moon, Utensils, CloudRain, Sun, Cloud, Snowflake, CloudLightning, MapPin, Users, Activity, Trash2, Calculator, Sparkles, Calendar, X } from "lucide-react";
+import { Plus, UserCircle, Settings, Bell, Swords, HeartPulse, Flame, Moon, Utensils, CloudRain, Sun, Cloud, Snowflake, CloudLightning, MapPin, Users, Activity, Trash2, Calculator, Sparkles, Calendar, X } from "lucide-react";
 import Link from "next/link";
 import { useRoutineStore } from "@/store/useRoutineStore";
 import { useProfileStore } from "@/store/useProfileStore";
@@ -12,7 +12,6 @@ import { useWorkoutStore } from "@/store/useWorkoutStore";
 import { useWeather } from "@/hooks/useWeather";
 import { supabase } from "@/lib/supabase";
 import { useNotificationStore } from "@/store/useNotificationStore";
-import { CelebrationModal } from "@/components/ui/CelebrationModal";
 import { PlateCalculator } from "@/components/PlateCalculator";
 import { toast } from "react-hot-toast";
 import { useRouter } from "next/navigation";
@@ -47,9 +46,6 @@ export default function Dashboard() {
     initRealtime();
   }, [fetchFriends, fetchNotifications, initRealtime]);
   
-  const [showCelebration, setShowCelebration] = useState(false);
-  const [showBanner, setShowBanner] = useState(false);
-
   const [recommendedAthletes, setRecommendedAthletes] = useState<any[]>([]);
   
   // Hydration-safe Today Plan Name and Recovery Recommendations
@@ -351,20 +347,6 @@ export default function Dashboard() {
     return <MapPin className="w-4 h-4 text-text-muted" />;
   };
 
-  const handleClaimReward = async () => {
-    if (!profile) return;
-    setShowBanner(false);
-    setShowCelebration(true);
-    localStorage.setItem(`milestone_claimed_${profile.id}`, 'true');
-    try {
-      // Atoms updating via Supabase RPC
-      await supabase.rpc('increment_user_xp', { user_id: profile.id, xp_to_add: 500 });
-      fetchProfile(); // Refresh profile state to dynamically update level
-    } catch (e) {
-      console.error("Failed to claim milestone rewards:", e);
-    }
-  };
-
   const handleWorkoutTileClick = () => {
     if (isActive) {
       router.push("/workout");
@@ -552,35 +534,6 @@ export default function Dashboard() {
           </div>
         </div>
       )}
-
-      {showBanner && (
-        <div 
-          onClick={handleClaimReward}
-          className="relative z-10 w-[calc(100%-2rem)] mx-auto mb-6 p-4 rounded-2xl bg-gradient-to-r from-accent-green to-emerald-400 cursor-pointer shadow-[0_0_30px_rgba(74,222,128,0.4)] active:scale-95 transition-transform animate-fade-in-up"
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-black/20 rounded-full flex items-center justify-center">
-                <span className="text-xl">🎁</span>
-              </div>
-              <div>
-                <h3 className="text-black font-black text-sm uppercase tracking-wider">Milestone Achieved!</h3>
-                <p className="text-black/80 text-xs font-bold">Tap to claim your 500 XP reward</p>
-              </div>
-            </div>
-            <div className="w-8 h-8 rounded-full bg-black flex items-center justify-center">
-              <Check className="w-4 h-4 text-accent-green" strokeWidth={3} />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Celebration Modal */}
-      <CelebrationModal 
-        isOpen={showCelebration} 
-        onClose={() => setShowCelebration(false)} 
-        rewardAmount={500}
-      />
 
       {/* Grid Bento Wrapper */}
       <section className="relative z-10 w-full px-4 grid grid-cols-2 gap-3 auto-rows-[minmax(115px,auto)] animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
