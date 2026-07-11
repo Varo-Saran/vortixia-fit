@@ -8,7 +8,6 @@ export interface UserProfile {
   full_name: string;
   avatar_url: string;
   total_xp: number;
-  unclaimed_rewards?: number;
   is_admin?: boolean;
   timezone?: string;
 }
@@ -120,7 +119,7 @@ export const useProfileStore = create<ProfileStore>((set) => ({
         useSettingsStore.getState().setHeroGender(genderVal);
       }
 
-      set({ profile: { ...user, unclaimed_rewards: 1 }, metrics: userMetrics, isLoading: false });
+      set({ profile: user, metrics: userMetrics, isLoading: false });
     } catch (err) {
       console.error("Error fetching profile", err);
       set({ isLoading: false });
