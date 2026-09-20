@@ -29,17 +29,16 @@ export default function ActiveWorkoutPage() {
   const router = useRouter();
   const { 
     isActive, startTime, routineName, exercises, 
-    isSaving, completionStatus, lastWorkoutSummary,
-    finishWorkout, updateSet, toggleSetComplete, 
+    isSaving, completionStatus, lastWorkoutSummary, isSummaryDismissed,
+    updateSet, toggleSetComplete,
     addSet, addExerciseToWorkout,
-    completeWorkout, resetWorkout,
+    completeWorkout, dismissWorkoutSummary, resetWorkout,
     changeExerciseTracking
   } = useWorkoutStore();
 
   const [elapsed, setElapsed] = useState("00:00");
-  const [showSummary, setShowSummary] = useState(false);
-  const isSummaryVisible = showSummary || Boolean(
-    isActive
+  const isSummaryVisible = Boolean(
+    !isSummaryDismissed
     && lastWorkoutSummary
     && (completionStatus === 'committed' || completionStatus === 'queued'),
   );
@@ -75,12 +74,10 @@ export default function ActiveWorkoutPage() {
     try {
       const outcome = await completeWorkout();
       if (outcome.kind === 'committed') {
-        setShowSummary(true);
         return;
       }
       if (outcome.kind === 'queued') {
         toast("Workout saved on this device and pending sync.", { icon: "⏳" });
-        setShowSummary(true);
         return;
       }
 
@@ -102,7 +99,7 @@ export default function ActiveWorkoutPage() {
       toast("Still saving your workout progress. Please wait a moment...", { icon: "⏳" });
       return;
     }
-    finishWorkout();
+    dismissWorkoutSummary();
     router.push(href);
   };
 
