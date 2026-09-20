@@ -22,6 +22,7 @@ import type {
 } from '@/lib/workout-authority';
 
 const MAX_HANDLED_EFFECT_OPERATIONS = 100;
+const WORKOUT_STORE_VERSION = 1;
 const completionFlights = new Map<
   string,
   Promise<WorkoutCompletionUiOutcome>
@@ -99,10 +100,11 @@ interface WorkoutStore {
   completionError: WorkoutCompletionError;
   handledEffectOperationIds: string[];
   lastWorkoutSummary: WorkoutSummary | null;
+  isSummaryDismissed: boolean;
 
   startWorkout: (routineName: string, plannedExercises: PlannedExercise[]) => void;
-  finishWorkout: () => void;
   completeWorkout: () => Promise<WorkoutCompletionUiOutcome>;
+  dismissWorkoutSummary: () => void;
   applyCompletionResult: (
     request: WorkoutCompletionRequest,
     result: WorkoutCompletionResult,
@@ -131,6 +133,48 @@ interface WorkoutStore {
     weightUnit: WeightUnit,
   ) => void;
   resetWorkout: () => void;
+}
+
+const SETTLED_WORKOUT_LIFECYCLE = {
+  isActive: false,
+  isResting: false,
+  restTimeRemaining: 0,
+} as const;
+
+function isSettledCompletionStatus(
+  status: WorkoutCompletionStatus | undefined,
+): status is 'queued' | 'committed' {
+  return status === 'queued' || status === 'committed';
+}
+
+function migrateWorkoutStore(
+  persistedState: unknown,
+  storedVersion: number,
+): Partial<WorkoutStore> {
+  if (
+    typeof persistedState !== 'object'
+    || persistedState === null
+    || Array.isArray(persistedState)
+  ) {
+    return {};
+  }
+
+  const migratedState = {
+    ...(persistedState as Partial<WorkoutStore>),
+  };
+
+  if (storedVersion < 1) {
+    migratedState.isSummaryDismissed = false;
+
+    if (
+      migratedState.isActive === true
+      && isSettledCompletionStatus(migratedState.completionStatus)
+    ) {
+      Object.assign(migratedState, SETTLED_WORKOUT_LIFECYCLE);
+    }
+  }
+
+  return migratedState;
 }
 
 function completedSetsFromExercises(
@@ -260,6 +304,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
           || state.lastWorkoutSummary?.operationId === request.operationId
         ) {
           set({
+            ...SETTLED_WORKOUT_LIFECYCLE,
             completionStatus: 'committed',
             completionError: null,
             lastWorkoutSummary: summary,
@@ -276,10 +321,12 @@ export const useWorkoutStore = create<WorkoutStore>()(
           enqueueWorkoutCompletion(request);
           const summary = provisionalSummary(request);
           set({
+            ...SETTLED_WORKOUT_LIFECYCLE,
             isSaving: false,
             completionStatus: 'queued',
             completionError: null,
             lastWorkoutSummary: summary,
+            isSummaryDismissed: false,
           });
           applyLocalEffectsOnce(request, summary);
           return { kind: 'queued', summary };
@@ -302,10 +349,12 @@ export const useWorkoutStore = create<WorkoutStore>()(
         if (outcome.kind === 'committed') {
           const summary = authoritativeSummary(outcome.result);
           set({
+            ...SETTLED_WORKOUT_LIFECYCLE,
             isSaving: false,
             completionStatus: 'committed',
             completionError: null,
             lastWorkoutSummary: summary,
+            isSummaryDismissed: false,
           });
           applyLocalEffectsOnce(request, summary);
           void useProfileStore.getState().fetchProfile();
@@ -337,6 +386,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
         completionError: null,
         handledEffectOperationIds: [],
         lastWorkoutSummary: null,
+        isSummaryDismissed: false,
 
         startWorkout: (routineName, plannedExercises) => {
           const activeExercises: WorkoutExercise[] = plannedExercises.map((exercise) => {
@@ -373,11 +423,8 @@ export const useWorkoutStore = create<WorkoutStore>()(
             completionStatus: 'idle',
             completionError: null,
             lastWorkoutSummary: null,
+            isSummaryDismissed: false,
           });
-        },
-
-        finishWorkout: () => {
-          set({ isActive: false, isResting: false, restTimeRemaining: 0 });
         },
 
         completeWorkout: async () => {
@@ -441,6 +488,10 @@ export const useWorkoutStore = create<WorkoutStore>()(
           return flight;
         },
 
+        dismissWorkoutSummary: () => {
+          set({ isSummaryDismissed: true });
+        },
+
         applyCompletionResult,
         applyLocalEffectsOnce,
         markLocalEffectsHandled,
@@ -459,6 +510,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
             completionStatus: 'idle',
             completionError: null,
             lastWorkoutSummary: null,
+            isSummaryDismissed: false,
           });
         },
 
@@ -571,10 +623,14 @@ export const useWorkoutStore = create<WorkoutStore>()(
     },
     {
       name: 'vortixia-workout-storage',
+      version: WORKOUT_STORE_VERSION,
+      migrate: migrateWorkoutStore,
       merge: (persistedState, currentState) => ({
         ...currentState,
         ...(persistedState as Partial<WorkoutStore>),
         isSaving: false,
+        isSummaryDismissed:
+          (persistedState as Partial<WorkoutStore>)?.isSummaryDismissed === true,
       }),
     },
   ),
