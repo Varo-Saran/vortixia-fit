@@ -9,6 +9,7 @@ import { useTrophyStore } from './useTrophyStore';
 import { type MuscleGroup, useRecoveryStore } from './useRecoveryStore';
 import { useSocialStore } from './useSocialStore';
 import { useProfileStore } from './useProfileStore';
+import { useSettingsStore } from './useSettingsStore';
 import {
   createWorkoutCompletionRequest,
   createWorkoutOperationId,
@@ -22,7 +23,10 @@ import type {
 } from '@/lib/workout-authority';
 
 const MAX_HANDLED_EFFECT_OPERATIONS = 100;
-const WORKOUT_STORE_VERSION = 1;
+const DEFAULT_REST_SECONDS = 90;
+const MIN_REST_SECONDS = 1;
+const MAX_REST_SECONDS = 60 * 60;
+const WORKOUT_STORE_VERSION = 2;
 const completionFlights = new Map<
   string,
   Promise<WorkoutCompletionUiOutcome>
@@ -93,6 +97,9 @@ interface WorkoutStore {
   exercises: WorkoutExercise[];
   restTimeRemaining: number;
   isResting: boolean;
+  restEndsAt: number | null;
+  restCycleId: string | null;
+  pendingRestFeedbackCycleId: string | null;
   isSaving: boolean;
   operationId: string | null;
   completionRequest: WorkoutCompletionRequest | null;
@@ -123,7 +130,8 @@ interface WorkoutStore {
   toggleSetComplete: (exerciseId: string, setId: string) => void;
   startRest: (seconds?: number) => void;
   stopRest: () => void;
-  tickRest: () => void;
+  syncRestTimer: () => void;
+  consumeRestCompletionFeedback: (cycleId: string) => boolean;
   addRestTime: (seconds: number) => void;
   addSet: (exerciseId: string) => void;
   addExerciseToWorkout: (exerciseName: string) => void;
@@ -139,7 +147,41 @@ const SETTLED_WORKOUT_LIFECYCLE = {
   isActive: false,
   isResting: false,
   restTimeRemaining: 0,
+  restEndsAt: null,
+  restCycleId: null,
+  pendingRestFeedbackCycleId: null,
 } as const;
+
+function normalizeRestDurationSeconds(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
+    return DEFAULT_REST_SECONDS;
+  }
+
+  return Math.min(
+    MAX_REST_SECONDS,
+    Math.max(MIN_REST_SECONDS, Math.round(value)),
+  );
+}
+
+function normalizeRemainingRestSeconds(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
+    return 0;
+  }
+
+  return Math.min(MAX_REST_SECONDS, Math.round(value));
+}
+
+function createRestCycleId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+
+  return `rest-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function remainingRestSeconds(restEndsAt: number, now = Date.now()): number {
+  return Math.max(0, Math.ceil((restEndsAt - now) / 1000));
+}
 
 function isSettledCompletionStatus(
   status: WorkoutCompletionStatus | undefined,
@@ -171,6 +213,33 @@ function migrateWorkoutStore(
       && isSettledCompletionStatus(migratedState.completionStatus)
     ) {
       Object.assign(migratedState, SETTLED_WORKOUT_LIFECYCLE);
+    }
+  }
+
+  if (storedVersion < 2) {
+    migratedState.pendingRestFeedbackCycleId = null;
+
+    if (isSettledCompletionStatus(migratedState.completionStatus)) {
+      Object.assign(migratedState, SETTLED_WORKOUT_LIFECYCLE);
+    } else if (
+      migratedState.isResting === true
+    ) {
+      const remainingSeconds = normalizeRemainingRestSeconds(
+        migratedState.restTimeRemaining,
+      );
+      if (remainingSeconds > 0) {
+        migratedState.restTimeRemaining = remainingSeconds;
+        migratedState.restEndsAt = Date.now() + remainingSeconds * 1000;
+        migratedState.restCycleId = createRestCycleId();
+      } else {
+        migratedState.isResting = false;
+        migratedState.restTimeRemaining = 0;
+        migratedState.restEndsAt = null;
+        migratedState.restCycleId = null;
+      }
+    } else {
+      migratedState.restEndsAt = null;
+      migratedState.restCycleId = null;
     }
   }
 
@@ -379,6 +448,9 @@ export const useWorkoutStore = create<WorkoutStore>()(
         exercises: [],
         restTimeRemaining: 0,
         isResting: false,
+        restEndsAt: null,
+        restCycleId: null,
+        pendingRestFeedbackCycleId: null,
         isSaving: false,
         operationId: null,
         completionRequest: null,
@@ -417,6 +489,9 @@ export const useWorkoutStore = create<WorkoutStore>()(
             exercises: activeExercises,
             restTimeRemaining: 0,
             isResting: false,
+            restEndsAt: null,
+            restCycleId: null,
+            pendingRestFeedbackCycleId: null,
             isSaving: false,
             operationId: createWorkoutOperationId(),
             completionRequest: null,
@@ -504,6 +579,9 @@ export const useWorkoutStore = create<WorkoutStore>()(
             exercises: [],
             restTimeRemaining: 0,
             isResting: false,
+            restEndsAt: null,
+            restCycleId: null,
+            pendingRestFeedbackCycleId: null,
             isSaving: false,
             operationId: null,
             completionRequest: null,
@@ -545,28 +623,120 @@ export const useWorkoutStore = create<WorkoutStore>()(
               };
             }),
           }));
-          if (justCompleted) get().startRest(90);
+          if (justCompleted) get().startRest();
         },
 
-        startRest: (seconds = 90) => {
-          set({ isResting: true, restTimeRemaining: seconds });
+        startRest: (seconds) => {
+          const durationSeconds = normalizeRestDurationSeconds(
+            seconds ?? useSettingsStore.getState().defaultRestTimer,
+          );
+          set({
+            isResting: true,
+            restTimeRemaining: durationSeconds,
+            restEndsAt: Date.now() + durationSeconds * 1000,
+            restCycleId: createRestCycleId(),
+            pendingRestFeedbackCycleId: null,
+          });
         },
 
         stopRest: () => {
-          set({ isResting: false, restTimeRemaining: 0 });
+          set({
+            isResting: false,
+            restTimeRemaining: 0,
+            restEndsAt: null,
+            restCycleId: null,
+            pendingRestFeedbackCycleId: null,
+          });
         },
 
-        tickRest: () => {
-          const { isResting, restTimeRemaining } = get();
-          if (isResting && restTimeRemaining > 0) {
-            set({ restTimeRemaining: restTimeRemaining - 1 });
-          } else if (restTimeRemaining === 0) {
-            set({ isResting: false });
+        syncRestTimer: () => {
+          const state = get();
+          if (!state.isResting) return;
+
+          const now = Date.now();
+          const cycleId = state.restCycleId ?? createRestCycleId();
+          let restEndsAt = state.restEndsAt;
+          if (typeof restEndsAt !== 'number' || !Number.isFinite(restEndsAt)) {
+            const storedRemaining = normalizeRemainingRestSeconds(
+              state.restTimeRemaining,
+            );
+            if (storedRemaining === 0) {
+              set({
+                isResting: false,
+                restTimeRemaining: 0,
+                restEndsAt: null,
+                restCycleId: null,
+                pendingRestFeedbackCycleId: null,
+              });
+              return;
+            }
+            restEndsAt = now + storedRemaining * 1000;
           }
+          const remainingSeconds = remainingRestSeconds(restEndsAt, now);
+
+          if (remainingSeconds > 0) {
+            if (
+              remainingSeconds !== state.restTimeRemaining
+              || restEndsAt !== state.restEndsAt
+              || cycleId !== state.restCycleId
+            ) {
+              set({
+                restTimeRemaining: remainingSeconds,
+                restEndsAt,
+                restCycleId: cycleId,
+              });
+            }
+            return;
+          }
+
+          set({
+            isResting: false,
+            restTimeRemaining: 0,
+            restEndsAt: null,
+            restCycleId: null,
+            pendingRestFeedbackCycleId: cycleId,
+          });
+        },
+
+        consumeRestCompletionFeedback: (cycleId) => {
+          if (get().pendingRestFeedbackCycleId !== cycleId) return false;
+          set({ pendingRestFeedbackCycleId: null });
+          return true;
         },
 
         addRestTime: (seconds) => {
-          set({ restTimeRemaining: get().restTimeRemaining + seconds });
+          if (!Number.isFinite(seconds)) return;
+
+          const state = get();
+          if (!state.isResting) return;
+
+          const now = Date.now();
+          const currentRemaining =
+            typeof state.restEndsAt === 'number'
+            && Number.isFinite(state.restEndsAt)
+              ? remainingRestSeconds(state.restEndsAt, now)
+              : normalizeRemainingRestSeconds(state.restTimeRemaining);
+          const nextRemaining = Math.min(
+            MAX_REST_SECONDS,
+            currentRemaining + Math.round(seconds),
+          );
+
+          if (nextRemaining <= 0) {
+            set({
+              isResting: false,
+              restTimeRemaining: 0,
+              restEndsAt: null,
+              restCycleId: null,
+              pendingRestFeedbackCycleId: null,
+            });
+            return;
+          }
+
+          set({
+            restTimeRemaining: nextRemaining,
+            restEndsAt: now + nextRemaining * 1000,
+            restCycleId: state.restCycleId ?? createRestCycleId(),
+          });
         },
 
         addSet: (exerciseId) => {

@@ -1,40 +1,166 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Timer, X, Plus, Minus } from "lucide-react";
 import { useWorkoutStore } from "@/store/useWorkoutStore";
+import { useSettingsStore } from "@/store/useSettingsStore";
+
+const FALLBACK_REST_SECONDS = 90;
+
+type AudioContextConstructor = new () => AudioContext;
+
+function getAudioContextConstructor(): AudioContextConstructor | null {
+  if (typeof window === "undefined") return null;
+
+  const audioWindow = window as typeof window & {
+    webkitAudioContext?: AudioContextConstructor;
+  };
+  return audioWindow.AudioContext ?? audioWindow.webkitAudioContext ?? null;
+}
 
 export function RestTimer() {
-  const { 
-    isResting, 
-    restTimeRemaining, 
-    stopRest, 
-    addRestTime, 
-    tickRest 
+  const {
+    isResting,
+    restTimeRemaining,
+    restCycleId,
+    pendingRestFeedbackCycleId,
+    stopRest,
+    addRestTime,
+    syncRestTimer,
+    consumeRestCompletionFeedback,
   } = useWorkoutStore();
+  const { soundEffects, hapticFeedback } = useSettingsStore();
 
   const [isMinimized, setIsMinimized] = useState(false);
-  const [initialSeconds, setInitialSeconds] = useState(90);
-  const prevIsResting = useRef(false);
+  const [initialSeconds, setInitialSeconds] = useState(FALLBACK_REST_SECONDS);
+  const activeCycleRef = useRef<string | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
 
   useEffect(() => {
-    if (isResting && !prevIsResting.current) {
-      setInitialSeconds(restTimeRemaining || 90);
-      setIsMinimized(false);
+    if (!isResting || !restCycleId) {
+      activeCycleRef.current = null;
+      return;
     }
-    prevIsResting.current = isResting;
-  }, [isResting, restTimeRemaining]);
+
+    if (activeCycleRef.current !== restCycleId) {
+      activeCycleRef.current = restCycleId;
+      setInitialSeconds(restTimeRemaining || FALLBACK_REST_SECONDS);
+      setIsMinimized(false);
+      return;
+    }
+
+    setInitialSeconds((current) => Math.max(current, restTimeRemaining));
+  }, [isResting, restCycleId, restTimeRemaining]);
 
   useEffect(() => {
     if (!isResting) return;
 
-    const interval = setInterval(() => {
-      tickRest();
-    }, 1000);
+    syncRestTimer();
 
-    return () => clearInterval(interval);
-  }, [isResting, tickRest]);
+    const interval = window.setInterval(syncRestTimer, 1000);
+    const handleFocus = () => syncRestTimer();
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") syncRestTimer();
+    };
+
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [isResting, syncRestTimer]);
+
+  useEffect(() => {
+    if (!soundEffects) return;
+
+    const unlockAudio = () => {
+      const AudioContextClass = getAudioContextConstructor();
+      if (!AudioContextClass) return;
+
+      try {
+        const context = audioContextRef.current ?? new AudioContextClass();
+        audioContextRef.current = context;
+        if (context.state === "suspended") {
+          void context.resume().catch(() => undefined);
+        }
+      } catch {
+        // Audio feedback is optional and must never affect the timer.
+      }
+    };
+
+    window.addEventListener("pointerdown", unlockAudio, true);
+    window.addEventListener("keydown", unlockAudio, true);
+
+    return () => {
+      window.removeEventListener("pointerdown", unlockAudio, true);
+      window.removeEventListener("keydown", unlockAudio, true);
+    };
+  }, [soundEffects]);
+
+  useEffect(() => () => {
+    const context = audioContextRef.current;
+    audioContextRef.current = null;
+    if (context && context.state !== "closed") {
+      void context.close().catch(() => undefined);
+    }
+  }, []);
+
+  const playCompletionTone = useCallback(async () => {
+    const AudioContextClass = getAudioContextConstructor();
+    if (!AudioContextClass) return;
+
+    try {
+      const context = audioContextRef.current ?? new AudioContextClass();
+      audioContextRef.current = context;
+      if (context.state === "suspended") await context.resume();
+      if (context.state !== "running") return;
+
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      const now = context.currentTime;
+
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(880, now);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.18, now + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      oscillator.addEventListener("ended", () => {
+        oscillator.disconnect();
+        gain.disconnect();
+      }, { once: true });
+      oscillator.start(now);
+      oscillator.stop(now + 0.23);
+    } catch {
+      // Browsers may block audio outside an unlocked interaction context.
+    }
+  }, []);
+
+  useEffect(() => {
+    const cycleId = pendingRestFeedbackCycleId;
+    if (!cycleId || !consumeRestCompletionFeedback(cycleId)) return;
+
+    if (soundEffects) void playCompletionTone();
+
+    if (hapticFeedback && typeof navigator.vibrate === "function") {
+      try {
+        navigator.vibrate([120, 80, 120]);
+      } catch {
+        // Haptic feedback is optional and unsupported on some browsers.
+      }
+    }
+  }, [
+    consumeRestCompletionFeedback,
+    hapticFeedback,
+    pendingRestFeedbackCycleId,
+    playCompletionTone,
+    soundEffects,
+  ]);
 
   const addTime = (secs: number) => {
     addRestTime(secs);
@@ -54,7 +180,10 @@ export function RestTimer() {
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
-  const progress = Math.max(0, restTimeRemaining) / (initialSeconds || 90);
+  const progress = Math.min(
+    1,
+    Math.max(0, restTimeRemaining) / (initialSeconds || FALLBACK_REST_SECONDS),
+  );
   const strokeDasharray = 2 * Math.PI * 40; // r=40
   const strokeDashoffset = strokeDasharray * (1 - progress);
 
