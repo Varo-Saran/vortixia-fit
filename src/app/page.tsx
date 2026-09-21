@@ -19,6 +19,7 @@ import {
   normalizeWorkoutReversalSessionId,
   submitWorkoutReversal,
 } from "@/lib/workout-reversal-client";
+import { durationSecondsBetween, formatDuration } from "@/lib/duration";
 
 export default function Dashboard() {
   const [mounted, setMounted] = useState(false);
@@ -303,14 +304,25 @@ export default function Dashboard() {
   // Active workout timer ticking
   useEffect(() => {
     if (!isActive || !startTime) return;
-    const interval = setInterval(() => {
-      const now = new Date();
-      const diff = Math.floor((now.getTime() - new Date(startTime).getTime()) / 1000);
-      const minutes = Math.floor(diff / 60).toString().padStart(2, '0');
-      const seconds = (diff % 60).toString().padStart(2, '0');
-      setElapsed(`${minutes}:${seconds}`);
-    }, 1000);
-    return () => clearInterval(interval);
+
+    const syncElapsed = () => {
+      setElapsed(formatDuration(durationSecondsBetween(startTime, Date.now())));
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') syncElapsed();
+    };
+
+    const animationFrame = window.requestAnimationFrame(syncElapsed);
+    const interval = window.setInterval(syncElapsed, 1000);
+    window.addEventListener('focus', syncElapsed);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+      window.clearInterval(interval);
+      window.removeEventListener('focus', syncElapsed);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [isActive, startTime]);
 
   // Fetch Recovery Recommendations

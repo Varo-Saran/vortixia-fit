@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Timer, X, Plus, Minus } from "lucide-react";
 import { useWorkoutStore } from "@/store/useWorkoutStore";
 import { useSettingsStore } from "@/store/useSettingsStore";
+import { formatDuration } from "@/lib/duration";
 
 const FALLBACK_REST_SECONDS = 90;
 
@@ -174,18 +175,14 @@ export function RestTimer() {
     }
   };
 
-  const formatTime = (totalSeconds: number) => {
-    const m = Math.floor(totalSeconds / 60);
-    const s = totalSeconds % 60;
-    return `${m}:${s.toString().padStart(2, '0')}`;
-  };
-
   const progress = Math.min(
     1,
     Math.max(0, restTimeRemaining) / (initialSeconds || FALLBACK_REST_SECONDS),
   );
-  const strokeDasharray = 2 * Math.PI * 40; // r=40
+  const strokeDasharray = 2 * Math.PI * 64;
   const strokeDashoffset = strokeDasharray * (1 - progress);
+  const formattedRestTime = formatDuration(restTimeRemaining);
+  const usesHourFormat = formattedRestTime.length > 5;
 
   return (
     <AnimatePresence>
@@ -202,8 +199,8 @@ export function RestTimer() {
               className="bg-black/90 border border-accent-green/50 p-3 rounded-full flex items-center gap-3 shadow-[0_0_20px_rgba(46,234,130,0.3)] backdrop-blur-md"
             >
                <Timer className={`w-5 h-5 ${restTimeRemaining <= 0 ? 'text-red-500 animate-pulse' : 'text-accent-green'}`} />
-               <span className={`font-black text-lg ${restTimeRemaining <= 0 ? 'text-red-500' : 'text-white'}`}>
-                 {formatTime(Math.max(0, restTimeRemaining))}
+               <span className={`font-mono font-black tabular-nums leading-none whitespace-nowrap ${usesHourFormat ? 'text-base' : 'text-lg'} ${restTimeRemaining <= 0 ? 'text-red-500' : 'text-white'}`}>
+                 {formattedRestTime}
                </span>
             </button>
           ) : (
@@ -216,15 +213,19 @@ export function RestTimer() {
 
               <span className="text-[10px] text-text-muted font-bold uppercase tracking-widest mt-1">Rest Timer</span>
 
-              <div className="relative w-32 h-32 flex items-center justify-center">
+              <div className="relative w-44 h-44 flex items-center justify-center">
                 {/* SVG Ring */}
-                <svg className="absolute inset-0 w-full h-full -rotate-90">
+                <svg
+                  aria-hidden="true"
+                  viewBox="0 0 176 176"
+                  className="absolute inset-0 w-full h-full -rotate-90"
+                >
                   <circle 
-                    cx="64" cy="64" r="40" 
+                    cx="88" cy="88" r="64"
                     fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="6" 
                   />
                   <circle 
-                    cx="64" cy="64" r="40" 
+                    cx="88" cy="88" r="64"
                     fill="none" 
                     stroke={restTimeRemaining <= 0 ? '#ef4444' : '#2EEA82'} 
                     strokeWidth="6" 
@@ -234,9 +235,9 @@ export function RestTimer() {
                     className="transition-all duration-1000 ease-linear"
                   />
                 </svg>
-                <div className="flex flex-col items-center">
-                  <span className={`text-4xl font-black ${restTimeRemaining <= 0 ? 'text-red-500 animate-pulse' : 'text-white'}`}>
-                    {formatTime(Math.max(0, restTimeRemaining))}
+                <div className="flex w-32 items-center justify-center overflow-hidden">
+                  <span className={`font-mono font-black tabular-nums leading-none whitespace-nowrap ${usesHourFormat ? 'text-2xl' : 'text-4xl'} ${restTimeRemaining <= 0 ? 'text-red-500 animate-pulse' : 'text-white'}`}>
+                    {formattedRestTime}
                   </span>
                 </div>
               </div>
