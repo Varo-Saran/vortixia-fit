@@ -117,25 +117,32 @@ export default function ActiveWorkoutPage() {
     trackingType: TrackingType,
     weightUnit: WeightUnit,
   ) => {
-    const weightVal = set.previousWeight || 0;
-    const repsVal = set.previousReps || 0;
-    
-    if (weightVal === 0 && repsVal === 0) return '-';
+    const weightVal = set.previousWeight;
+    const repsVal = set.previousReps;
+    const hasWeight = typeof weightVal === 'number' && Number.isFinite(weightVal);
+    const hasReps = typeof repsVal === 'number' && Number.isFinite(repsVal);
 
     switch (trackingType) {
       case 'reps_weight':
+        if (!hasWeight || !hasReps) return '—';
         return `${weightVal} ${weightUnit.toLowerCase()} × ${repsVal} reps`;
       case 'reps_only':
+        if (!hasReps) return '—';
         return `${repsVal} reps`;
       case 'time_weight':
+        if (!hasWeight || !hasReps) return '—';
         return `${weightVal} ${weightUnit.toLowerCase()} × ${repsVal} secs`;
-      case 'time_only':
+      case 'time_only': {
+        if (!hasReps) return '—';
         const mins = Math.floor(repsVal / 60);
         const secs = repsVal % 60;
         return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+      }
       case 'cardio_hr':
+        if (!hasWeight || !hasReps) return '—';
         return `${weightVal} mins × ${repsVal} bpm`;
       default:
+        if (!hasWeight || !hasReps) return '—';
         return `${weightVal} × ${repsVal}`;
     }
   };

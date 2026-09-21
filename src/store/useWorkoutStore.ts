@@ -37,8 +37,8 @@ export interface WorkoutSet {
   weight: number | '';
   reps: number | '';
   isCompleted: boolean;
-  previousWeight: number;
-  previousReps: number;
+  previousWeight: number | null;
+  previousReps: number | null;
 }
 
 export interface WorkoutExercise {
@@ -469,8 +469,8 @@ export const useWorkoutStore = create<WorkoutStore>()(
                 weight: '',
                 reps: '',
                 isCompleted: false,
-                previousWeight: 135 + Math.floor(Math.random() * 4) * 10,
-                previousReps: 10,
+                previousWeight: null,
+                previousReps: null,
               }),
             );
             return {
@@ -743,7 +743,6 @@ export const useWorkoutStore = create<WorkoutStore>()(
           set((currentState) => ({
             exercises: currentState.exercises.map((exercise) => {
               if (exercise.id !== exerciseId) return exercise;
-              const lastSet = exercise.sets.at(-1);
               return {
                 ...exercise,
                 sets: [...exercise.sets, {
@@ -751,8 +750,8 @@ export const useWorkoutStore = create<WorkoutStore>()(
                   weight: '',
                   reps: '',
                   isCompleted: false,
-                  previousWeight: lastSet?.previousWeight ?? 0,
-                  previousReps: lastSet?.previousReps ?? 0,
+                  previousWeight: null,
+                  previousReps: null,
                 }],
               };
             }),
@@ -770,8 +769,8 @@ export const useWorkoutStore = create<WorkoutStore>()(
                 weight: '',
                 reps: '',
                 isCompleted: false,
-                previousWeight: 0,
-                previousReps: 0,
+                previousWeight: null,
+                previousReps: null,
               }],
               trackingType: 'reps_weight',
               weightUnit: 'lbs',
