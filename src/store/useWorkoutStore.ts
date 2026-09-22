@@ -21,6 +21,7 @@ import type {
   WorkoutCompletionResult,
   WorkoutCompletionSet,
 } from '@/lib/workout-authority';
+import { durationSecondsBetween } from '@/lib/duration';
 
 const MAX_HANDLED_EFFECT_OPERATIONS = 100;
 const DEFAULT_REST_SECONDS = 90;
@@ -55,6 +56,7 @@ export interface WorkoutSummary {
   totalSets: number;
   totalVolume: number;
   durationMins: number;
+  durationSeconds?: number;
   xpEarned: number;
   totalXp?: number;
   authoritative: boolean;
@@ -272,6 +274,10 @@ function provisionalSummary(
     (total, workoutSet) => total + workoutSet.weight * workoutSet.reps,
     0,
   );
+  const durationSeconds = durationSecondsBetween(
+    request.startTime,
+    request.endTime,
+  );
   const durationMins = Math.round(
     (Date.parse(request.endTime) - Date.parse(request.startTime)) / 60_000,
   );
@@ -280,6 +286,7 @@ function provisionalSummary(
     totalSets: request.sets.length,
     totalVolume,
     durationMins,
+    durationSeconds,
     xpEarned: Math.round(request.sets.length * 50 + totalVolume * 0.1),
     authoritative: false,
     syncStatus: 'queued',
@@ -287,6 +294,7 @@ function provisionalSummary(
 }
 
 function authoritativeSummary(
+  request: WorkoutCompletionRequest,
   result: WorkoutCompletionResult,
 ): WorkoutSummary {
   return {
@@ -295,6 +303,10 @@ function authoritativeSummary(
     totalSets: result.totalSets,
     totalVolume: result.totalVolume,
     durationMins: result.durationMinutes,
+    durationSeconds: durationSecondsBetween(
+      request.startTime,
+      request.endTime,
+    ),
     xpEarned: result.xpAwarded,
     totalXp: result.totalXp,
     authoritative: true,
@@ -366,7 +378,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
         request: WorkoutCompletionRequest,
         result: WorkoutCompletionResult,
       ) => {
-        const summary = authoritativeSummary(result);
+        const summary = authoritativeSummary(request, result);
         const state = get();
         if (
           state.operationId === request.operationId
@@ -416,7 +428,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
 
         const outcome = await submitWorkoutCompletion(request);
         if (outcome.kind === 'committed') {
-          const summary = authoritativeSummary(outcome.result);
+          const summary = authoritativeSummary(request, outcome.result);
           set({
             ...SETTLED_WORKOUT_LIFECYCLE,
             isSaving: false,
