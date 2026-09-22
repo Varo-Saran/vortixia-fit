@@ -9,6 +9,7 @@ import {
   PieChart, Pie, Cell, BarChart, Bar, LineChart, Line
 } from "recharts";
 import { supabase } from '@/lib/supabase';
+import { ExerciseSelect } from '@/components/ui/ExerciseSelect';
 
 const COLORS = ['#2EEA82', '#1a1a1a'];
 
@@ -516,22 +517,19 @@ export default function AnalyticsPage() {
           {/* Section 3: Strength Progression Hub (1RM) */}
           <section className="mb-6 animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
             <div className="glass-card p-6 border-white/5 rounded-[2rem] flex flex-col bg-white/3">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
+              <div className="mb-4 flex min-w-0 items-center gap-3">
+                <div className="flex shrink-0 items-center gap-2">
                   <Dumbbell className="w-5 h-5 text-blue-400" />
                   <h2 className="text-white font-bold">Strength Progression</h2>
                 </div>
                 
                 {availableExercises.length > 0 && (
-                  <select
+                  <ExerciseSelect
+                    options={availableExercises}
                     value={selectedExercise}
-                    onChange={(e) => setSelectedExercise(e.target.value)}
-                    className="bg-black/50 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white outline-none focus:border-blue-400 transition-colors"
-                  >
-                    {availableExercises.map(ex => (
-                      <option key={ex} value={ex}>{ex}</option>
-                    ))}
-                  </select>
+                    onChange={setSelectedExercise}
+                    label="Select strength progression exercise"
+                  />
                 )}
               </div>
               <p className="text-xs text-text-muted mb-4">Estimated 1-Rep Max progress over time (kg).</p>

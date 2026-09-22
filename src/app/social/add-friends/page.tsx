@@ -183,7 +183,7 @@ export default function AddFriendsPage() {
                   {/* Inner glow */}
                   <div className={`absolute bottom-0 left-0 w-full h-1/2 blur-2xl ${idx % 2 === 0 ? 'bg-accent-green/20' : 'bg-purple-500/20'}`} />
                   
-                  <h3 className="text-white font-bold z-10">{user.username || 'Unknown'}</h3>
+                  <h3 className="z-10 w-full truncate text-center font-bold text-white" title={user.username || 'Unknown'}>{user.username || 'Unknown'}</h3>
                   <div className="flex items-center gap-1 mt-1 z-10">
                     <Flame className={`w-3 h-3 ${idx % 2 === 0 ? 'text-accent-green' : 'text-purple-400'}`} />
                     <span className="text-[10px] text-text-muted font-bold">XP: {user.total_xp || 0}</span>

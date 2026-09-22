@@ -185,7 +185,7 @@ export default function AboutPage() {
           )}
         </div>
         
-        <h2 className="text-xl font-black tracking-tight text-white">
+        <h2 className="max-w-full break-words text-center text-xl font-black tracking-tight text-white [overflow-wrap:anywhere]">
           @{profile?.username || "athlete"}
         </h2>
         

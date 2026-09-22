@@ -46,8 +46,8 @@ export default function ProfileHub() {
             )}
           </div>
         </div>
-        <h2 className="text-3xl font-black text-white">{profile?.full_name || "Champion"}</h2>
-        <p className="text-sm font-bold text-accent-green mt-1">@{profile?.username || "athlete"}</p>
+        <h2 className="max-w-full break-words text-center text-3xl font-black text-white [overflow-wrap:anywhere]">{profile?.full_name || "Champion"}</h2>
+        <p className="mt-1 max-w-full break-words text-center text-sm font-bold text-accent-green [overflow-wrap:anywhere]">@{profile?.username || "athlete"}</p>
       </section>
 
       {/* Quick Stats Bar */}

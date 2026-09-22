@@ -174,27 +174,27 @@ export default function SocialArena() {
               return (
                 <div 
                   key={user.id}
-                  className={`flex items-center justify-between p-4 rounded-2xl ${isMe ? 'bg-accent-green/10 border border-accent-green/30 shadow-[0_0_15px_rgba(74,222,128,0.1)]' : 'glass-card border border-white/5'}`}
+                  className={`flex min-w-0 items-center justify-between gap-3 p-4 rounded-2xl ${isMe ? 'bg-accent-green/10 border border-accent-green/30 shadow-[0_0_15px_rgba(74,222,128,0.1)]' : 'glass-card border border-white/5'}`}
                 >
-                  <div className="flex items-center gap-4">
-                    <span className={`font-black text-xl w-6 text-center ${rankColor}`}>
+                  <div className="flex min-w-0 flex-1 items-center gap-3">
+                    <span className={`w-6 shrink-0 text-center text-xl font-black ${rankColor}`}>
                       {user.rank}
                     </span>
-                    <div className="w-10 h-10 rounded-full bg-black overflow-hidden border border-white/10">
+                    <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full border border-white/10 bg-black">
                       {user.avatar_url ? (
                         <img src={user.avatar_url} alt={user.username} className="w-full h-full object-cover" />
                       ) : (
                         <UserCircle className="w-full h-full text-text-muted" strokeWidth={1} />
                       )}
                     </div>
-                    <div className="flex flex-col">
-                      <span className={`font-bold ${isMe ? 'text-accent-green' : 'text-white'}`}>
+                    <div className="flex min-w-0 flex-1 flex-col">
+                      <span className={`truncate font-bold ${isMe ? 'text-accent-green' : 'text-white'}`} title={`${user.full_name}${isMe ? ' (You)' : ''}`}>
                         {user.full_name} {isMe && "(You)"}
                       </span>
-                      <span className="text-[10px] text-text-muted font-bold uppercase tracking-wider">@{user.username}</span>
+                      <span className="truncate text-[10px] font-bold uppercase tracking-wider text-text-muted" title={`@${user.username}`}>@{user.username}</span>
                     </div>
                   </div>
-                  <span className="font-mono font-bold text-sm bg-black/50 px-3 py-1.5 rounded-lg border border-white/5">
+                  <span className="shrink-0 rounded-lg border border-white/5 bg-black/50 px-3 py-1.5 font-mono text-sm font-bold">
                     {user.total_xp?.toLocaleString() || "0"} <span className="text-text-muted text-xs font-sans">XP</span>
                   </span>
                 </div>
@@ -215,9 +215,9 @@ export default function SocialArena() {
                 const showBubble = isWorkedOutToday && !bubbleDismissed;
 
                 return (
-                  <div key={f.id} className="flex items-center justify-between p-4 rounded-2xl glass-card border border-white/5 relative">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-full bg-black overflow-hidden border border-white/10 relative">
+                  <div key={f.id} className="relative flex min-w-0 items-center justify-between gap-3 rounded-2xl border border-white/5 p-4 glass-card">
+                    <div className="flex min-w-0 flex-1 items-center gap-3">
+                      <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full border border-white/10 bg-black">
                         {f.avatar ? (
                           <img src={f.avatar} alt={f.username} className="w-full h-full object-cover" />
                         ) : (
@@ -227,12 +227,12 @@ export default function SocialArena() {
                           <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-accent-green ring-2 ring-black" />
                         )}
                       </div>
-                      <div className="flex flex-col">
-                        <span className="font-bold text-white">{f.name}</span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] text-text-muted font-bold uppercase tracking-wider">@{f.username}</span>
+                      <div className="flex min-w-0 flex-1 flex-col">
+                        <span className="truncate font-bold text-white" title={f.name}>{f.name}</span>
+                        <div className="flex min-w-0 items-center gap-2">
+                          <span className="min-w-0 truncate text-[10px] font-bold uppercase tracking-wider text-text-muted" title={`@${f.username}`}>@{f.username}</span>
                           {f.activeRoutine && (
-                            <span className="text-[9px] bg-accent-green/20 text-accent-green px-1.5 py-0.5 rounded font-semibold">{f.activeRoutine}</span>
+                            <span className="max-w-20 shrink-0 truncate rounded bg-accent-green/20 px-1.5 py-0.5 text-[9px] font-semibold text-accent-green" title={f.activeRoutine}>{f.activeRoutine}</span>
                           )}
                         </div>
                       </div>
@@ -249,7 +249,7 @@ export default function SocialArena() {
 
                     <button 
                       onClick={() => setFriendToRemove({ id: f.id, userId: f.id, name: f.username })}
-                      className="px-3 py-1.5 bg-red-500/10 text-red-500 text-xs font-bold rounded-lg hover:bg-red-500/20 transition-colors"
+                      className="shrink-0 rounded-lg bg-red-500/10 px-3 py-1.5 text-xs font-bold text-red-500 transition-colors hover:bg-red-500/20"
                     >
                       Remove
                     </button>
@@ -421,7 +421,7 @@ export default function SocialArena() {
           <div className="bg-[#111] border border-white/10 rounded-2xl p-6 w-full max-w-sm flex flex-col gap-4">
             <h3 className="text-xl font-black text-white">Remove Friend?</h3>
             <p className="text-sm text-text-muted">
-              Are you sure you want to remove <span className="font-bold text-white">@{friendToRemove.name}</span> from your friends list?
+              Are you sure you want to remove <span className="break-all font-bold text-white">@{friendToRemove.name}</span> from your friends list?
             </p>
             <div className="flex gap-3 mt-2">
               <button 
