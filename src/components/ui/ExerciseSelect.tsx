@@ -96,7 +96,7 @@ export function ExerciseSelect({ options, value, onChange, label }: ExerciseSele
   return (
     <div
       ref={rootRef}
-      className="relative min-w-0 flex-1 sm:max-w-72"
+      className="relative w-full min-w-0 flex-1 sm:max-w-72"
       onBlur={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
           setIsOpen(false);

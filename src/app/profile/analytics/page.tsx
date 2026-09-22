@@ -517,7 +517,7 @@ export default function AnalyticsPage() {
           {/* Section 3: Strength Progression Hub (1RM) */}
           <section className="mb-6 animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
             <div className="glass-card p-6 border-white/5 rounded-[2rem] flex flex-col bg-white/3">
-              <div className="mb-4 flex min-w-0 items-center gap-3">
+              <div className="mb-4 flex min-w-0 flex-col items-stretch gap-3 sm:flex-row sm:items-center">
                 <div className="flex shrink-0 items-center gap-2">
                   <Dumbbell className="w-5 h-5 text-blue-400" />
                   <h2 className="text-white font-bold">Strength Progression</h2>
