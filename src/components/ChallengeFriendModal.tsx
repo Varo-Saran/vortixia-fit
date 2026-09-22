@@ -128,7 +128,7 @@ export function ChallengeFriendModal({ isOpen, onClose, onChallengeIssued, frien
                         <UserCircle className="w-full h-full text-white/50" />
                       )}
                     </div>
-                    <span className="text-[10px] font-bold text-white max-w-full truncate">{friend.username}</span>
+                    <span className="max-w-full truncate text-[10px] font-bold text-white" title={friend.username}>{friend.username}</span>
                   </button>
                 ))
               )}
@@ -194,7 +194,9 @@ export function ChallengeFriendModal({ isOpen, onClose, onChallengeIssued, frien
             onClick={handleChallenge}
             className="w-full bg-accent-red hover:bg-red-600 disabled:opacity-50 disabled:hover:bg-accent-red text-white font-black text-sm uppercase tracking-widest py-4 rounded-xl shadow-[0_0_20px_rgba(255,51,51,0.3)] transition-all active:scale-95"
           >
-            {isSubmitting ? 'Challenging...' : selectedFriend ? `Challenge ${selectedFriend.username}` : 'Select Opponent'}
+            <span className="block truncate px-2">
+              {isSubmitting ? 'Challenging...' : selectedFriend ? `Challenge ${selectedFriend.username}` : 'Select Opponent'}
+            </span>
           </button>
         </div>
 

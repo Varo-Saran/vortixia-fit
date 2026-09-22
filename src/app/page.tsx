@@ -436,11 +436,11 @@ export default function Dashboard() {
       </div>
 
       {/* Header Content Overlay */}
-      <header className="relative z-10 pt-[calc(var(--notch-top)+1rem)] px-6 w-full flex justify-between items-start">
-        <div className="flex flex-col animate-fade-in-down">
-          <h1 className="text-4xl font-black text-white leading-tight drop-shadow-lg">
+      <header className="relative z-10 flex w-full items-start justify-between gap-4 px-6 pt-[calc(var(--notch-top)+1rem)]">
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden animate-fade-in-down">
+          <h1 className="min-w-0 text-4xl font-black leading-tight text-white drop-shadow-lg">
             {greeting},<br/>
-            <span className="text-accent-green">{profile?.full_name?.split(' ')[0] || "Champion"}</span>
+            <span className="block max-w-full truncate text-accent-green" title={profile?.full_name?.split(' ')[0] || "Champion"}>{profile?.full_name?.split(' ')[0] || "Champion"}</span>
           </h1>
           <div className="group relative w-max mt-3">
             <div className="flex items-center gap-2 bg-black/40 backdrop-blur-md rounded-full px-3 py-1.5 border border-white/10 shadow-lg cursor-pointer hover:bg-black/60 transition-colors">
@@ -461,7 +461,7 @@ export default function Dashboard() {
         </div>
         
         {/* Header Action shortcuts */}
-        <div className="flex items-center gap-3 animate-fade-in-down" style={{ animationDelay: '0.1s' }}>
+        <div className="flex shrink-0 items-center gap-3 animate-fade-in-down" style={{ animationDelay: '0.1s' }}>
           <Link href="/notifications" aria-label="Notifications">
             <div className="relative w-11 h-11 rounded-full border border-white/15 bg-black/40 backdrop-blur-md flex items-center justify-center transition-all active:scale-95 shadow-lg">
               <Bell className="w-5 h-5 text-white" />

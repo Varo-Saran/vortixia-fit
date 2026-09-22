@@ -229,8 +229,8 @@ export default function Settings() {
       {/* Account Info summary card */}
       {profile && (
         <section className="w-full mb-8 animate-fade-in-up">
-          <div className="bg-zinc-900/40 backdrop-blur-md border border-white/5 rounded-2xl p-5 flex items-center justify-between">
-            <div className="flex items-center gap-4 min-w-0">
+          <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/5 bg-zinc-900/40 p-5 backdrop-blur-md">
+            <div className="flex min-w-0 flex-1 items-center gap-4">
               <div className="w-14 h-14 rounded-full border border-white/10 overflow-hidden bg-black/40 flex items-center justify-center flex-shrink-0">
                 {profile.avatar_url ? (
                   <img src={profile.avatar_url} alt="Profile" className="w-full h-full object-cover" />
@@ -238,14 +238,14 @@ export default function Settings() {
                   <UserCircle className="w-8 h-8 text-white/50" />
                 )}
               </div>
-              <div className="flex flex-col min-w-0">
+              <div className="flex min-w-0 flex-1 flex-col">
                 <span className="font-extrabold text-base text-zinc-100 truncate">{profile.full_name || "Champion"}</span>
                 <span className="text-xs text-zinc-500 font-mono truncate mt-0.5">@{profile.username || "anonymous"}</span>
                 <span className="text-[10px] text-accent-green font-black uppercase mt-1 tracking-wider">Level {Math.floor((profile.total_xp || 0) / 2000) + 1}</span>
               </div>
             </div>
             
-            <Link href="/profile/edit">
+            <Link href="/profile/edit" className="shrink-0">
               <button 
                 onClick={triggerHaptic}
                 className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-xs font-bold text-white hover:bg-white/10 active:scale-95 transition-all"
@@ -579,7 +579,7 @@ export default function Settings() {
             <div className="w-full bg-[#1c0c0c] border border-red-500/15 rounded-2xl p-4 mb-6 text-left flex items-start gap-3">
               <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
               <p className="text-[10px] text-red-400 font-bold leading-normal">
-                To confirm, please type your username <span className="text-white font-black bg-red-500/20 px-1.5 py-0.5 rounded font-mono">@{profile?.username || "username"}</span> below:
+                To confirm, please type your username <span className="break-all rounded bg-red-500/20 px-1.5 py-0.5 font-mono font-black text-white">@{profile?.username || "username"}</span> below:
               </p>
             </div>
 

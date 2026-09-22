@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { SuccessCarousel } from "@/components/SuccessCarousel";
 import { PlateCalculator } from "@/components/PlateCalculator";
 import { ExerciseSelectionModal } from "@/components/ExerciseSelectionModal";
+import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import { toast } from "react-hot-toast";
 import { durationSecondsBetween, formatDuration } from "@/lib/duration";
 
@@ -54,6 +55,7 @@ export default function ActiveWorkoutPage() {
 
   // Exercise Modal State
   const [isExerciseModalOpen, setIsExerciseModalOpen] = useState(false);
+  const [isDiscardDialogOpen, setIsDiscardDialogOpen] = useState(false);
 
   // Global Timer
   useEffect(() => {
@@ -113,11 +115,14 @@ export default function ActiveWorkoutPage() {
   };
 
   const handleCancelWorkout = () => {
-    if (confirm("Discard this workout session? Your progress will not be saved.")) {
-      resetWorkout();
-      toast("Workout discarded.");
-      router.push("/routines");
-    }
+    setIsDiscardDialogOpen(true);
+  };
+
+  const handleConfirmDiscard = () => {
+    setIsDiscardDialogOpen(false);
+    resetWorkout();
+    toast("Workout discarded.");
+    router.push("/routines");
   };
 
   // Format the previous logs dynamically based on the tracking type
@@ -275,13 +280,13 @@ export default function ActiveWorkoutPage() {
               <div className="p-2 flex flex-col gap-1">
                 {/* Table Header */}
                 <div className="flex items-center px-2 py-1 text-[10px] uppercase font-bold text-text-muted tracking-widest">
-                  <div className="w-8 text-center">Set</div>
-                  <div className="flex-1 text-center">Previous</div>
+                  <div className="w-8 shrink-0 text-center">Set</div>
+                  <div className="min-w-0 flex-1 text-center">Previous</div>
                   
                   {/* Dynamic Headers based on trackingType */}
                   {trackingType === 'reps_weight' && (
                     <>
-                      <div className="w-20 flex items-center justify-center gap-1">
+                      <div className="flex w-20 shrink-0 items-center justify-center gap-1">
                         {weightUnit.toUpperCase()}
                         {(weightUnit === 'lbs' || weightUnit === 'kg') && (
                           <button onClick={() => {
@@ -294,17 +299,17 @@ export default function ActiveWorkoutPage() {
                           </button>
                         )}
                       </div>
-                      <div className="w-16 text-center">Reps</div>
+                      <div className="w-16 shrink-0 text-center">Reps</div>
                     </>
                   )}
 
                   {trackingType === 'reps_only' && (
-                    <div className="w-16 text-center">Reps</div>
+                    <div className="w-16 shrink-0 text-center">Reps</div>
                   )}
 
                   {trackingType === 'time_weight' && (
                     <>
-                      <div className="w-20 flex items-center justify-center gap-1">
+                      <div className="flex w-20 shrink-0 items-center justify-center gap-1">
                         {weightUnit.toUpperCase()}
                         {(weightUnit === 'lbs' || weightUnit === 'kg') && (
                           <button onClick={() => {
@@ -317,29 +322,29 @@ export default function ActiveWorkoutPage() {
                           </button>
                         )}
                       </div>
-                      <div className="w-16 text-center">Secs</div>
+                      <div className="w-16 shrink-0 text-center">Secs</div>
                     </>
                   )}
 
                   {trackingType === 'time_only' && (
-                    <div className="w-20 text-center">Secs</div>
+                    <div className="w-20 shrink-0 text-center">Secs</div>
                   )}
 
                   {trackingType === 'cardio_hr' && (
                     <>
-                      <div className="w-16 text-center">Mins</div>
-                      <div className="w-16 text-center">BPM</div>
+                      <div className="w-16 shrink-0 text-center">Mins</div>
+                      <div className="w-16 shrink-0 text-center">BPM</div>
                     </>
                   )}
 
-                  <div className="w-10 text-center"><Check className="w-3 h-3 mx-auto" /></div>
+                  <div className="w-10 shrink-0 text-center"><Check className="w-3 h-3 mx-auto" /></div>
                 </div>
 
                 {/* Sets */}
                 {ex.sets.map((set, i) => (
-                  <div key={set.id} className={`flex items-center px-2 py-2 rounded-lg transition-colors ${set.isCompleted ? 'bg-accent-green/5' : ''}`}>
-                    <div className="w-8 text-center text-xs font-bold text-text-muted">{i + 1}</div>
-                    <div className="flex-1 text-center text-xs text-text-muted/50 font-medium truncate">
+                  <div key={set.id} className={`flex min-w-0 items-center px-2 py-2 rounded-lg transition-colors ${set.isCompleted ? 'bg-accent-green/5' : ''}`}>
+                    <div className="w-8 shrink-0 text-center text-xs font-bold text-text-muted">{i + 1}</div>
+                    <div className="min-w-0 flex-1 truncate text-center text-xs font-medium text-text-muted/50">
                       {formatPrevious(set, trackingType, weightUnit)}
                     </div>
 
@@ -347,13 +352,13 @@ export default function ActiveWorkoutPage() {
                     {trackingType === 'reps_weight' && (
                       <>
                         {/* Weight input with calculator icon */}
-                        <div className="w-20 px-1 relative flex items-center">
+                        <div className="relative flex w-20 shrink-0 items-center px-1">
                           <input 
                             type="number"
                             min="0"
                             value={set.weight}
                             onChange={(e) => updateSet(ex.id, set.id, e.target.value === '' ? '' : Math.max(0, Number(e.target.value)), set.reps)}
-                            className={`w-full bg-black/50 border rounded-md text-center text-base font-bold py-1 pr-6 outline-none transition-colors ${set.isCompleted ? 'border-transparent text-white/50' : 'border-white/10 text-white focus:border-accent-green focus:bg-accent-green/10'}`}
+                            className={`w-full min-w-0 bg-black/50 border rounded-md text-center text-base font-bold py-1 outline-none transition-colors ${weightUnit === 'lbs' || weightUnit === 'kg' ? 'pl-2 pr-6' : 'px-2'} ${set.isCompleted ? 'border-transparent text-white/50' : 'border-white/10 text-white focus:border-accent-green focus:bg-accent-green/10'}`}
                             placeholder={weightUnit.toLowerCase()}
                           />
                           {(weightUnit === 'lbs' || weightUnit === 'kg') && (
@@ -371,7 +376,7 @@ export default function ActiveWorkoutPage() {
                           )}
                         </div>
                         {/* Reps input */}
-                        <div className="w-16 px-1">
+                        <div className="w-16 shrink-0 px-1">
                           <input 
                             type="number"
                             min="0"
@@ -385,7 +390,7 @@ export default function ActiveWorkoutPage() {
                     )}
 
                     {trackingType === 'reps_only' && (
-                      <div className="w-16 px-1">
+                      <div className="w-16 shrink-0 px-1">
                         <input 
                           type="number"
                           min="0"
@@ -400,13 +405,13 @@ export default function ActiveWorkoutPage() {
                     {trackingType === 'time_weight' && (
                       <>
                         {/* Weight input with calculator icon */}
-                        <div className="w-20 px-1 relative flex items-center">
+                        <div className="relative flex w-20 shrink-0 items-center px-1">
                           <input 
                             type="number"
                             min="0"
                             value={set.weight}
                             onChange={(e) => updateSet(ex.id, set.id, e.target.value === '' ? '' : Math.max(0, Number(e.target.value)), set.reps)}
-                            className={`w-full bg-black/50 border rounded-md text-center text-base font-bold py-1 pr-6 outline-none transition-colors ${set.isCompleted ? 'border-transparent text-white/50' : 'border-white/10 text-white focus:border-accent-green focus:bg-accent-green/10'}`}
+                            className={`w-full min-w-0 bg-black/50 border rounded-md text-center text-base font-bold py-1 outline-none transition-colors ${weightUnit === 'lbs' || weightUnit === 'kg' ? 'pl-2 pr-6' : 'px-2'} ${set.isCompleted ? 'border-transparent text-white/50' : 'border-white/10 text-white focus:border-accent-green focus:bg-accent-green/10'}`}
                             placeholder={weightUnit.toLowerCase()}
                           />
                           {(weightUnit === 'lbs' || weightUnit === 'kg') && (
@@ -424,7 +429,7 @@ export default function ActiveWorkoutPage() {
                           )}
                         </div>
                         {/* Time input (Secs) */}
-                        <div className="w-16 px-1">
+                        <div className="w-16 shrink-0 px-1">
                           <input 
                             type="number"
                             min="0"
@@ -438,7 +443,7 @@ export default function ActiveWorkoutPage() {
                     )}
 
                     {trackingType === 'time_only' && (
-                      <div className="w-20 px-1">
+                      <div className="w-20 shrink-0 px-1">
                         <input 
                           type="number"
                           min="0"
@@ -453,7 +458,7 @@ export default function ActiveWorkoutPage() {
                     {trackingType === 'cardio_hr' && (
                       <>
                         {/* Time (Mins) input */}
-                        <div className="w-16 px-1">
+                        <div className="w-16 shrink-0 px-1">
                           <input 
                             type="number"
                             min="0"
@@ -464,7 +469,7 @@ export default function ActiveWorkoutPage() {
                           />
                         </div>
                         {/* HR (BPM) input */}
-                        <div className="w-16 px-1">
+                        <div className="w-16 shrink-0 px-1">
                           <input 
                             type="number"
                             min="0"
@@ -477,10 +482,11 @@ export default function ActiveWorkoutPage() {
                       </>
                     )}
 
-                    <div className="w-10 flex justify-center">
+                    <div className="flex w-10 shrink-0 justify-center">
                       <button 
                         onClick={() => toggleSetComplete(ex.id, set.id)}
-                        className={`w-7 h-7 rounded-md flex items-center justify-center transition-all ${set.isCompleted ? 'bg-accent-green text-black shadow-[0_0_10px_rgba(74,222,128,0.4)]' : 'bg-white/10 text-white/30 hover:bg-white/20'}`}
+                        aria-label={`${set.isCompleted ? 'Mark incomplete' : 'Complete'} set ${i + 1}`}
+                        className={`w-8 h-8 rounded-md flex items-center justify-center transition-all ${set.isCompleted ? 'bg-accent-green text-black shadow-[0_0_10px_rgba(74,222,128,0.4)]' : 'bg-white/10 text-white/30 hover:bg-white/20'}`}
                       >
                         <Check className="w-4 h-4 stroke-[3]" />
                       </button>
@@ -534,6 +540,16 @@ export default function ActiveWorkoutPage() {
         onSelect={(exercise) => {
           addExerciseToWorkout(exercise.name);
         }}
+      />
+
+      <ConfirmationDialog
+        isOpen={isDiscardDialogOpen}
+        title="Discard workout?"
+        description="Your progress in this workout will not be saved."
+        confirmLabel="Discard Workout"
+        cancelLabel="Keep Workout"
+        onCancel={() => setIsDiscardDialogOpen(false)}
+        onConfirm={handleConfirmDiscard}
       />
 
       {/* Exercise Settings Modal */}
