@@ -20,6 +20,7 @@ import {
   submitWorkoutReversal,
 } from "@/lib/workout-reversal-client";
 import { durationSecondsBetween, formatDuration } from "@/lib/duration";
+import { getLocalCalendarWeek, localDayTimestamp } from "@/lib/calendar-week";
 
 export default function Dashboard() {
   const [mounted, setMounted] = useState(false);
@@ -69,32 +70,40 @@ export default function Dashboard() {
   const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
 
   const fetchStreak = useCallback(async () => {
+    const now = new Date();
+    const currentDayTimestamp = localDayTimestamp(now);
+    const currentWeek = getLocalCalendarWeek(now);
+    const weekDays = currentWeek.days.map(day => ({
+      day: day.toLocaleDateString('en-US', { weekday: 'short' }).charAt(0),
+      date: day.getDate().toString(),
+      active: false,
+      today: day.getTime() === currentDayTimestamp,
+      timestamp: day.getTime(),
+    }));
+
+    setStreakDays(weekDays);
+
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
-    sevenDaysAgo.setHours(0, 0, 0, 0);
 
     const { data, error } = await supabase
       .from('workout_sessions')
       .select('start_time')
       .eq('user_id', user.id)
-      .gte('start_time', sevenDaysAgo.toISOString());
+      .gte('start_time', currentWeek.start.toISOString())
+      .lt('start_time', currentWeek.end.toISOString());
 
     if (!error && data) {
-      setStreakDays(prev => {
-        const newStreak = prev.map(s => ({ ...s, active: false }));
-        data.forEach(session => {
-          const sessionDate = new Date(session.start_time);
-          sessionDate.setHours(0, 0, 0, 0);
-          const idx = newStreak.findIndex(s => s.timestamp === sessionDate.getTime());
-          if (idx !== -1) {
-            newStreak[idx].active = true;
-          }
-        });
-        return newStreak;
-      });
+      const activeDays = new Set(
+        data
+          .map(session => localDayTimestamp(session.start_time))
+          .filter((timestamp): timestamp is number => timestamp !== null),
+      );
+
+      setStreakDays(weekDays.map(day => ({
+        ...day,
+        active: activeDays.has(day.timestamp),
+      })));
     }
   }, []);
 
@@ -267,26 +276,8 @@ export default function Dashboard() {
     else setGreeting("Good evening");
   }, [weeklyPlan, profile, fetchRoutine, fetchProfile]);
 
-  // Streak calculation and Today's plan name (Hydration-safe)
+  // Today's plan name (Hydration-safe)
   useEffect(() => {
-    // A. Generate Streak Days
-    const days = [];
-    const today = new Date();
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(today.getDate() - i);
-      const dayStr = d.toLocaleDateString('en-US', { weekday: 'short' }).charAt(0);
-      days.push({
-        day: dayStr,
-        date: d.getDate().toString(),
-        active: false,
-        today: i === 0,
-        timestamp: new Date(d.setHours(0, 0, 0, 0)).getTime()
-      });
-    }
-    setStreakDays(days);
-
-    // B. Calculate Today's plan name safely
     if (weeklyPlan.length > 0) {
       const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
       const todayName = daysOfWeek[new Date().getDay()];
@@ -297,8 +288,22 @@ export default function Dashboard() {
 
   // Fetch Streak & Social Info
   useEffect(() => {
-    fetchStreak();
-    fetchSocialInfo();
+    const refreshActivityWeek = () => {
+      void fetchStreak();
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') refreshActivityWeek();
+    };
+
+    refreshActivityWeek();
+    void fetchSocialInfo();
+    window.addEventListener('focus', refreshActivityWeek);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('focus', refreshActivityWeek);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [fetchStreak, fetchSocialInfo]);
 
   // Active workout timer ticking
