@@ -7,6 +7,22 @@ import { useRouter } from "next/navigation";
 import { useState, useMemo } from "react";
 import exerciseLibrary from "@/data/exerciseLibrary.json";
 import { ExerciseSelectionModal } from "@/components/ExerciseSelectionModal";
+import { Select } from "@/components/ui/Select";
+
+const TRACKING_TYPE_OPTIONS = [
+  { value: "reps_weight", label: "Standard (Reps + Weight)" },
+  { value: "reps_only", label: "Bodyweight (Reps Only)" },
+  { value: "time_only", label: "Time Only (e.g. Planks)" },
+  { value: "time_weight", label: "Time + Weight (e.g. Carries)" },
+  { value: "cardio_hr", label: "Cardio (Time + HR Zone)" },
+];
+
+const WEIGHT_UNIT_OPTIONS = [
+  { value: "kg", label: "Kilograms (kg)" },
+  { value: "lbs", label: "Pounds (lbs)" },
+  { value: "plates", label: "Plates (Machine Stack count)" },
+  { value: "unitless", label: "Unitless (Worn dumbell number)" },
+];
 
 export default function RoutineEditorPage() {
   const { weeklyPlan, updateDayPlan, saveRoutineToDb } = useRoutineStore();
@@ -257,33 +273,24 @@ export default function RoutineEditorPage() {
                 <label className="text-[10px] uppercase tracking-widest text-text-muted font-bold flex items-center gap-1">
                   <Settings className="w-3 h-3" /> Tracking Style
                 </label>
-                <select 
+                <Select
+                  options={TRACKING_TYPE_OPTIONS}
                   value={cfgTrackingType}
-                  onChange={e => setCfgTrackingType(e.target.value as TrackingType)}
-                  className="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-3 text-white text-sm outline-none focus:border-accent-green appearance-none"
-                >
-                  <option value="reps_weight">Standard (Reps + Weight)</option>
-                  <option value="reps_only">Bodyweight (Reps Only)</option>
-                  <option value="time_only">Time Only (e.g. Planks)</option>
-                  <option value="time_weight">Time + Weight (e.g. Carries)</option>
-                  <option value="cardio_hr">Cardio (Time + HR Zone)</option>
-                </select>
+                  onValueChange={(nextValue) => setCfgTrackingType(nextValue as TrackingType)}
+                  label="Tracking style"
+                />
               </div>
 
               {/* Weight Unit */}
               <div className="flex flex-col gap-1">
                 <label className="text-[10px] uppercase tracking-widest text-text-muted font-bold">Weight Unit (For Logging)</label>
-                <select 
+                <Select
+                  options={WEIGHT_UNIT_OPTIONS}
                   value={cfgWeightUnit}
-                  onChange={e => setCfgWeightUnit(e.target.value as WeightUnit)}
+                  onValueChange={(nextValue) => setCfgWeightUnit(nextValue as WeightUnit)}
+                  label="Weight unit for logging"
                   disabled={cfgTrackingType === 'reps_only' || cfgTrackingType === 'time_only' || cfgTrackingType === 'cardio_hr'}
-                  className="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-3 text-white text-sm outline-none focus:border-accent-green appearance-none disabled:opacity-50"
-                >
-                  <option value="kg">Kilograms (kg)</option>
-                  <option value="lbs">Pounds (lbs)</option>
-                  <option value="plates">Plates (Machine Stack count)</option>
-                  <option value="unitless">Unitless (Worn dumbell number)</option>
-                </select>
+                />
               </div>
             </div>
 
