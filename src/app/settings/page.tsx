@@ -1,13 +1,38 @@
 "use client";
  
 import { useState, useEffect } from "react";
-import { ArrowLeft, LogOut, Trash2, Bell, Volume2, Smartphone, Timer, ChevronRight, UserCircle, AlertTriangle, ShieldAlert, Scale, Ruler, Clock, ChevronDown, Activity, Swords } from "lucide-react";
+import { ArrowLeft, LogOut, Trash2, Bell, Volume2, Smartphone, Timer, ChevronRight, UserCircle, AlertTriangle, ShieldAlert, Scale, Ruler, Clock, Activity, Swords } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSettingsStore } from "@/store/useSettingsStore";
 import { useProfileStore } from "@/store/useProfileStore";
 import { supabase } from "@/lib/supabase";
 import { toast } from "@/components/ui/Toast";
+import { Select } from "@/components/ui/Select";
+
+const WEIGHT_UNIT_OPTIONS = [
+  { value: "kg", label: "Kilograms (kg)" },
+  { value: "lbs", label: "Pounds (lbs)" },
+];
+
+const HEIGHT_UNIT_OPTIONS = [
+  { value: "cm", label: "Centimeters (cm)" },
+  { value: "in", label: "Inches (in)" },
+];
+
+const TIME_FORMAT_OPTIONS = [
+  { value: "12h", label: "12-Hour (AM/PM)" },
+  { value: "24h", label: "24-Hour" },
+];
+
+const REST_TIMER_OPTIONS = [
+  { value: "30", label: "30 Seconds" },
+  { value: "45", label: "45 Seconds" },
+  { value: "60", label: "60 Seconds (1 Min)" },
+  { value: "90", label: "90 Seconds (1.5 Min)" },
+  { value: "120", label: "120 Seconds (2 Min)" },
+  { value: "180", label: "180 Seconds (3 Min)" },
+];
 
 export default function Settings() {
   const router = useRouter();
@@ -276,17 +301,17 @@ export default function Settings() {
                 <span className="text-zinc-500 text-xs leading-relaxed max-w-[240px] mt-0.5">Display metrics in metric/imperial</span>
               </div>
             </div>
-            <div className="w-full sm:w-auto relative">
-              <select 
-                value={weightUnit} 
-                onChange={(e) => { triggerHaptic(); setWeightUnit(e.target.value as any); }}
-                className="w-full sm:w-auto bg-zinc-900/60 border border-white/5 focus:border-emerald-500/50 rounded-xl px-4 py-2.5 pr-10 text-sm text-zinc-200 font-medium outline-none cursor-pointer transition-all duration-200 appearance-none"
-              >
-                <option value="kg">Kilograms (kg)</option>
-                <option value="lbs">Pounds (lbs)</option>
-              </select>
-              <ChevronDown className="w-4 h-4 text-zinc-500 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-            </div>
+            <Select
+              options={WEIGHT_UNIT_OPTIONS}
+              value={weightUnit}
+              onValueChange={(nextValue) => {
+                triggerHaptic();
+                setWeightUnit(nextValue as "kg" | "lbs");
+              }}
+              label="Weight unit"
+              className="w-full sm:w-52"
+              size="compact"
+            />
           </div>
 
           {/* Height Unit */}
@@ -300,17 +325,17 @@ export default function Settings() {
                 <span className="text-zinc-500 text-xs leading-relaxed max-w-[240px] mt-0.5">Display height measurement system</span>
               </div>
             </div>
-            <div className="w-full sm:w-auto relative">
-              <select 
-                value={heightUnit} 
-                onChange={(e) => { triggerHaptic(); setHeightUnit(e.target.value as any); }}
-                className="w-full sm:w-auto bg-zinc-900/60 border border-white/5 focus:border-emerald-500/50 rounded-xl px-4 py-2.5 pr-10 text-sm text-zinc-200 font-medium outline-none cursor-pointer transition-all duration-200 appearance-none"
-              >
-                <option value="cm">Centimeters (cm)</option>
-                <option value="in">Inches (in)</option>
-              </select>
-              <ChevronDown className="w-4 h-4 text-zinc-500 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-            </div>
+            <Select
+              options={HEIGHT_UNIT_OPTIONS}
+              value={heightUnit}
+              onValueChange={(nextValue) => {
+                triggerHaptic();
+                setHeightUnit(nextValue as "cm" | "in");
+              }}
+              label="Height unit"
+              className="w-full sm:w-52"
+              size="compact"
+            />
           </div>
 
           {/* Time Format */}
@@ -324,17 +349,17 @@ export default function Settings() {
                 <span className="text-zinc-500 text-xs leading-relaxed max-w-[240px] mt-0.5">Display clocks format</span>
               </div>
             </div>
-            <div className="w-full sm:w-auto relative">
-              <select 
-                value={timeFormat} 
-                onChange={(e) => { triggerHaptic(); setTimeFormat(e.target.value as any); }}
-                className="w-full sm:w-auto bg-zinc-900/60 border border-white/5 focus:border-emerald-500/50 rounded-xl px-4 py-2.5 pr-10 text-sm text-zinc-200 font-medium outline-none cursor-pointer transition-all duration-200 appearance-none"
-              >
-                <option value="12h">12-Hour (AM/PM)</option>
-                <option value="24h">24-Hour</option>
-              </select>
-              <ChevronDown className="w-4 h-4 text-zinc-500 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-            </div>
+            <Select
+              options={TIME_FORMAT_OPTIONS}
+              value={timeFormat}
+              onValueChange={(nextValue) => {
+                triggerHaptic();
+                setTimeFormat(nextValue as "12h" | "24h");
+              }}
+              label="Time format"
+              className="w-full sm:w-52"
+              size="compact"
+            />
           </div>
 
           {/* Default Rest Timer */}
@@ -348,21 +373,17 @@ export default function Settings() {
                 <span className="text-zinc-500 text-xs leading-relaxed max-w-[240px] mt-0.5">Auto-launch timer between workout sets</span>
               </div>
             </div>
-            <div className="w-full sm:w-auto relative">
-              <select 
-                value={defaultRestTimer} 
-                onChange={(e) => { triggerHaptic(); setDefaultRestTimer(parseInt(e.target.value)); }}
-                className="w-full sm:w-auto bg-zinc-900/60 border border-white/5 focus:border-emerald-500/50 rounded-xl px-4 py-2.5 pr-10 text-sm text-zinc-200 font-medium outline-none cursor-pointer transition-all duration-200 appearance-none"
-              >
-                <option value={30}>30 Seconds</option>
-                <option value={45}>45 Seconds</option>
-                <option value={60}>60 Seconds (1 Min)</option>
-                <option value={90}>90 Seconds (1.5 Min)</option>
-                <option value={120}>120 Seconds (2 Min)</option>
-                <option value={180}>180 Seconds (3 Min)</option>
-              </select>
-              <ChevronDown className="w-4 h-4 text-zinc-500 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-            </div>
+            <Select
+              options={REST_TIMER_OPTIONS}
+              value={String(defaultRestTimer)}
+              onValueChange={(nextValue) => {
+                triggerHaptic();
+                setDefaultRestTimer(Number.parseInt(nextValue, 10));
+              }}
+              label="Default rest timer"
+              className="w-full sm:w-52"
+              size="compact"
+            />
           </div>
 
         </div>
