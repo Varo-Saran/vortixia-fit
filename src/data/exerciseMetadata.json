@@ -1,0 +1,4194 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "id": "0025",
+      "aliases": [
+        "flat bench",
+        "BB bench",
+        "BB bench press"
+      ],
+      "normalizedEquipment": "barbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "pectorals",
+      "secondaryMuscles": [
+        "triceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Barbell Bench Press"
+    },
+    {
+      "id": "0047",
+      "aliases": [
+        "incline bench",
+        "incline BB press"
+      ],
+      "normalizedEquipment": "barbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "pectorals",
+      "secondaryMuscles": [
+        "shoulders"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Incline Barbell Bench Press"
+    },
+    {
+      "id": "0033",
+      "aliases": [
+        "BB decline bench press"
+      ],
+      "normalizedEquipment": "barbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "pectorals",
+      "secondaryMuscles": [
+        "triceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Decline Barbell Bench Press"
+    },
+    {
+      "id": "0289",
+      "aliases": [
+        "DB bench press",
+        "dumbbell chest press"
+      ],
+      "normalizedEquipment": "dumbbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "pectorals",
+      "secondaryMuscles": [
+        "triceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Dumbbell Bench Press"
+    },
+    {
+      "id": "0314",
+      "aliases": [
+        "incline DB press",
+        "incline dumbbell press"
+      ],
+      "normalizedEquipment": "dumbbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "pectorals",
+      "secondaryMuscles": [
+        "shoulders"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Incline Dumbbell Bench Press"
+    },
+    {
+      "id": "0301",
+      "aliases": [
+        "DB decline bench press"
+      ],
+      "normalizedEquipment": "dumbbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "pectorals",
+      "secondaryMuscles": [
+        "triceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Decline Dumbbell Bench Press"
+    },
+    {
+      "id": "0308",
+      "aliases": [
+        "DB fly"
+      ],
+      "normalizedEquipment": "dumbbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "pectorals",
+      "secondaryMuscles": [
+        "shoulders"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Dumbbell Chest Fly"
+    },
+    {
+      "id": "0319",
+      "aliases": [
+        "incline chest fly",
+        "DB incline chest fly",
+        "chest incline chest fly"
+      ],
+      "normalizedEquipment": "dumbbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "pectorals",
+      "secondaryMuscles": [
+        "shoulders"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Incline Dumbbell Chest Fly"
+    },
+    {
+      "id": "0151",
+      "aliases": [],
+      "normalizedEquipment": "cable",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "pectorals",
+      "secondaryMuscles": [
+        "triceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Cable Bench Press"
+    },
+    {
+      "id": "0169",
+      "aliases": [],
+      "normalizedEquipment": "cable",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "pectorals",
+      "secondaryMuscles": [
+        "deltoids"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Incline Cable Bench Press"
+    },
+    {
+      "id": "0158",
+      "aliases": [
+        "decline cable fly",
+        "high cable crossover",
+        "high-to-low fly"
+      ],
+      "normalizedEquipment": "cable",
+      "equipmentConfidence": "conservative",
+      "primaryMuscle": "pectorals",
+      "secondaryMuscles": [
+        "shoulders"
+      ],
+      "approval": "yellow",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Cable Decline Fly",
+      "reviewFlags": [
+        "asset"
+      ]
+    },
+    {
+      "id": "0188",
+      "aliases": [
+        "mid cable fly"
+      ],
+      "normalizedEquipment": "cable",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "pectorals",
+      "secondaryMuscles": [
+        "deltoids"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Cable Chest Fly"
+    },
+    {
+      "id": "0179",
+      "aliases": [
+        "low-to-high fly",
+        "chest low-to-high fly"
+      ],
+      "normalizedEquipment": "cable",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "pectorals",
+      "secondaryMuscles": [
+        "deltoids"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Low-to-High Cable Fly"
+    },
+    {
+      "id": "0227",
+      "aliases": [
+        "standing chest fly",
+        "chest standing chest fly"
+      ],
+      "normalizedEquipment": "cable",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "pectorals",
+      "secondaryMuscles": [
+        "deltoids"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Standing Cable Chest Fly"
+    },
+    {
+      "id": "0576",
+      "aliases": [],
+      "normalizedEquipment": "machine",
+      "equipmentConfidence": "corroborated_external",
+      "primaryMuscle": "pectorals",
+      "secondaryMuscles": [
+        "triceps"
+      ],
+      "approval": "yellow",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Plate-Loaded Chest Press",
+      "machineSubtype": "plate_loaded",
+      "reviewFlags": [
+        "mechanism"
+      ]
+    },
+    {
+      "id": "0577",
+      "aliases": [],
+      "normalizedEquipment": "machine",
+      "equipmentConfidence": "conservative",
+      "primaryMuscle": "pectorals",
+      "secondaryMuscles": [
+        "triceps"
+      ],
+      "approval": "yellow",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Machine Chest Press",
+      "machineSubtype": "unknown",
+      "reviewFlags": [
+        "mechanism"
+      ]
+    },
+    {
+      "id": "1299",
+      "aliases": [
+        "incline chest press",
+        "chest incline chest press"
+      ],
+      "normalizedEquipment": "machine",
+      "equipmentConfidence": "conservative",
+      "primaryMuscle": "pectorals",
+      "secondaryMuscles": [
+        "shoulders"
+      ],
+      "approval": "yellow",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Incline Machine Chest Press",
+      "machineSubtype": "unknown",
+      "reviewFlags": [
+        "mechanism"
+      ]
+    },
+    {
+      "id": "1300",
+      "aliases": [
+        "decline chest press",
+        "chest decline chest press"
+      ],
+      "normalizedEquipment": "machine",
+      "equipmentConfidence": "conservative",
+      "primaryMuscle": "pectorals",
+      "secondaryMuscles": [
+        "triceps"
+      ],
+      "approval": "yellow",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Decline Machine Chest Press",
+      "machineSubtype": "unknown",
+      "reviewFlags": [
+        "mechanism"
+      ]
+    },
+    {
+      "id": "0596",
+      "aliases": [
+        "machine fly",
+        "seated chest fly"
+      ],
+      "normalizedEquipment": "machine",
+      "equipmentConfidence": "conservative",
+      "primaryMuscle": "pectorals",
+      "secondaryMuscles": [
+        "deltoids"
+      ],
+      "approval": "yellow",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Machine Chest Fly",
+      "machineSubtype": "unknown",
+      "reviewFlags": [
+        "mechanism"
+      ]
+    },
+    {
+      "id": "0662",
+      "aliases": [
+        "press-up",
+        "chest push-up"
+      ],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "pectorals",
+      "secondaryMuscles": [
+        "triceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Push-Up"
+    },
+    {
+      "id": "0493",
+      "aliases": [
+        "chest incline push-up"
+      ],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "pectorals",
+      "secondaryMuscles": [
+        "triceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Incline Push-Up"
+    },
+    {
+      "id": "0279",
+      "aliases": [
+        "chest decline push-up"
+      ],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "pectorals",
+      "secondaryMuscles": [
+        "triceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Decline Push-Up"
+    },
+    {
+      "id": "0251",
+      "aliases": [
+        "bodyweight dip",
+        "parallel-bar dip",
+        "chest-focused dip"
+      ],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "pectorals",
+      "secondaryMuscles": [
+        "triceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Chest Dip"
+    },
+    {
+      "id": "0009",
+      "aliases": [
+        "kneeling assisted dip",
+        "machine-assisted chest dip"
+      ],
+      "normalizedEquipment": "machine",
+      "equipmentConfidence": "conservative",
+      "primaryMuscle": "pectorals",
+      "secondaryMuscles": [
+        "triceps"
+      ],
+      "approval": "yellow",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Assisted Chest Dip",
+      "machineSubtype": "unknown",
+      "reviewFlags": [
+        "mechanism"
+      ]
+    },
+    {
+      "id": "0748",
+      "aliases": [],
+      "normalizedEquipment": "smith_machine",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "pectorals",
+      "secondaryMuscles": [
+        "triceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Smith Machine Bench Press",
+      "machineSubtype": "smith"
+    },
+    {
+      "id": "0757",
+      "aliases": [],
+      "normalizedEquipment": "smith_machine",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "pectorals",
+      "secondaryMuscles": [
+        "shoulders"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Incline Smith Machine Bench Press",
+      "machineSubtype": "smith"
+    },
+    {
+      "id": "1254",
+      "aliases": [],
+      "normalizedEquipment": "band",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "pectorals",
+      "secondaryMuscles": [
+        "triceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Resistance Band Bench Press"
+    },
+    {
+      "id": "0027",
+      "aliases": [
+        "barbell row",
+        "BB row",
+        "BB bent-over row"
+      ],
+      "normalizedEquipment": "barbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "upper back",
+      "secondaryMuscles": [
+        "biceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Barbell Bent-Over Row"
+    },
+    {
+      "id": "0118",
+      "aliases": [
+        "underhand row",
+        "BB underhand row",
+        "back underhand row"
+      ],
+      "normalizedEquipment": "barbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "upper back",
+      "secondaryMuscles": [
+        "biceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Underhand Barbell Row"
+    },
+    {
+      "id": "3017",
+      "aliases": [
+        "back pendlay row"
+      ],
+      "normalizedEquipment": "barbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "upper back",
+      "secondaryMuscles": [
+        "biceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Pendlay Row"
+    },
+    {
+      "id": "0292",
+      "aliases": [
+        "one-arm dumbbell row",
+        "DB row"
+      ],
+      "normalizedEquipment": "dumbbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "upper back",
+      "secondaryMuscles": [
+        "biceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Single-Arm Dumbbell Row"
+    },
+    {
+      "id": "0293",
+      "aliases": [
+        "DB bent-over row",
+        "back bent-over row"
+      ],
+      "normalizedEquipment": "dumbbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "upper back",
+      "secondaryMuscles": [
+        "biceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Dumbbell Bent-Over Row"
+    },
+    {
+      "id": "0327",
+      "aliases": [
+        "incline row",
+        "DB incline row",
+        "back incline row"
+      ],
+      "normalizedEquipment": "dumbbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "upper back",
+      "secondaryMuscles": [
+        "biceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Incline Dumbbell Row"
+    },
+    {
+      "id": "0180",
+      "aliases": [
+        "low seated row",
+        "back low seated row"
+      ],
+      "normalizedEquipment": "cable",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "upper back",
+      "secondaryMuscles": [
+        "biceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Low Seated Cable Row"
+    },
+    {
+      "id": "0861",
+      "aliases": [
+        "cable row"
+      ],
+      "normalizedEquipment": "cable",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "upper back",
+      "secondaryMuscles": [
+        "biceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Seated Cable Row"
+    },
+    {
+      "id": "0218",
+      "aliases": [
+        "wide-grip seated row",
+        "back wide-grip seated row"
+      ],
+      "normalizedEquipment": "cable",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "upper back",
+      "secondaryMuscles": [
+        "biceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Wide-Grip Seated Cable Row"
+    },
+    {
+      "id": "0167",
+      "aliases": [
+        "kneeling high row",
+        "back kneeling high row"
+      ],
+      "normalizedEquipment": "cable",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "upper back",
+      "secondaryMuscles": [
+        "biceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Kneeling High Cable Row"
+    },
+    {
+      "id": "1323",
+      "aliases": [
+        "rope seated row",
+        "back rope seated row"
+      ],
+      "normalizedEquipment": "cable",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "upper back",
+      "secondaryMuscles": [
+        "biceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Rope Seated Cable Row"
+    },
+    {
+      "id": "1350",
+      "aliases": [
+        "machine row"
+      ],
+      "normalizedEquipment": "machine",
+      "equipmentConfidence": "conservative",
+      "primaryMuscle": "upper back",
+      "secondaryMuscles": [
+        "biceps"
+      ],
+      "approval": "yellow",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Machine Seated Row",
+      "machineSubtype": "unknown",
+      "reviewFlags": [
+        "mechanism"
+      ]
+    },
+    {
+      "id": "0581",
+      "aliases": [
+        "high row",
+        "back high row"
+      ],
+      "normalizedEquipment": "machine",
+      "equipmentConfidence": "conservative",
+      "primaryMuscle": "upper back",
+      "secondaryMuscles": [
+        "biceps"
+      ],
+      "approval": "yellow",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Machine High Row",
+      "machineSubtype": "unknown",
+      "reviewFlags": [
+        "mechanism"
+      ]
+    },
+    {
+      "id": "1313",
+      "aliases": [
+        "back single-arm row"
+      ],
+      "normalizedEquipment": "machine",
+      "equipmentConfidence": "conservative",
+      "primaryMuscle": "upper back",
+      "secondaryMuscles": [
+        "biceps"
+      ],
+      "approval": "yellow",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Single-Arm Machine Row",
+      "machineSubtype": "unknown",
+      "reviewFlags": [
+        "mechanism"
+      ]
+    },
+    {
+      "id": "0606",
+      "aliases": [
+        "T bar row",
+        "back t-bar row"
+      ],
+      "normalizedEquipment": "machine",
+      "equipmentConfidence": "conservative",
+      "primaryMuscle": "upper back",
+      "secondaryMuscles": [
+        "biceps"
+      ],
+      "approval": "yellow",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Machine T-Bar Row",
+      "machineSubtype": "unknown",
+      "reviewFlags": [
+        "mechanism"
+      ]
+    },
+    {
+      "id": "0579",
+      "aliases": [
+        "lat machine"
+      ],
+      "normalizedEquipment": "machine",
+      "equipmentConfidence": "conservative",
+      "primaryMuscle": "lats",
+      "secondaryMuscles": [
+        "biceps"
+      ],
+      "approval": "yellow",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Machine Lat Pulldown",
+      "machineSubtype": "unknown",
+      "reviewFlags": [
+        "mechanism"
+      ]
+    },
+    {
+      "id": "0198",
+      "aliases": [
+        "pull down"
+      ],
+      "normalizedEquipment": "cable",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "lats",
+      "secondaryMuscles": [
+        "biceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Cable Lat Pulldown"
+    },
+    {
+      "id": "0245",
+      "aliases": [
+        "underhand lat pulldown",
+        "lat underhand lat pulldown"
+      ],
+      "normalizedEquipment": "cable",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "lats",
+      "secondaryMuscles": [
+        "biceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Underhand Cable Lat Pulldown"
+    },
+    {
+      "id": "0818",
+      "aliases": [
+        "parallel-grip pulldown",
+        "V-bar pulldown",
+        "lat neutral-grip lat pulldown"
+      ],
+      "normalizedEquipment": "cable",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "lats",
+      "secondaryMuscles": [
+        "biceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Neutral-Grip Lat Pulldown"
+    },
+    {
+      "id": "0237",
+      "aliases": [
+        "lat rope straight-arm pulldown"
+      ],
+      "normalizedEquipment": "cable",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "lats",
+      "secondaryMuscles": [
+        "biceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Rope Straight-Arm Pulldown"
+    },
+    {
+      "id": "0238",
+      "aliases": [
+        "lat prayer",
+        "straight arm pull down",
+        "straight-arm pulldown"
+      ],
+      "normalizedEquipment": "cable",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "lats",
+      "secondaryMuscles": [
+        "shoulders"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Straight-Arm Cable Pulldown"
+    },
+    {
+      "id": "0652",
+      "aliases": [
+        "bodyweight pull-up"
+      ],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "lats",
+      "secondaryMuscles": [
+        "biceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Pull-Up"
+    },
+    {
+      "id": "9009",
+      "aliases": [],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "review_required",
+      "primaryMuscle": "lats",
+      "secondaryMuscles": [
+        "back"
+      ],
+      "approval": "red",
+      "discoveryTier": "hidden",
+      "curationSet": "priority_2026_09_25",
+      "reviewFlags": [
+        "movement_identity"
+      ],
+      "deprecatedForDiscovery": true,
+      "preferredExerciseId": "0652"
+    },
+    {
+      "id": "1326",
+      "aliases": [
+        "underhand pull-up",
+        "lat chin-up"
+      ],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "lats",
+      "secondaryMuscles": [
+        "biceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Chin-Up"
+    },
+    {
+      "id": "9010",
+      "aliases": [],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "review_required",
+      "primaryMuscle": "lats",
+      "secondaryMuscles": [
+        "back",
+        "biceps"
+      ],
+      "approval": "red",
+      "discoveryTier": "hidden",
+      "curationSet": "priority_2026_09_25",
+      "reviewFlags": [
+        "movement_identity"
+      ],
+      "deprecatedForDiscovery": true,
+      "preferredExerciseId": "1326"
+    },
+    {
+      "id": "0017",
+      "aliases": [],
+      "normalizedEquipment": "machine",
+      "equipmentConfidence": "conservative",
+      "primaryMuscle": "lats",
+      "secondaryMuscles": [
+        "biceps"
+      ],
+      "approval": "yellow",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Assisted Pull-Up",
+      "machineSubtype": "unknown",
+      "reviewFlags": [
+        "mechanism"
+      ]
+    },
+    {
+      "id": "0841",
+      "aliases": [],
+      "normalizedEquipment": "other",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "lats",
+      "secondaryMuscles": [
+        "biceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Weighted Pull-Up"
+    },
+    {
+      "id": "0499",
+      "aliases": [
+        "back inverted row"
+      ],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "upper back",
+      "secondaryMuscles": [
+        "biceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Inverted Row"
+    },
+    {
+      "id": "0489",
+      "aliases": [
+        "lower-back extension",
+        "Roman chair extension"
+      ],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "spine",
+      "secondaryMuscles": [
+        "glutes"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Back Extension"
+    },
+    {
+      "id": "0573",
+      "aliases": [
+        "back extension machine",
+        "lower-back machine"
+      ],
+      "normalizedEquipment": "machine",
+      "equipmentConfidence": "conservative",
+      "primaryMuscle": "spine",
+      "secondaryMuscles": [
+        "glutes"
+      ],
+      "approval": "yellow",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Machine Back Extension",
+      "machineSubtype": "unknown",
+      "reviewFlags": [
+        "mechanism"
+      ]
+    },
+    {
+      "id": "2285",
+      "aliases": [],
+      "normalizedEquipment": "machine",
+      "equipmentConfidence": "conservative",
+      "primaryMuscle": "lats",
+      "secondaryMuscles": [
+        "triceps"
+      ],
+      "approval": "yellow",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Machine Pullover",
+      "machineSubtype": "unknown",
+      "reviewFlags": [
+        "mechanism"
+      ]
+    },
+    {
+      "id": "0073",
+      "aliases": [
+        "BB pullover"
+      ],
+      "normalizedEquipment": "barbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "lats",
+      "secondaryMuscles": [
+        "chest"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Barbell Pullover"
+    },
+    {
+      "id": "0521",
+      "aliases": [
+        "back renegade row"
+      ],
+      "normalizedEquipment": "kettlebell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "upper back",
+      "secondaryMuscles": [
+        "core"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Renegade Row"
+    },
+    {
+      "id": "0808",
+      "aliases": [
+        "back suspension row"
+      ],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "upper back",
+      "secondaryMuscles": [
+        "biceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Suspension Row"
+    },
+    {
+      "id": "0091",
+      "aliases": [
+        "seated OHP",
+        "seated barbell press",
+        "seated overhead press"
+      ],
+      "normalizedEquipment": "barbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "delts",
+      "secondaryMuscles": [
+        "triceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Seated Barbell Overhead Press"
+    },
+    {
+      "id": "0426",
+      "aliases": [
+        "dumbbell OHP",
+        "DB shoulder press"
+      ],
+      "normalizedEquipment": "dumbbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "delts",
+      "secondaryMuscles": [
+        "triceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Standing Dumbbell Overhead Press"
+    },
+    {
+      "id": "0405",
+      "aliases": [
+        "seated DB press",
+        "dumbbell overhead press",
+        "seated shoulder press"
+      ],
+      "normalizedEquipment": "dumbbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "delts",
+      "secondaryMuscles": [
+        "triceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Seated Dumbbell Shoulder Press"
+    },
+    {
+      "id": "2137",
+      "aliases": [
+        "arnold press",
+        "DB arnold press",
+        "shoulder arnold press"
+      ],
+      "normalizedEquipment": "dumbbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "delts",
+      "secondaryMuscles": [
+        "triceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Dumbbell Arnold Press"
+    },
+    {
+      "id": "0219",
+      "aliases": [
+        "cable overhead press",
+        "standing cable press"
+      ],
+      "normalizedEquipment": "cable",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "delts",
+      "secondaryMuscles": [
+        "triceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Cable Shoulder Press"
+    },
+    {
+      "id": "0603",
+      "aliases": [
+        "machine overhead press",
+        "shoulder press"
+      ],
+      "normalizedEquipment": "machine",
+      "equipmentConfidence": "conservative",
+      "primaryMuscle": "delts",
+      "secondaryMuscles": [
+        "triceps"
+      ],
+      "approval": "yellow",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Machine Shoulder Press",
+      "machineSubtype": "unknown",
+      "reviewFlags": [
+        "mechanism"
+      ]
+    },
+    {
+      "id": "0766",
+      "aliases": [
+        "Smith overhead press"
+      ],
+      "normalizedEquipment": "smith_machine",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "delts",
+      "secondaryMuscles": [
+        "triceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Smith Machine Shoulder Press",
+      "machineSubtype": "smith"
+    },
+    {
+      "id": "0334",
+      "aliases": [
+        "DB lateral raise",
+        "side raise"
+      ],
+      "normalizedEquipment": "dumbbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "delts",
+      "secondaryMuscles": [
+        "traps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Dumbbell Lateral Raise"
+    },
+    {
+      "id": "0396",
+      "aliases": [
+        "seated lateral raise",
+        "DB seated lateral raise",
+        "shoulder seated lateral raise"
+      ],
+      "normalizedEquipment": "dumbbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "delts",
+      "secondaryMuscles": [
+        "traps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Seated Dumbbell Lateral Raise"
+    },
+    {
+      "id": "0178",
+      "aliases": [
+        "cable side raise"
+      ],
+      "normalizedEquipment": "cable",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "delts",
+      "secondaryMuscles": [
+        "traps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Cable Lateral Raise"
+    },
+    {
+      "id": "0584",
+      "aliases": [],
+      "normalizedEquipment": "machine",
+      "equipmentConfidence": "conservative",
+      "primaryMuscle": "delts",
+      "secondaryMuscles": [
+        "traps"
+      ],
+      "approval": "yellow",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Machine Lateral Raise",
+      "machineSubtype": "unknown",
+      "reviewFlags": [
+        "mechanism"
+      ]
+    },
+    {
+      "id": "0310",
+      "aliases": [
+        "DB front raise"
+      ],
+      "normalizedEquipment": "dumbbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "delts",
+      "secondaryMuscles": [
+        "biceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Dumbbell Front Raise"
+    },
+    {
+      "id": "0162",
+      "aliases": [],
+      "normalizedEquipment": "cable",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "delts",
+      "secondaryMuscles": [
+        "triceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Cable Front Raise"
+    },
+    {
+      "id": "0378",
+      "aliases": [
+        "rear delt fly",
+        "DB rear delt fly",
+        "shoulder rear delt fly"
+      ],
+      "normalizedEquipment": "dumbbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "delts",
+      "secondaryMuscles": [
+        "trapezius"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Dumbbell Rear Delt Fly"
+    },
+    {
+      "id": "0383",
+      "aliases": [
+        "DB reverse fly"
+      ],
+      "normalizedEquipment": "dumbbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "delts",
+      "secondaryMuscles": [
+        "trapezius"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Dumbbell Reverse Fly"
+    },
+    {
+      "id": "0154",
+      "aliases": [],
+      "normalizedEquipment": "cable",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "delts",
+      "secondaryMuscles": [
+        "rhomboids"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Cable Reverse Fly"
+    },
+    {
+      "id": "0225",
+      "aliases": [
+        "cable rear-delt fly",
+        "rear delt cable fly",
+        "standing reverse fly"
+      ],
+      "normalizedEquipment": "cable",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "delts",
+      "secondaryMuscles": [
+        "trapezius"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Standing Cable Reverse Fly"
+    },
+    {
+      "id": "0602",
+      "aliases": [],
+      "normalizedEquipment": "machine",
+      "equipmentConfidence": "conservative",
+      "primaryMuscle": "delts",
+      "secondaryMuscles": [
+        "trapezius"
+      ],
+      "approval": "yellow",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Machine Reverse Fly",
+      "machineSubtype": "unknown",
+      "reviewFlags": [
+        "mechanism"
+      ]
+    },
+    {
+      "id": "0203",
+      "aliases": [
+        "shoulder rope rear delt row"
+      ],
+      "normalizedEquipment": "cable",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "delts",
+      "secondaryMuscles": [
+        "trapezius"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Rope Rear Delt Row"
+    },
+    {
+      "id": "0120",
+      "aliases": [
+        "BB upright row"
+      ],
+      "normalizedEquipment": "barbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "delts",
+      "secondaryMuscles": [
+        "traps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Barbell Upright Row"
+    },
+    {
+      "id": "0246",
+      "aliases": [],
+      "normalizedEquipment": "cable",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "delts",
+      "secondaryMuscles": [
+        "traps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Cable Upright Row"
+    },
+    {
+      "id": "0406",
+      "aliases": [
+        "DB shrug"
+      ],
+      "normalizedEquipment": "dumbbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "traps",
+      "secondaryMuscles": [
+        "shoulders"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Dumbbell Shrug"
+    },
+    {
+      "id": "0095",
+      "aliases": [
+        "BB shrug"
+      ],
+      "normalizedEquipment": "barbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "traps",
+      "secondaryMuscles": [
+        "shoulders"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Barbell Shrug"
+    },
+    {
+      "id": "0993",
+      "aliases": [],
+      "normalizedEquipment": "band",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "delts",
+      "secondaryMuscles": [
+        "upper back"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Resistance Band Reverse Fly"
+    },
+    {
+      "id": "0997",
+      "aliases": [
+        "resistance-band overhead press"
+      ],
+      "normalizedEquipment": "band",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "delts",
+      "secondaryMuscles": [
+        "triceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Resistance Band Shoulder Press"
+    },
+    {
+      "id": "0031",
+      "aliases": [
+        "BB curl",
+        "straight-bar curl"
+      ],
+      "normalizedEquipment": "barbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "biceps",
+      "secondaryMuscles": [
+        "forearms"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Barbell Curl"
+    },
+    {
+      "id": "0447",
+      "aliases": [
+        "ezbar curl",
+        "bicep ez-bar curl"
+      ],
+      "normalizedEquipment": "ez_bar",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "biceps",
+      "secondaryMuscles": [
+        "forearms"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "EZ-Bar Curl"
+    },
+    {
+      "id": "0294",
+      "aliases": [
+        "DB curl",
+        "dumbbell curl",
+        "biceps curl",
+        "DB biceps curl"
+      ],
+      "normalizedEquipment": "dumbbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "biceps",
+      "secondaryMuscles": [
+        "forearms"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Dumbbell Biceps Curl"
+    },
+    {
+      "id": "0285",
+      "aliases": [
+        "alternating curl",
+        "DB alternating curl",
+        "bicep alternating curl"
+      ],
+      "normalizedEquipment": "dumbbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "biceps",
+      "secondaryMuscles": [
+        "forearms"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Alternating Dumbbell Curl"
+    },
+    {
+      "id": "0313",
+      "aliases": [
+        "DB hammer curl",
+        "neutral-grip curl",
+        "hammer curl",
+        "bicep hammer curl"
+      ],
+      "normalizedEquipment": "dumbbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "biceps",
+      "secondaryMuscles": [
+        "forearms"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Dumbbell Hammer Curl"
+    },
+    {
+      "id": "0298",
+      "aliases": [
+        "bicep cross-body hammer curl"
+      ],
+      "normalizedEquipment": "dumbbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "biceps",
+      "secondaryMuscles": [
+        "forearms"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Cross-Body Hammer Curl"
+    },
+    {
+      "id": "0315",
+      "aliases": [
+        "incline curl",
+        "DB incline curl",
+        "bicep incline curl"
+      ],
+      "normalizedEquipment": "dumbbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "biceps",
+      "secondaryMuscles": [
+        "forearms"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Incline Dumbbell Curl"
+    },
+    {
+      "id": "0297",
+      "aliases": [
+        "concentration curl",
+        "DB concentration curl",
+        "bicep concentration curl"
+      ],
+      "normalizedEquipment": "dumbbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "biceps",
+      "secondaryMuscles": [
+        "forearms"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Dumbbell Concentration Curl"
+    },
+    {
+      "id": "0372",
+      "aliases": [
+        "DB preacher curl"
+      ],
+      "normalizedEquipment": "dumbbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "biceps",
+      "secondaryMuscles": [
+        "forearms"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Dumbbell Preacher Curl"
+    },
+    {
+      "id": "0070",
+      "aliases": [
+        "BB preacher curl"
+      ],
+      "normalizedEquipment": "barbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "biceps",
+      "secondaryMuscles": [
+        "forearms"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Barbell Preacher Curl"
+    },
+    {
+      "id": "0592",
+      "aliases": [],
+      "normalizedEquipment": "machine",
+      "equipmentConfidence": "conservative",
+      "primaryMuscle": "biceps",
+      "secondaryMuscles": [
+        "forearms"
+      ],
+      "approval": "yellow",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Machine Preacher Curl",
+      "machineSubtype": "unknown",
+      "reviewFlags": [
+        "mechanism"
+      ]
+    },
+    {
+      "id": "0575",
+      "aliases": [
+        "bicep machine"
+      ],
+      "normalizedEquipment": "machine",
+      "equipmentConfidence": "conservative",
+      "primaryMuscle": "biceps",
+      "secondaryMuscles": [
+        "forearms"
+      ],
+      "approval": "yellow",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Machine Biceps Curl",
+      "machineSubtype": "unknown",
+      "reviewFlags": [
+        "mechanism"
+      ]
+    },
+    {
+      "id": "0165",
+      "aliases": [
+        "cable hammer curl",
+        "rope curl",
+        "bicep rope hammer curl"
+      ],
+      "normalizedEquipment": "cable",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "biceps",
+      "secondaryMuscles": [
+        "forearms"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Rope Hammer Curl"
+    },
+    {
+      "id": "0868",
+      "aliases": [],
+      "normalizedEquipment": "cable",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "biceps",
+      "secondaryMuscles": [
+        "forearms"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Cable Curl"
+    },
+    {
+      "id": "0195",
+      "aliases": [],
+      "normalizedEquipment": "cable",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "biceps",
+      "secondaryMuscles": [
+        "forearms"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Cable Preacher Curl"
+    },
+    {
+      "id": "0439",
+      "aliases": [
+        "bicep zottman curl"
+      ],
+      "normalizedEquipment": "dumbbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "biceps",
+      "secondaryMuscles": [
+        "forearms"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Zottman Curl"
+    },
+    {
+      "id": "0080",
+      "aliases": [
+        "reverse curl",
+        "BB reverse curl",
+        "bicep reverse curl"
+      ],
+      "normalizedEquipment": "barbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "biceps",
+      "secondaryMuscles": [
+        "forearms"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Barbell Reverse Curl"
+    },
+    {
+      "id": "1632",
+      "aliases": [
+        "drag curl",
+        "bicep drag curl"
+      ],
+      "normalizedEquipment": "cable",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "biceps",
+      "secondaryMuscles": [
+        "forearms"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Cable Drag Curl"
+    },
+    {
+      "id": "0454",
+      "aliases": [
+        "spider curl",
+        "bicep ez-bar spider curl"
+      ],
+      "normalizedEquipment": "ez_bar",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "biceps",
+      "secondaryMuscles": [
+        "forearms"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "EZ-Bar Spider Curl"
+    },
+    {
+      "id": "1628",
+      "aliases": [],
+      "normalizedEquipment": "ez_bar",
+      "equipmentConfidence": "review_required",
+      "primaryMuscle": "biceps",
+      "secondaryMuscles": [
+        "forearms"
+      ],
+      "approval": "red",
+      "discoveryTier": "hidden",
+      "curationSet": "priority_2026_09_25",
+      "reviewFlags": [
+        "movement_identity"
+      ],
+      "deprecatedForDiscovery": true,
+      "preferredExerciseId": "0454"
+    },
+    {
+      "id": "0200",
+      "aliases": [
+        "tricep rope pushdown",
+        "rope pressdown",
+        "tricep rope tricep pushdown"
+      ],
+      "normalizedEquipment": "cable",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "triceps",
+      "secondaryMuscles": [
+        "forearms"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Rope Tricep Pushdown"
+    },
+    {
+      "id": "0201",
+      "aliases": [
+        "tricep pushdown",
+        "push down",
+        "pressdown"
+      ],
+      "normalizedEquipment": "cable",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "triceps",
+      "secondaryMuscles": [
+        "forearms"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Cable Tricep Pushdown"
+    },
+    {
+      "id": "0241",
+      "aliases": [
+        "tricep v-bar tricep pushdown"
+      ],
+      "normalizedEquipment": "cable",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "triceps",
+      "secondaryMuscles": [
+        "forearms"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "V-Bar Tricep Pushdown"
+    },
+    {
+      "id": "0194",
+      "aliases": [
+        "rope overhead tricep extension",
+        "tricep rope overhead tricep extension"
+      ],
+      "normalizedEquipment": "cable",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "triceps",
+      "secondaryMuscles": [
+        "shoulders"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Rope Overhead Cable Tricep Extension"
+    },
+    {
+      "id": "1722",
+      "aliases": [
+        "cable overhead tricep extension",
+        "overhead tricep extension",
+        "tricep overhead tricep extension"
+      ],
+      "normalizedEquipment": "cable",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "triceps",
+      "secondaryMuscles": [
+        "shoulders"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Overhead Cable Tricep Extension"
+    },
+    {
+      "id": "1749",
+      "aliases": [
+        "EZ-bar French press",
+        "overhead EZ bar extension",
+        "tricep standing ez-bar tricep extension"
+      ],
+      "normalizedEquipment": "ez_bar",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "triceps",
+      "secondaryMuscles": [
+        "shoulders"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Standing EZ-Bar Tricep Extension"
+    },
+    {
+      "id": "0060",
+      "aliases": [
+        "skull crusher",
+        "BB skull crusher"
+      ],
+      "normalizedEquipment": "barbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "triceps",
+      "secondaryMuscles": [
+        "shoulders"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Barbell Skull Crusher"
+    },
+    {
+      "id": "0351",
+      "aliases": [
+        "DB lying tricep extension",
+        "tricep lying tricep extension"
+      ],
+      "normalizedEquipment": "dumbbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "triceps",
+      "secondaryMuscles": [
+        "shoulders"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Dumbbell Lying Tricep Extension"
+    },
+    {
+      "id": "2188",
+      "aliases": [
+        "seated tricep extension",
+        "DB seated tricep extension",
+        "tricep seated tricep extension"
+      ],
+      "normalizedEquipment": "dumbbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "triceps",
+      "secondaryMuscles": [
+        "shoulders"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Seated Dumbbell Tricep Extension"
+    },
+    {
+      "id": "0430",
+      "aliases": [
+        "standing tricep extension",
+        "DB standing tricep extension",
+        "tricep standing tricep extension"
+      ],
+      "normalizedEquipment": "dumbbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "triceps",
+      "secondaryMuscles": [
+        "shoulders"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Standing Dumbbell Tricep Extension"
+    },
+    {
+      "id": "0052",
+      "aliases": [
+        "close grip bench",
+        "CGBP"
+      ],
+      "normalizedEquipment": "barbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "triceps",
+      "secondaryMuscles": [
+        "chest"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Close-Grip Barbell Bench Press"
+    },
+    {
+      "id": "0751",
+      "aliases": [
+        "tricep close-grip bench press"
+      ],
+      "normalizedEquipment": "smith_machine",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "triceps",
+      "secondaryMuscles": [
+        "chest"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Close-Grip Smith Machine Bench Press",
+      "machineSubtype": "smith"
+    },
+    {
+      "id": "0814",
+      "aliases": [
+        "parallel-bar tricep dip"
+      ],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "triceps",
+      "secondaryMuscles": [
+        "chest"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Tricep Dip"
+    },
+    {
+      "id": "0019",
+      "aliases": [
+        "kneeling assisted tricep dip",
+        "machine-assisted dip"
+      ],
+      "normalizedEquipment": "machine",
+      "equipmentConfidence": "conservative",
+      "primaryMuscle": "triceps",
+      "secondaryMuscles": [
+        "chest"
+      ],
+      "approval": "yellow",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Assisted Tricep Dip",
+      "machineSubtype": "unknown",
+      "reviewFlags": [
+        "mechanism"
+      ]
+    },
+    {
+      "id": "1451",
+      "aliases": [
+        "seated dip",
+        "tricep seated dip"
+      ],
+      "normalizedEquipment": "machine",
+      "equipmentConfidence": "conservative",
+      "primaryMuscle": "triceps",
+      "secondaryMuscles": [
+        "chest"
+      ],
+      "approval": "yellow",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Machine Seated Dip",
+      "machineSubtype": "unknown",
+      "reviewFlags": [
+        "mechanism"
+      ]
+    },
+    {
+      "id": "0607",
+      "aliases": [
+        "machine arm extension",
+        "tricep extension machine"
+      ],
+      "normalizedEquipment": "machine",
+      "equipmentConfidence": "conservative",
+      "primaryMuscle": "triceps",
+      "secondaryMuscles": [
+        "shoulders"
+      ],
+      "approval": "yellow",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Machine Tricep Extension",
+      "machineSubtype": "unknown",
+      "reviewFlags": [
+        "mechanism"
+      ]
+    },
+    {
+      "id": "1399",
+      "aliases": [
+        "tricep bench dip"
+      ],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "triceps",
+      "secondaryMuscles": [
+        "chest"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Bench Dip"
+    },
+    {
+      "id": "1771",
+      "aliases": [
+        "kneeling tricep extension",
+        "tricep kneeling tricep extension"
+      ],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "triceps",
+      "secondaryMuscles": [
+        "shoulders"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Bodyweight Kneeling Tricep Extension"
+    },
+    {
+      "id": "0333",
+      "aliases": [
+        "tricep kickback",
+        "DB kickback",
+        "DB tricep kickback"
+      ],
+      "normalizedEquipment": "dumbbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "triceps",
+      "secondaryMuscles": [
+        "shoulders"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Dumbbell Tricep Kickback"
+    },
+    {
+      "id": "0126",
+      "aliases": [
+        "wrist curl",
+        "BB wrist curl",
+        "forearm wrist curl"
+      ],
+      "normalizedEquipment": "barbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "forearms",
+      "secondaryMuscles": [
+        "biceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Barbell Wrist Curl"
+    },
+    {
+      "id": "0082",
+      "aliases": [
+        "BB reverse wrist curl"
+      ],
+      "normalizedEquipment": "barbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "forearms",
+      "secondaryMuscles": [
+        "biceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Barbell Reverse Wrist Curl"
+    },
+    {
+      "id": "0401",
+      "aliases": [
+        "seated wrist curl",
+        "DB seated wrist curl",
+        "forearm seated wrist curl"
+      ],
+      "normalizedEquipment": "dumbbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "forearms",
+      "secondaryMuscles": [
+        "biceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Seated Dumbbell Wrist Curl"
+    },
+    {
+      "id": "0385",
+      "aliases": [
+        "DB reverse wrist curl"
+      ],
+      "normalizedEquipment": "dumbbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "forearms",
+      "secondaryMuscles": [
+        "biceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Dumbbell Reverse Wrist Curl"
+    },
+    {
+      "id": "0859",
+      "aliases": [
+        "forearm wrist roller"
+      ],
+      "normalizedEquipment": "other",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "forearms",
+      "secondaryMuscles": [
+        "biceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Wrist Roller"
+    },
+    {
+      "id": "0455",
+      "aliases": [
+        "finger curl",
+        "BB finger curl",
+        "forearm finger curl"
+      ],
+      "normalizedEquipment": "barbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "forearms",
+      "secondaryMuscles": [
+        "wrist flexors"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Barbell Finger Curl"
+    },
+    {
+      "id": "0032",
+      "aliases": [
+        "conventional deadlift",
+        "BB deadlift"
+      ],
+      "normalizedEquipment": "barbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "glutes",
+      "secondaryMuscles": [
+        "hamstrings"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Barbell Deadlift"
+    },
+    {
+      "id": "0085",
+      "aliases": [
+        "RDL",
+        "Romanian deadlift",
+        "BB romanian deadlift",
+        "glute romanian deadlift"
+      ],
+      "normalizedEquipment": "barbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "glutes",
+      "secondaryMuscles": [
+        "hamstrings"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Barbell Romanian Deadlift"
+    },
+    {
+      "id": "0117",
+      "aliases": [
+        "sumo deadlift",
+        "BB sumo deadlift",
+        "glute sumo deadlift"
+      ],
+      "normalizedEquipment": "barbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "glutes",
+      "secondaryMuscles": [
+        "hamstrings"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Barbell Sumo Deadlift"
+    },
+    {
+      "id": "0811",
+      "aliases": [
+        "hex-bar deadlift",
+        "glute trap-bar deadlift"
+      ],
+      "normalizedEquipment": "other",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "glutes",
+      "secondaryMuscles": [
+        "hamstrings"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Trap-Bar Deadlift"
+    },
+    {
+      "id": "0043",
+      "aliases": [
+        "back squat",
+        "barbell squat",
+        "BB back squat"
+      ],
+      "normalizedEquipment": "barbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "glutes",
+      "secondaryMuscles": [
+        "quadriceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Barbell Back Squat"
+    },
+    {
+      "id": "0042",
+      "aliases": [
+        "front squat",
+        "BB front squat",
+        "glute front squat"
+      ],
+      "normalizedEquipment": "barbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "glutes",
+      "secondaryMuscles": [
+        "quadriceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Barbell Front Squat"
+    },
+    {
+      "id": "1435",
+      "aliases": [
+        "glute low-bar back squat"
+      ],
+      "normalizedEquipment": "barbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "glutes",
+      "secondaryMuscles": [
+        "quadriceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Low-Bar Back Squat"
+    },
+    {
+      "id": "1436",
+      "aliases": [
+        "glute high-bar back squat"
+      ],
+      "normalizedEquipment": "barbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "glutes",
+      "secondaryMuscles": [
+        "quadriceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "High-Bar Back Squat"
+    },
+    {
+      "id": "1760",
+      "aliases": [
+        "goblet squat",
+        "DB goblet squat",
+        "quad goblet squat"
+      ],
+      "normalizedEquipment": "dumbbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "quads",
+      "secondaryMuscles": [
+        "glutes"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Dumbbell Goblet Squat"
+    },
+    {
+      "id": "0413",
+      "aliases": [
+        "DB squat"
+      ],
+      "normalizedEquipment": "dumbbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "glutes",
+      "secondaryMuscles": [
+        "quadriceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Dumbbell Squat"
+    },
+    {
+      "id": "0770",
+      "aliases": [],
+      "normalizedEquipment": "smith_machine",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "glutes",
+      "secondaryMuscles": [
+        "quadriceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Smith Machine Squat",
+      "machineSubtype": "smith"
+    },
+    {
+      "id": "0755",
+      "aliases": [],
+      "normalizedEquipment": "smith_machine",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "glutes",
+      "secondaryMuscles": [
+        "quadriceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Smith Machine Hack Squat",
+      "machineSubtype": "smith"
+    },
+    {
+      "id": "0743",
+      "aliases": [
+        "machine hack squat"
+      ],
+      "normalizedEquipment": "sled_machine",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "glutes",
+      "secondaryMuscles": [
+        "quadriceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Hack Squat Machine",
+      "machineSubtype": "sled"
+    },
+    {
+      "id": "0739",
+      "aliases": [
+        "sled leg press",
+        "glute 45° leg press"
+      ],
+      "normalizedEquipment": "sled_machine",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "glutes",
+      "secondaryMuscles": [
+        "quadriceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "45° Leg Press",
+      "machineSubtype": "sled"
+    },
+    {
+      "id": "0760",
+      "aliases": [
+        "glute leg press"
+      ],
+      "normalizedEquipment": "smith_machine",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "glutes",
+      "secondaryMuscles": [
+        "quadriceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Smith Machine Leg Press",
+      "machineSubtype": "smith"
+    },
+    {
+      "id": "0585",
+      "aliases": [
+        "leg extension",
+        "quad extension",
+        "quad leg extension"
+      ],
+      "normalizedEquipment": "machine",
+      "equipmentConfidence": "conservative",
+      "primaryMuscle": "quads",
+      "secondaryMuscles": [
+        "hamstrings"
+      ],
+      "approval": "yellow",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Machine Leg Extension",
+      "machineSubtype": "unknown",
+      "reviewFlags": [
+        "mechanism"
+      ]
+    },
+    {
+      "id": "0599",
+      "aliases": [
+        "seated hamstring curl",
+        "seated leg curl",
+        "hamstring seated leg curl"
+      ],
+      "normalizedEquipment": "machine",
+      "equipmentConfidence": "conservative",
+      "primaryMuscle": "hamstrings",
+      "secondaryMuscles": [
+        "calves"
+      ],
+      "approval": "yellow",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Seated Leg Curl Machine",
+      "machineSubtype": "unknown",
+      "reviewFlags": [
+        "mechanism"
+      ]
+    },
+    {
+      "id": "0586",
+      "aliases": [
+        "lying hamstring curl",
+        "prone leg curl",
+        "lying leg curl"
+      ],
+      "normalizedEquipment": "machine",
+      "equipmentConfidence": "conservative",
+      "primaryMuscle": "hamstrings",
+      "secondaryMuscles": [
+        "calves"
+      ],
+      "approval": "yellow",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Lying Leg Curl Machine",
+      "machineSubtype": "unknown",
+      "reviewFlags": [
+        "mechanism"
+      ]
+    },
+    {
+      "id": "0582",
+      "aliases": [
+        "kneeling leg curl",
+        "hamstring kneeling leg curl"
+      ],
+      "normalizedEquipment": "machine",
+      "equipmentConfidence": "conservative",
+      "primaryMuscle": "hamstrings",
+      "secondaryMuscles": [
+        "glutes"
+      ],
+      "approval": "yellow",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Kneeling Leg Curl Machine",
+      "machineSubtype": "unknown",
+      "reviewFlags": [
+        "mechanism"
+      ]
+    },
+    {
+      "id": "0044",
+      "aliases": [
+        "good morning",
+        "BB good morning",
+        "hamstring good morning"
+      ],
+      "normalizedEquipment": "barbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "hamstrings",
+      "secondaryMuscles": [
+        "lower back"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Barbell Good Morning"
+    },
+    {
+      "id": "1460",
+      "aliases": [
+        "walking lunges",
+        "bodyweight walking lunge",
+        "glute walking lunge"
+      ],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "glutes",
+      "secondaryMuscles": [
+        "quadriceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Walking Lunge"
+    },
+    {
+      "id": "0336",
+      "aliases": [
+        "DB lunge"
+      ],
+      "normalizedEquipment": "dumbbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "glutes",
+      "secondaryMuscles": [
+        "quadriceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Dumbbell Lunge"
+    },
+    {
+      "id": "0381",
+      "aliases": [
+        "reverse lunge",
+        "DB reverse lunge",
+        "glute reverse lunge"
+      ],
+      "normalizedEquipment": "dumbbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "glutes",
+      "secondaryMuscles": [
+        "quadriceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Dumbbell Reverse Lunge"
+    },
+    {
+      "id": "bulgarian_split_squats",
+      "aliases": [
+        "Bulgarian split squat",
+        "rear-foot-elevated split squat",
+        "DB bulgarian split squat"
+      ],
+      "normalizedEquipment": "dumbbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "quads",
+      "secondaryMuscles": [],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Dumbbell Bulgarian Split Squat"
+    },
+    {
+      "id": "0431",
+      "aliases": [
+        "step-up",
+        "DB step-up",
+        "glute step-up"
+      ],
+      "normalizedEquipment": "dumbbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "glutes",
+      "secondaryMuscles": [
+        "quadriceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Dumbbell Step-Up"
+    },
+    {
+      "id": "0054",
+      "aliases": [
+        "BB lunge"
+      ],
+      "normalizedEquipment": "barbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "glutes",
+      "secondaryMuscles": [
+        "quadriceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Barbell Lunge"
+    },
+    {
+      "id": "1409",
+      "aliases": [
+        "BB glute bridge"
+      ],
+      "normalizedEquipment": "barbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "glutes",
+      "secondaryMuscles": [
+        "hamstrings"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Barbell Glute Bridge"
+    },
+    {
+      "id": "9004",
+      "aliases": [
+        "BB hip thrust"
+      ],
+      "normalizedEquipment": "barbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "glutes",
+      "secondaryMuscles": [],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Barbell Hip Thrust"
+    },
+    {
+      "id": "9012",
+      "aliases": [],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "glutes",
+      "secondaryMuscles": [],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Bodyweight Hip Thrust"
+    },
+    {
+      "id": "9005",
+      "aliases": [
+        "DB glute bridge"
+      ],
+      "normalizedEquipment": "dumbbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "glutes",
+      "secondaryMuscles": [],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Dumbbell Glute Bridge"
+    },
+    {
+      "id": "3013",
+      "aliases": [
+        "glute bridge",
+        "floor bridge"
+      ],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "conservative",
+      "primaryMuscle": "glutes",
+      "secondaryMuscles": [
+        "hamstrings"
+      ],
+      "approval": "yellow",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Bodyweight Glute Bridge",
+      "reviewFlags": [
+        "asset"
+      ]
+    },
+    {
+      "id": "3645",
+      "aliases": [
+        "glute single-leg glute bridge"
+      ],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "glutes",
+      "secondaryMuscles": [
+        "hamstrings"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Single-Leg Glute Bridge"
+    },
+    {
+      "id": "9006",
+      "aliases": [
+        "glute cable kickback",
+        "cable donkey kick",
+        "hip-extension kickback"
+      ],
+      "normalizedEquipment": "cable",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "glutes",
+      "secondaryMuscles": [],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Cable Glute Kickback"
+    },
+    {
+      "id": "9013",
+      "aliases": [
+        "glute kickback machine",
+        "hip-extension machine"
+      ],
+      "normalizedEquipment": "machine",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "glutes",
+      "secondaryMuscles": [],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Machine Glute Kickback",
+      "machineSubtype": "unknown"
+    },
+    {
+      "id": "donkey_kicks",
+      "aliases": [
+        "donkey kick",
+        "quadruped hip extension",
+        "glute donkey kick"
+      ],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "glutes",
+      "secondaryMuscles": [],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Bodyweight Donkey Kick"
+    },
+    {
+      "id": "kneeling_kickbacks",
+      "aliases": [
+        "glute kneeling glute kickback"
+      ],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "glutes",
+      "secondaryMuscles": [],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Kneeling Glute Kickback"
+    },
+    {
+      "id": "0597",
+      "aliases": [
+        "hip abductor machine",
+        "outer-thigh machine",
+        "seated hip abduction"
+      ],
+      "normalizedEquipment": "machine",
+      "equipmentConfidence": "conservative",
+      "primaryMuscle": "abductors",
+      "secondaryMuscles": [
+        "glutes"
+      ],
+      "approval": "yellow",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Seated Hip Abduction Machine",
+      "machineSubtype": "unknown",
+      "reviewFlags": [
+        "mechanism"
+      ]
+    },
+    {
+      "id": "0598",
+      "aliases": [
+        "hip adductor machine",
+        "inner-thigh machine",
+        "seated hip adduction"
+      ],
+      "normalizedEquipment": "machine",
+      "equipmentConfidence": "conservative",
+      "primaryMuscle": "adductors",
+      "secondaryMuscles": [
+        "hamstrings"
+      ],
+      "approval": "yellow",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Seated Hip Adduction Machine",
+      "machineSubtype": "unknown",
+      "reviewFlags": [
+        "mechanism"
+      ]
+    },
+    {
+      "id": "0168",
+      "aliases": [
+        "hip adduction",
+        "inner thigh hip adduction"
+      ],
+      "normalizedEquipment": "cable",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "adductors",
+      "secondaryMuscles": [
+        "glutes"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Cable Hip Adduction"
+    },
+    {
+      "id": "0710",
+      "aliases": [
+        "outer hip side-lying hip abduction"
+      ],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "abductors",
+      "secondaryMuscles": [
+        "glutes"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Side-Lying Hip Abduction"
+    },
+    {
+      "id": "0578",
+      "aliases": [],
+      "normalizedEquipment": "machine",
+      "equipmentConfidence": "conservative",
+      "primaryMuscle": "glutes",
+      "secondaryMuscles": [
+        "hamstrings"
+      ],
+      "approval": "yellow",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Machine Deadlift",
+      "machineSubtype": "unknown",
+      "reviewFlags": [
+        "mechanism"
+      ]
+    },
+    {
+      "id": "0593",
+      "aliases": [
+        "reverse hyperextension",
+        "glute reverse hyperextension"
+      ],
+      "normalizedEquipment": "machine",
+      "equipmentConfidence": "conservative",
+      "primaryMuscle": "glutes",
+      "secondaryMuscles": [
+        "hamstrings"
+      ],
+      "approval": "yellow",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Reverse Hyperextension Machine",
+      "machineSubtype": "unknown",
+      "reviewFlags": [
+        "mechanism"
+      ]
+    },
+    {
+      "id": "1373",
+      "aliases": [],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "calves",
+      "secondaryMuscles": [
+        "ankles"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Bodyweight Standing Calf Raise"
+    },
+    {
+      "id": "0417",
+      "aliases": [
+        "DB standing calf raise"
+      ],
+      "normalizedEquipment": "dumbbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "calves",
+      "secondaryMuscles": [
+        "ankles"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Dumbbell Standing Calf Raise"
+    },
+    {
+      "id": "1379",
+      "aliases": [
+        "DB seated calf raise"
+      ],
+      "normalizedEquipment": "dumbbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "calves",
+      "secondaryMuscles": [
+        "hamstrings"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Dumbbell Seated Calf Raise"
+    },
+    {
+      "id": "0088",
+      "aliases": [
+        "BB seated calf raise"
+      ],
+      "normalizedEquipment": "barbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "calves",
+      "secondaryMuscles": [
+        "hamstrings"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Barbell Seated Calf Raise"
+    },
+    {
+      "id": "1371",
+      "aliases": [],
+      "normalizedEquipment": "barbell",
+      "equipmentConfidence": "review_required",
+      "primaryMuscle": "calves",
+      "secondaryMuscles": [
+        "hamstrings"
+      ],
+      "approval": "red",
+      "discoveryTier": "hidden",
+      "curationSet": "priority_2026_09_25",
+      "reviewFlags": [
+        "movement_identity"
+      ],
+      "deprecatedForDiscovery": true,
+      "preferredExerciseId": "0088"
+    },
+    {
+      "id": "0594",
+      "aliases": [],
+      "normalizedEquipment": "machine",
+      "equipmentConfidence": "conservative",
+      "primaryMuscle": "calves",
+      "secondaryMuscles": [
+        "soleus"
+      ],
+      "approval": "yellow",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Machine Seated Calf Raise",
+      "machineSubtype": "unknown",
+      "reviewFlags": [
+        "mechanism"
+      ]
+    },
+    {
+      "id": "0605",
+      "aliases": [
+        "standing calf machine",
+        "lever calf raise"
+      ],
+      "normalizedEquipment": "machine",
+      "equipmentConfidence": "conservative",
+      "primaryMuscle": "calves",
+      "secondaryMuscles": [
+        "soleus"
+      ],
+      "approval": "yellow",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Machine Standing Calf Raise",
+      "machineSubtype": "unknown",
+      "reviewFlags": [
+        "mechanism"
+      ]
+    },
+    {
+      "id": "1391",
+      "aliases": [
+        "calf leg press calf raise"
+      ],
+      "normalizedEquipment": "sled_machine",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "calves",
+      "secondaryMuscles": [
+        "hamstrings"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Leg Press Calf Raise",
+      "machineSubtype": "sled"
+    },
+    {
+      "id": "9007",
+      "aliases": [
+        "tib raise",
+        "tibialis anterior raise",
+        "tibialis raise",
+        "calf tibialis raise"
+      ],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "calves",
+      "secondaryMuscles": [
+        "tibialis"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Bodyweight Tibialis Raise"
+    },
+    {
+      "id": "2133",
+      "aliases": [
+        "loaded carry"
+      ],
+      "normalizedEquipment": "dumbbell",
+      "equipmentConfidence": "conservative",
+      "primaryMuscle": "quads",
+      "secondaryMuscles": [
+        "calves"
+      ],
+      "approval": "yellow",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Farmer Carry",
+      "reviewFlags": [
+        "target_metadata"
+      ]
+    },
+    {
+      "id": "3769",
+      "aliases": [
+        "curtsy lunge",
+        "curtsey lunge"
+      ],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "conservative",
+      "primaryMuscle": "glutes",
+      "secondaryMuscles": [
+        "quadriceps"
+      ],
+      "approval": "yellow",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Bodyweight Curtsy Lunge",
+      "reviewFlags": [
+        "asset"
+      ]
+    },
+    {
+      "id": "3643",
+      "aliases": [
+        "cossack squat",
+        "glute cossack squat"
+      ],
+      "normalizedEquipment": "other",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "glutes",
+      "secondaryMuscles": [
+        "quadriceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Weighted Cossack Squat"
+    },
+    {
+      "id": "9008",
+      "aliases": [
+        "front plank",
+        "core plank"
+      ],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "abs",
+      "secondaryMuscles": [
+        "core"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Plank"
+    },
+    {
+      "id": "0276",
+      "aliases": [
+        "deadbug",
+        "core dead bug"
+      ],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "abs",
+      "secondaryMuscles": [
+        "hip flexors"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Dead Bug"
+    },
+    {
+      "id": "0274",
+      "aliases": [
+        "core floor crunch"
+      ],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "abs",
+      "secondaryMuscles": [
+        "hip flexors"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Floor Crunch"
+    },
+    {
+      "id": "0175",
+      "aliases": [
+        "cable crunch",
+        "kneeling rope crunch",
+        "kneeling crunch"
+      ],
+      "normalizedEquipment": "cable",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "abs",
+      "secondaryMuscles": [
+        "obliques"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Kneeling Cable Crunch"
+    },
+    {
+      "id": "0874",
+      "aliases": [
+        "standing rope crunch",
+        "core standing rope crunch"
+      ],
+      "normalizedEquipment": "cable",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "abs",
+      "secondaryMuscles": [
+        "obliques"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Standing Rope Cable Crunch"
+    },
+    {
+      "id": "0472",
+      "aliases": [
+        "hanging straight-leg raise",
+        "hanging leg lift",
+        "core hanging leg raise"
+      ],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "abs",
+      "secondaryMuscles": [
+        "hip flexors"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Hanging Leg Raise"
+    },
+    {
+      "id": "0011",
+      "aliases": [
+        "hanging knee raise",
+        "core hanging knee raise"
+      ],
+      "normalizedEquipment": "machine",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "abs",
+      "secondaryMuscles": [
+        "hip flexors"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Assisted Hanging Knee Raise",
+      "machineSubtype": "unknown"
+    },
+    {
+      "id": "1761",
+      "aliases": [
+        "core hanging oblique knee raise"
+      ],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "abs",
+      "secondaryMuscles": [
+        "obliques"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Hanging Oblique Knee Raise"
+    },
+    {
+      "id": "0872",
+      "aliases": [
+        "core reverse crunch"
+      ],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "abs",
+      "secondaryMuscles": [
+        "hip flexors"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Reverse Crunch"
+    },
+    {
+      "id": "0687",
+      "aliases": [
+        "bodyweight Russian twist"
+      ],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "abs",
+      "secondaryMuscles": [
+        "obliques"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Russian Twist"
+    },
+    {
+      "id": "0846",
+      "aliases": [],
+      "normalizedEquipment": "other",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "abs",
+      "secondaryMuscles": [
+        "obliques"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Weighted Russian Twist"
+    },
+    {
+      "id": "0979",
+      "aliases": [
+        "anti-rotation press",
+        "band Pallof press",
+        "core pallof press"
+      ],
+      "normalizedEquipment": "band",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "abs",
+      "secondaryMuscles": [
+        "obliques"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Pallof Press"
+    },
+    {
+      "id": "1015",
+      "aliases": [
+        "core vertical pallof press"
+      ],
+      "normalizedEquipment": "band",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "abs",
+      "secondaryMuscles": [
+        "obliques"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Vertical Pallof Press"
+    },
+    {
+      "id": "0620",
+      "aliases": [
+        "core lying leg raise"
+      ],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "abs",
+      "secondaryMuscles": [
+        "hip flexors"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Lying Leg Raise"
+    },
+    {
+      "id": "0262",
+      "aliases": [
+        "core cross-body crunch"
+      ],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "abs",
+      "secondaryMuscles": [
+        "obliques"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Cross-Body Crunch"
+    },
+    {
+      "id": "1495",
+      "aliases": [
+        "core oblique crunch"
+      ],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "abs",
+      "secondaryMuscles": [
+        "obliques"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Oblique Crunch"
+    },
+    {
+      "id": "0826",
+      "aliases": [
+        "core parallel-bar leg raise"
+      ],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "abs",
+      "secondaryMuscles": [
+        "hip flexors"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Parallel-Bar Leg Raise"
+    },
+    {
+      "id": "2963",
+      "aliases": [
+        "core captain’s chair leg raise"
+      ],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "abs",
+      "secondaryMuscles": [
+        "hip flexors"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Captain’s Chair Leg Raise"
+    },
+    {
+      "id": "0407",
+      "aliases": [
+        "side bend",
+        "DB side bend",
+        "core side bend"
+      ],
+      "normalizedEquipment": "dumbbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "abs",
+      "secondaryMuscles": [
+        "obliques"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Dumbbell Side Bend"
+    },
+    {
+      "id": "3544",
+      "aliases": [
+        "core incline side plank"
+      ],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "abs",
+      "secondaryMuscles": [
+        "obliques"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Incline Side Plank"
+    },
+    {
+      "id": "0223",
+      "aliases": [
+        "cable oblique crunch",
+        "side cable crunch",
+        "side crunch",
+        "core side crunch"
+      ],
+      "normalizedEquipment": "cable",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "abs",
+      "secondaryMuscles": [
+        "obliques"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Cable Side Crunch"
+    },
+    {
+      "id": "9001",
+      "aliases": [
+        "treadmill walk",
+        "walking",
+        "outdoor walk"
+      ],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "conservative",
+      "primaryMuscle": "cardiovascular system",
+      "secondaryMuscles": [
+        "whole body"
+      ],
+      "approval": "yellow",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Walking (Treadmill or Outdoor)",
+      "reviewFlags": [
+        "movement_identity"
+      ]
+    },
+    {
+      "id": "3666",
+      "aliases": [
+        "incline walk",
+        "treadmill incline walk",
+        "cardio incline treadmill walk"
+      ],
+      "normalizedEquipment": "machine",
+      "equipmentConfidence": "conservative",
+      "primaryMuscle": "cardiovascular system",
+      "secondaryMuscles": [
+        "quadriceps"
+      ],
+      "approval": "yellow",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Incline Treadmill Walk",
+      "machineSubtype": "unknown",
+      "reviewFlags": [
+        "target_metadata"
+      ]
+    },
+    {
+      "id": "9002",
+      "aliases": [
+        "run",
+        "running",
+        "jog"
+      ],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "cardiovascular system",
+      "secondaryMuscles": [
+        "lower legs",
+        "quads"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Jogging or Running"
+    },
+    {
+      "id": "9003",
+      "aliases": [
+        "exercise bike",
+        "bike",
+        "cardio stationary bike"
+      ],
+      "normalizedEquipment": "cardio_machine",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "cardiovascular system",
+      "secondaryMuscles": [
+        "quads"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Stationary Bike"
+    },
+    {
+      "id": "2141",
+      "aliases": [
+        "elliptical trainer",
+        "cross trainer",
+        "cardio elliptical"
+      ],
+      "normalizedEquipment": "cardio_machine",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "cardiovascular system",
+      "secondaryMuscles": [
+        "quadriceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Elliptical"
+    },
+    {
+      "id": "2311",
+      "aliases": [
+        "stepmill",
+        "stair machine",
+        "StairMaster"
+      ],
+      "normalizedEquipment": "cardio_machine",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "cardiovascular system",
+      "secondaryMuscles": [
+        "quadriceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Stair Climber / Stepmill"
+    },
+    {
+      "id": "2612",
+      "aliases": [
+        "skipping rope",
+        "rope skipping",
+        "cardio jump rope"
+      ],
+      "normalizedEquipment": "other",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "cardiovascular system",
+      "secondaryMuscles": [
+        "calves"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Jump Rope"
+    },
+    {
+      "id": "0630",
+      "aliases": [
+        "cardio mountain climber"
+      ],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "cardiovascular system",
+      "secondaryMuscles": [
+        "core"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Mountain Climber"
+    },
+    {
+      "id": "1160",
+      "aliases": [
+        "cardio burpee"
+      ],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "cardiovascular system",
+      "secondaryMuscles": [
+        "quadriceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Burpee"
+    },
+    {
+      "id": "3360",
+      "aliases": [
+        "cardio bear crawl"
+      ],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "cardiovascular system",
+      "secondaryMuscles": [
+        "core"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Bear Crawl"
+    },
+    {
+      "id": "2139",
+      "aliases": [
+        "arm bike",
+        "hand bike",
+        "upper-body cycle"
+      ],
+      "normalizedEquipment": "cardio_machine",
+      "equipmentConfidence": "conservative",
+      "primaryMuscle": "pectorals",
+      "secondaryMuscles": [
+        "triceps"
+      ],
+      "approval": "yellow",
+      "discoveryTier": "advanced",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Upper-Body Ergometer",
+      "reviewFlags": [
+        "target_metadata"
+      ]
+    },
+    {
+      "id": "1368",
+      "aliases": [
+        "calf ankle circles"
+      ],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "calves",
+      "secondaryMuscles": [
+        "ankle stabilizers"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Ankle Circles"
+    },
+    {
+      "id": "0688",
+      "aliases": [
+        "scap pull-up",
+        "upper traps scapular pull-up"
+      ],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "traps",
+      "secondaryMuscles": [
+        "biceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Scapular Pull-Up"
+    },
+    {
+      "id": "1604",
+      "aliases": [
+        "lunge rotation stretch",
+        "hamstring world’s greatest stretch"
+      ],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "hamstrings",
+      "secondaryMuscles": [
+        "glutes"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "World’s Greatest Stretch"
+    },
+    {
+      "id": "0235",
+      "aliases": [
+        "cable external rotation",
+        "rotator cuff cable exercise",
+        "standing shoulder external rotation"
+      ],
+      "normalizedEquipment": "cable",
+      "equipmentConfidence": "conservative",
+      "primaryMuscle": "delts",
+      "secondaryMuscles": [
+        "rotator cuff"
+      ],
+      "approval": "yellow",
+      "discoveryTier": "advanced",
+      "curationSet": "priority_2026_09_25",
+      "displayName": "Standing Cable Shoulder External Rotation",
+      "reviewFlags": [
+        "discovery"
+      ]
+    },
+    {
+      "id": "0197",
+      "aliases": [
+        "cable wide pulldown",
+        "wide-grip pulldown",
+        "wide lat pulldown"
+      ],
+      "normalizedEquipment": "cable",
+      "equipmentConfidence": "corroborated_external",
+      "primaryMuscle": "lats",
+      "secondaryMuscles": [
+        "biceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "supplemental_2026_09_25",
+      "displayName": "Wide-Grip Cable Lat Pulldown"
+    },
+    {
+      "id": "0128",
+      "aliases": [
+        "battle ropes",
+        "rope waves"
+      ],
+      "normalizedEquipment": "other",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "delts",
+      "secondaryMuscles": [
+        "forearms"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "supplemental_2026_09_25",
+      "displayName": "Battle Rope Waves"
+    },
+    {
+      "id": "1615",
+      "aliases": [
+        "hammer preacher curl",
+        "machine hammer preacher curl"
+      ],
+      "normalizedEquipment": "machine",
+      "equipmentConfidence": "conservative",
+      "primaryMuscle": "biceps",
+      "secondaryMuscles": [
+        "forearms"
+      ],
+      "approval": "yellow",
+      "discoveryTier": "advanced",
+      "curationSet": "supplemental_2026_09_25",
+      "displayName": "Hammer-Grip Machine Preacher Curl",
+      "machineSubtype": "unknown",
+      "reviewFlags": [
+        "mechanism"
+      ]
+    },
+    {
+      "id": "1616",
+      "aliases": [
+        "reverse preacher curl",
+        "machine reverse preacher curl"
+      ],
+      "normalizedEquipment": "machine",
+      "equipmentConfidence": "conservative",
+      "primaryMuscle": "biceps",
+      "secondaryMuscles": [
+        "forearms"
+      ],
+      "approval": "yellow",
+      "discoveryTier": "advanced",
+      "curationSet": "supplemental_2026_09_25",
+      "displayName": "Reverse-Grip Machine Preacher Curl",
+      "machineSubtype": "unknown",
+      "reviewFlags": [
+        "mechanism"
+      ]
+    },
+    {
+      "id": "1463",
+      "aliases": [],
+      "normalizedEquipment": "sled_machine",
+      "equipmentConfidence": "review_required",
+      "primaryMuscle": "glutes",
+      "secondaryMuscles": [
+        "quadriceps"
+      ],
+      "approval": "red",
+      "discoveryTier": "hidden",
+      "curationSet": "supplemental_2026_09_25",
+      "machineSubtype": "sled",
+      "reviewFlags": [
+        "movement_identity"
+      ],
+      "deprecatedForDiscovery": true,
+      "preferredExerciseId": "0739"
+    },
+    {
+      "id": "1464",
+      "aliases": [],
+      "normalizedEquipment": "sled_machine",
+      "equipmentConfidence": "review_required",
+      "primaryMuscle": "glutes",
+      "secondaryMuscles": [
+        "quadriceps"
+      ],
+      "approval": "red",
+      "discoveryTier": "hidden",
+      "curationSet": "supplemental_2026_09_25",
+      "machineSubtype": "sled",
+      "reviewFlags": [
+        "movement_identity"
+      ],
+      "deprecatedForDiscovery": true,
+      "preferredExerciseId": "0739"
+    },
+    {
+      "id": "0869",
+      "aliases": [],
+      "normalizedEquipment": "machine",
+      "equipmentConfidence": "review_required",
+      "primaryMuscle": "delts",
+      "secondaryMuscles": [
+        "triceps"
+      ],
+      "approval": "red",
+      "discoveryTier": "hidden",
+      "curationSet": "supplemental_2026_09_25",
+      "machineSubtype": "unknown",
+      "reviewFlags": [
+        "movement_identity"
+      ],
+      "deprecatedForDiscovery": true,
+      "preferredExerciseId": "0603"
+    },
+    {
+      "id": "2318",
+      "aliases": [],
+      "normalizedEquipment": "machine",
+      "equipmentConfidence": "review_required",
+      "primaryMuscle": "delts",
+      "secondaryMuscles": [
+        "triceps"
+      ],
+      "approval": "red",
+      "discoveryTier": "hidden",
+      "curationSet": "supplemental_2026_09_25",
+      "machineSubtype": "unknown",
+      "reviewFlags": [
+        "movement_identity"
+      ],
+      "deprecatedForDiscovery": true,
+      "preferredExerciseId": "0603"
+    },
+    {
+      "id": "1614",
+      "aliases": [],
+      "normalizedEquipment": "machine",
+      "equipmentConfidence": "review_required",
+      "primaryMuscle": "biceps",
+      "secondaryMuscles": [
+        "forearms"
+      ],
+      "approval": "red",
+      "discoveryTier": "hidden",
+      "curationSet": "supplemental_2026_09_25",
+      "machineSubtype": "unknown",
+      "reviewFlags": [
+        "movement_identity"
+      ],
+      "deprecatedForDiscovery": true,
+      "preferredExerciseId": "0592"
+    },
+    {
+      "id": "vx_ex_face_pull",
+      "displayName": "Cable Rope Face Pull",
+      "aliases": [
+        "face pull",
+        "face pulls",
+        "rope face pull",
+        "cable face pull"
+      ],
+      "normalizedEquipment": "cable",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "rear delts",
+      "secondaryMuscles": [
+        "upper back",
+        "traps",
+        "rotator-cuff group",
+        "biceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "vortixia_addition_2026_09_25"
+    },
+    {
+      "id": "vx_ex_bodyweight_side_plank",
+      "displayName": "Side Plank",
+      "aliases": [
+        "lateral plank"
+      ],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "obliques",
+      "secondaryMuscles": [
+        "abs",
+        "glutes",
+        "shoulders"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "vortixia_addition_2026_09_25"
+    },
+    {
+      "id": "vx_ex_wall_slide",
+      "displayName": "Wall Slide",
+      "aliases": [
+        "wall slides",
+        "wall angel",
+        "scapular wall slide"
+      ],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "serratus anterior",
+      "secondaryMuscles": [
+        "delts",
+        "traps",
+        "upper back"
+      ],
+      "approval": "green",
+      "discoveryTier": "advanced",
+      "curationSet": "vortixia_addition_2026_09_25"
+    },
+    {
+      "id": "vx_ex_band_pull_apart",
+      "displayName": "Band Pull-Apart",
+      "aliases": [
+        "pull apart"
+      ],
+      "normalizedEquipment": "band",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "rear delts",
+      "secondaryMuscles": [
+        "upper back",
+        "traps"
+      ],
+      "approval": "green",
+      "discoveryTier": "advanced",
+      "curationSet": "vortixia_addition_2026_09_25"
+    },
+    {
+      "id": "vx_ex_rowing_machine",
+      "displayName": "Rowing Machine",
+      "aliases": [
+        "rower",
+        "rowing ergometer",
+        "indoor rower",
+        "erg row"
+      ],
+      "normalizedEquipment": "cardio_machine",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "cardiovascular system",
+      "secondaryMuscles": [
+        "upper back",
+        "lats",
+        "quads",
+        "hamstrings",
+        "glutes",
+        "biceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "vortixia_addition_2026_09_25"
+    },
+    {
+      "id": "vx_ex_bodyweight_squat",
+      "displayName": "Bodyweight Squat",
+      "aliases": [
+        "air squat",
+        "unweighted squat",
+        "squat no weight"
+      ],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "quads",
+      "secondaryMuscles": [
+        "glutes",
+        "hamstrings",
+        "calves",
+        "core"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "vortixia_addition_2026_09_25"
+    },
+    {
+      "id": "vx_ex_standing_barbell_overhead_press",
+      "displayName": "Standing Barbell Overhead Press",
+      "aliases": [
+        "barbell overhead press",
+        "standing barbell press",
+        "OHP",
+        "military press"
+      ],
+      "normalizedEquipment": "barbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "delts",
+      "secondaryMuscles": [
+        "triceps",
+        "upper chest",
+        "core"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "vortixia_addition_2026_09_25"
+    },
+    {
+      "id": "vx_ex_dumbbell_walking_lunge",
+      "displayName": "Dumbbell Walking Lunge",
+      "aliases": [
+        "DB walking lunge",
+        "dumbbell walking lunges",
+        "weighted walking lunge",
+        "walking lunge with dumbbells"
+      ],
+      "normalizedEquipment": "dumbbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "quads",
+      "secondaryMuscles": [
+        "glutes",
+        "hamstrings",
+        "calves"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "vortixia_addition_2026_09_25"
+    },
+    {
+      "id": "vx_ex_dumbbell_ytw_raise",
+      "displayName": "Dumbbell Y-T-W Raise",
+      "aliases": [
+        "dumbbell YTW",
+        "Y-T-W raise",
+        "YTW raise",
+        "incline YTW",
+        "dumbbell Y T W"
+      ],
+      "normalizedEquipment": "dumbbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "rear delts",
+      "secondaryMuscles": [
+        "upper back",
+        "traps",
+        "rotator-cuff group"
+      ],
+      "approval": "green",
+      "discoveryTier": "advanced",
+      "curationSet": "vortixia_addition_2026_09_25"
+    }
+  ]
+}
