@@ -1,0 +1,122 @@
+[
+  {
+    "id": "vx_ex_face_pull",
+    "name": "cable rope face pull",
+    "bodyPart": "shoulders",
+    "target": "delts",
+    "equipment": "cable",
+    "muscleGroup": "upper back / traps / rotator-cuff group / biceps",
+    "source": "vortixia",
+    "defaultTrackingType": "reps_weight",
+    "supportedWeightUnits": [
+      "plates"
+    ]
+  },
+  {
+    "id": "vx_ex_bodyweight_side_plank",
+    "name": "bodyweight side plank",
+    "bodyPart": "waist",
+    "target": "abs",
+    "equipment": "body weight",
+    "muscleGroup": "abs / glutes / shoulders",
+    "source": "vortixia",
+    "defaultTrackingType": "time_only",
+    "supportedWeightUnits": [
+      "unitless"
+    ]
+  },
+  {
+    "id": "vx_ex_wall_slide",
+    "name": "bodyweight wall slide",
+    "bodyPart": "shoulders",
+    "target": "serratus anterior",
+    "equipment": "body weight",
+    "muscleGroup": "delts / traps / upper back",
+    "source": "vortixia",
+    "defaultTrackingType": "reps_only",
+    "supportedWeightUnits": [
+      "unitless"
+    ]
+  },
+  {
+    "id": "vx_ex_band_pull_apart",
+    "name": "resistance band pull-apart",
+    "bodyPart": "shoulders",
+    "target": "delts",
+    "equipment": "band",
+    "muscleGroup": "upper back / traps",
+    "source": "vortixia",
+    "defaultTrackingType": "reps_only",
+    "supportedWeightUnits": [
+      "unitless"
+    ]
+  },
+  {
+    "id": "vx_ex_rowing_machine",
+    "name": "rowing machine",
+    "bodyPart": "cardio",
+    "target": "cardiovascular system",
+    "equipment": "rowing machine",
+    "muscleGroup": "upper back / lats / quads / hamstrings / glutes / biceps",
+    "source": "vortixia",
+    "defaultTrackingType": "cardio_hr",
+    "supportedWeightUnits": [
+      "unitless"
+    ]
+  },
+  {
+    "id": "vx_ex_bodyweight_squat",
+    "name": "bodyweight squat",
+    "bodyPart": "upper legs",
+    "target": "quads",
+    "equipment": "body weight",
+    "muscleGroup": "glutes / hamstrings / calves / core",
+    "source": "vortixia",
+    "defaultTrackingType": "reps_only",
+    "supportedWeightUnits": [
+      "unitless"
+    ]
+  },
+  {
+    "id": "vx_ex_standing_barbell_overhead_press",
+    "name": "standing barbell overhead press",
+    "bodyPart": "shoulders",
+    "target": "delts",
+    "equipment": "barbell",
+    "muscleGroup": "triceps / upper chest / core",
+    "source": "vortixia",
+    "defaultTrackingType": "reps_weight",
+    "supportedWeightUnits": [
+      "kg",
+      "lb"
+    ]
+  },
+  {
+    "id": "vx_ex_dumbbell_walking_lunge",
+    "name": "dumbbell walking lunge",
+    "bodyPart": "upper legs",
+    "target": "quads",
+    "equipment": "dumbbell",
+    "muscleGroup": "glutes / hamstrings / calves",
+    "source": "vortixia",
+    "defaultTrackingType": "reps_weight",
+    "supportedWeightUnits": [
+      "kg",
+      "lb"
+    ]
+  },
+  {
+    "id": "vx_ex_dumbbell_ytw_raise",
+    "name": "dumbbell y-t-w raise",
+    "bodyPart": "shoulders",
+    "target": "delts",
+    "equipment": "dumbbell",
+    "muscleGroup": "upper back / traps / rotator-cuff group",
+    "source": "vortixia",
+    "defaultTrackingType": "reps_weight",
+    "supportedWeightUnits": [
+      "kg",
+      "lb"
+    ]
+  }
+]
