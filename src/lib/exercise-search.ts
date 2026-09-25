@@ -32,6 +32,7 @@ const TOKEN_EXPANSIONS: Readonly<Record<string, readonly string[]>> = {
 };
 
 const TOKEN_EQUIVALENTS: Readonly<Record<string, string>> = {
+  ab: "core",
   abs: "core",
   biceps: "bicep",
   calves: "calf",
@@ -40,12 +41,26 @@ const TOKEN_EQUIVALENTS: Readonly<Record<string, string>> = {
   glutes: "glute",
   hamstrings: "hamstring",
   lats: "lat",
+  legs: "leg",
+  lunges: "lunge",
   pectorals: "chest",
   quadriceps: "quad",
   quads: "quad",
+  raises: "raise",
+  scap: "scapula",
+  scapular: "scapula",
   shoulders: "shoulder",
+  squats: "squat",
+  stretching: "stretch",
   triceps: "tricep",
 };
+
+const TRAILING_QUERY_INTENT_TOKENS = new Set([
+  "exercise",
+  "exercises",
+  "workout",
+  "workouts",
+]);
 
 const CONTROLLED_QUERY_EXPANSIONS: Readonly<Record<string, readonly string[]>> = {
   "chest supported row": ["incline row"],
@@ -63,6 +78,19 @@ const BROAD_QUERY_PREFERRED_IDS: Readonly<Record<string, readonly string[]>> = {
   dip: ["0251", "0814", "0009", "0019", "1399"],
   curl: ["0294", "0031", "0447", "0313", "0070", "0868"],
   tricep: ["0200", "0201", "0241", "1722", "0607", "0814"],
+  "calf raise": ["1373", "0605", "0594", "0417", "1379", "0088"],
+  "core crunch": ["0274"],
+  "incline dumbbell chest press": ["0314"],
+  leg: [
+    "0739",
+    "0043",
+    "vx_ex_bodyweight_squat",
+    "0585",
+    "0599",
+    "0586",
+    "0431",
+    "0381",
+  ],
   quad: ["0585", "0739", "0043", "0042", "1760", "bulgarian_split_squats"],
   hamstring: ["0599", "0586", "0582", "0085", "0044"],
   glute: ["9004", "9012", "1409", "9006", "9013", "3645"],
@@ -152,6 +180,25 @@ function createNormalizedValue(value: string): NormalizedSearchValue {
     tokens: new Set(phrase ? phrase.split(" ") : []),
     lexicalTokens,
   };
+}
+
+function createNormalizedQueryValue(value: string): NormalizedSearchValue {
+  const base = normalizeBase(value);
+  if (!base) return createNormalizedValue("");
+
+  const tokens = base.split(" ");
+  while (
+    tokens.length > 0
+    && TRAILING_QUERY_INTENT_TOKENS.has(tokens[tokens.length - 1])
+  ) {
+    tokens.pop();
+  }
+
+  return createNormalizedValue(tokens.join(" "));
+}
+
+export function normalizeExerciseSearchQuery(value: string): string {
+  return createNormalizedQueryValue(value).phrase;
 }
 
 function createField(field: SearchField, value: string): SearchFieldValue {
@@ -419,9 +466,12 @@ export function searchExerciseIndex(
     (document) =>
       !normalizedCategory || document.normalizedBodyPart === normalizedCategory,
   );
-  const query = createNormalizedValue(queryText);
+  const rawQuery = normalizeBase(queryText);
+  const query = createNormalizedQueryValue(queryText);
 
   if (!query.phrase) {
+    if (rawQuery) return [];
+
     return candidates
       .slice()
       .sort(compareEmptyQuery)
