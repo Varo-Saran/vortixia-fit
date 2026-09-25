@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "validate:exercise-catalog": "node scripts/validate-exercise-catalog.mjs"
+    "validate:exercise-catalog": "node scripts/validate-exercise-catalog.mjs",
+    "validate:exercise-search": "node scripts/validate-exercise-search.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",

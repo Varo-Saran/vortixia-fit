@@ -3,40 +3,26 @@
 import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, X, Dumbbell, Activity, Info } from "lucide-react";
-
-
-// The raw data might need typing
-interface ExerciseDef {
-  id: string;
-  name: string;
-  bodyPart: string;
-  target: string;
-  equipment: string;
-  muscleGroup?: string;
-}
-
-
+import {
+  createExerciseSearchIndex,
+  searchExerciseIndex,
+} from "@/lib/exercise-search";
+import type { ResolvedExercise } from "@/types/exercise-catalog";
 
 interface ExerciseSelectionModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelect: (exercise: ExerciseDef) => void;
+  onSelect: (exercise: ResolvedExercise) => void;
 }
-
-const COMMON_ALIASES: Record<string, string[]> = {
-  "RDL": ["romanian deadlift"],
-  "OHP": ["overhead press"],
-  "BB": ["barbell"],
-  "DB": ["dumbbell"],
-  "Skullcrusher": ["skull crusher", "lying triceps extension"],
-  "Bench": ["bench press"],
-  "Squat": ["barbell squat", "squat"],
-  "Lat Pulldown": ["cable pulldown", "pulldown"],
-  "Curls": ["biceps curl", "curl"]
-};
 
 // Extract some top-level categories
 const CATEGORIES = ["All", "chest", "back", "upper legs", "shoulders", "upper arms", "waist", "lower legs"];
+
+function getEquipmentLabel(exercise: ResolvedExercise): string {
+  return exercise.normalizedEquipment === "other"
+    ? exercise.equipment
+    : exercise.normalizedEquipment.replaceAll("_", " ");
+}
 
 export function ExerciseSelectionModal({ isOpen, onClose, onSelect }: ExerciseSelectionModalProps) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -53,102 +39,30 @@ export function ExerciseSelectionModal({ isOpen, onClose, onSelect }: ExerciseSe
     }
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
-  const [exerciseData, setExerciseData] = useState<ExerciseDef[]>([]);
+  const [exerciseData, setExerciseData] = useState<readonly ResolvedExercise[]>([]);
 
   useEffect(() => {
     if (isOpen && exerciseData.length === 0) {
-      import("@/data/exerciseLibrary.json").then((module) => {
-        setExerciseData(module.default as ExerciseDef[]);
+      import("@/lib/exercise-catalog").then(({ getDiscoverableExercises }) => {
+        setExerciseData(getDiscoverableExercises({
+          includeAdvanced: true,
+          includeExtended: true,
+        }));
       });
     }
   }, [isOpen, exerciseData.length]);
 
+  const searchIndex = useMemo(
+    () => createExerciseSearchIndex(exerciseData),
+    [exerciseData],
+  );
+
   const filteredExercises = useMemo(() => {
-    const sanitize = (str: string) => str.toLowerCase().replace(/-/g, " ").trim();
-    
-    const getFuzzyTokens = (token: string): string[] => {
-      const list = [token];
-      if (token.length > 2 && token.endsWith("s")) {
-        if (token.endsWith("es")) {
-          list.push(token.slice(0, -2));
-        } else {
-          list.push(token.slice(0, -1));
-        }
-      }
-      return list;
-    };
-
-    let query = searchQuery.toLowerCase().trim();
-    
-    // Check aliases
-    for (const [alias, targets] of Object.entries(COMMON_ALIASES)) {
-      if (query === alias.toLowerCase()) {
-        query = targets[0];
-        break;
-      }
-    }
-
-    let results = exerciseData;
-
-    // Filter by Category
-    if (selectedCategory !== "All") {
-      results = results.filter(e => e.bodyPart.toLowerCase() === selectedCategory.toLowerCase());
-    }
-
-    const queryClean = sanitize(query);
-
-    if (queryClean) {
-      const tokens = queryClean.split(/\s+/).filter(Boolean);
-      
-      results = results.filter(e => {
-        return tokens.every(token => {
-          // Special alias token matches
-          if (token === "cardio") {
-            if (
-              e.name.toLowerCase().includes("cardio") || 
-              e.bodyPart.toLowerCase().includes("cardio") ||
-              e.target.toLowerCase().includes("cardiovascular system")
-            ) {
-              return true;
-            }
-          }
-          if (token === "core") {
-            if (
-              e.name.toLowerCase().includes("core") || 
-              e.target.toLowerCase() === "abs" ||
-              (e.muscleGroup && e.muscleGroup.toLowerCase().includes("core"))
-            ) {
-              return true;
-            }
-          }
-          if (token === "tibialis" || token === "tibial") {
-            if (
-              e.name.toLowerCase().includes("tibial") || 
-              (e.muscleGroup && e.muscleGroup.toLowerCase().includes("tibial"))
-            ) {
-              return true;
-            }
-          }
-
-          // General token matching with singular/plural variants
-          const variants = getFuzzyTokens(token);
-          const nameSanitized = sanitize(e.name);
-          const targetSanitized = sanitize(e.target);
-          const equipmentSanitized = sanitize(e.equipment);
-          const muscleGroupSanitized = e.muscleGroup ? sanitize(e.muscleGroup) : "";
-          
-          return variants.some(v => 
-            nameSanitized.includes(v) ||
-            targetSanitized.includes(v) ||
-            equipmentSanitized.includes(v) ||
-            muscleGroupSanitized.includes(v)
-          );
-        });
-      });
-    }
-
-    return results.slice(0, 50);
-  }, [searchQuery, selectedCategory, exerciseData]);
+    return searchExerciseIndex(searchIndex, searchQuery, {
+      category: selectedCategory === "All" ? undefined : selectedCategory,
+      limit: 50,
+    }).map(({ exercise }) => exercise);
+  }, [searchIndex, searchQuery, selectedCategory]);
 
   if (!isOpen) return null;
 
@@ -218,11 +132,11 @@ export function ExerciseSelectionModal({ isOpen, onClose, onSelect }: ExerciseSe
                 className="w-full bg-white/5 border border-white/5 rounded-2xl p-4 flex items-center justify-between hover:bg-white/10 hover:border-accent-green/30 transition-all text-left group"
               >
                 <div className="flex flex-col gap-1 pr-4">
-                  <h3 className="font-bold text-white text-base group-hover:text-accent-green transition-colors capitalize">{ex.name}</h3>
+                  <h3 className="font-bold text-white text-base group-hover:text-accent-green transition-colors">{ex.displayName}</h3>
                   <div className="flex items-center gap-2 text-[10px] uppercase font-bold tracking-widest text-text-muted">
-                    <span className="flex items-center gap-1"><Activity className="w-3 h-3 text-orange-400" /> {ex.target}</span>
+                    <span className="flex items-center gap-1"><Activity className="w-3 h-3 text-orange-400" /> {ex.primaryMuscle}</span>
                     <span className="w-1 h-1 rounded-full bg-white/20" />
-                    <span>{ex.equipment}</span>
+                    <span>{getEquipmentLabel(ex)}</span>
                   </div>
                 </div>
                 <div className="p-2 bg-white/5 rounded-full group-hover:bg-accent-green/20 transition-colors shrink-0">

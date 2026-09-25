@@ -1,0 +1,120 @@
+{
+  "version": 1,
+  "fixtures": [
+    {
+      "query": "lat",
+      "expectedTopIds": ["0198", "0579"],
+      "mustAppearWithinTopN": [{ "ids": ["0652", "1326"], "topN": 10 }],
+      "forbiddenWithinTopN": [{ "ids": ["0334", "0178", "0584"], "topN": 20 }],
+      "note": "Direct lat movements must outrank lateral raises."
+    },
+    { "query": "lat pull", "expectedTopIds": ["0198", "0579", "0197", "0818"], "forbiddenWithinTopN": [{ "ids": ["0334", "0178", "0584"], "topN": 20 }] },
+    { "query": "lat pulldown", "expectedTopIds": ["0198", "0579", "0197", "0818", "0245"] },
+    { "query": "pull down", "expectedTopIds": ["0198", "0579", "0197", "0818", "0245"] },
+    {
+      "query": "back",
+      "expectedTopIds": ["0027", "0293", "0861", "1350", "0489"],
+      "forbiddenWithinTopN": [{ "ids": ["9006", "9013", "kneeling_kickbacks", "0333"], "topN": 30 }]
+    },
+    {
+      "query": "row",
+      "expectedTopIds": ["0027", "0293", "0861", "1350"],
+      "forbiddenWithinTopN": [{ "ids": ["0010", "0012", "0013"], "topN": 30 }]
+    },
+    { "query": "machine row", "expectedTopIds": ["1350", "0581", "0606", "1313"] },
+    { "query": "seated row", "expectedTopIds": ["0861", "1350", "0180", "1323", "0218"] },
+    { "query": "cable row", "expectedTopIds": ["0861", "0180", "0167", "1323", "0218"] },
+    { "query": "chest supported row", "expectedTopIds": ["0327"] },
+    { "query": "pull up", "expectedTopIds": ["0652"] },
+    { "query": "chin up", "expectedTopIds": ["1326"] },
+    { "query": "chest", "expectedTopIds": ["0025", "0289", "0577", "0576"] },
+    { "query": "chest press", "expectedTopIds": ["0577", "0576", "0025", "0289", "1299", "1300"] },
+    { "query": "machine chest", "expectedTopIds": ["0577", "1299", "1300"] },
+    {
+      "query": "press",
+      "expectedTopIds": ["0025", "0289", "0577", "0576"],
+      "mustAppearWithinTopN": [
+        { "ids": ["0025", "0289", "0577", "0576"], "topN": 3 },
+        { "ids": ["0219", "0405", "0603", "0426", "0766"], "topN": 3 },
+        { "ids": ["0739", "0760"], "topN": 3 }
+      ],
+      "note": "Bare press deterministically interleaves chest, shoulder, and leg press intent."
+    },
+    { "query": "pec deck", "deferred": true, "note": "No verified Pec Deck identity; ID 0596 must not receive exact-alias scoring." },
+    { "query": "fly", "expectedTopIds": ["0308", "0188", "0596"] },
+    { "query": "bench", "expectedTopIds": ["0025", "0289"] },
+    { "query": "incline bench", "expectedTopIds": ["0047", "0314", "0757"] },
+    { "query": "push up", "expectedTopIds": ["0662"] },
+    { "query": "dip", "expectedTopIds": ["0251", "0814", "0009", "0019"] },
+    { "query": "shoulder press", "expectedTopIds": ["0603", "0405", "0219", "0426", "0766"] },
+    { "query": "machine shoulder press", "expectedTopIds": ["0603"] },
+    { "query": "lateral raise", "expectedTopIds": ["0334", "0178", "0584", "0396"] },
+    {
+      "query": "rear delt",
+      "expectedTopIds": ["0378", "0203", "0602", "0225"],
+      "mustAppearWithinTopN": [{ "ids": ["0602"], "topN": 12 }]
+    },
+    { "query": "face pull", "expectedTopIds": ["vx_ex_face_pull"], "forbiddenWithinTopN": [{ "ids": ["0203"], "topN": 3 }] },
+    { "query": "curl", "expectedTopIds": ["0294"] },
+    { "query": "bicep curl", "expectedTopIds": ["0294", "0031", "0447", "0868"] },
+    { "query": "hammer curl", "expectedTopIds": ["0313", "0165"] },
+    { "query": "preacher", "expectedTopIds": ["0070", "0195", "0372", "0592", "1615", "1616"] },
+    { "query": "ez bar curl", "expectedTopIds": ["0447"] },
+    { "query": "tricep", "expectedTopIds": ["0200", "0201", "0241", "1722", "0607", "0814"] },
+    { "query": "triceps", "expectedTopIds": ["0200", "0201", "0241", "1722", "0607", "0814"] },
+    { "query": "rope pushdown", "expectedTopIds": ["0200"] },
+    { "query": "push down", "expectedTopIds": ["0201", "0200", "0241"] },
+    { "query": "overhead tricep", "expectedTopIds": ["1722", "0194", "1749", "2188", "0430"] },
+    { "query": "skull crusher", "expectedTopIds": ["0060"] },
+    { "query": "quad", "expectedTopIds": ["0585", "0739", "0043", "0042", "1760"] },
+    { "query": "squat", "expectedTopIds": ["0043", "0042", "vx_ex_bodyweight_squat", "1760", "0413"] },
+    { "query": "leg extension", "expectedTopIds": ["0585"] },
+    { "query": "leg press", "expectedTopIds": ["0739", "0760"] },
+    { "query": "hamstring", "expectedTopIds": ["0599", "0586", "0582", "0085", "0044"] },
+    { "query": "leg curl", "expectedTopIds": ["0599", "0586", "0582"] },
+    { "query": "rdl", "expectedTopIds": ["0085"] },
+    { "query": "glute", "expectedTopIds": ["9004", "9012", "1409", "9006", "9013"] },
+    { "query": "hip thrust", "expectedTopIds": ["9004", "9012"] },
+    { "query": "kickback", "expectedTopIds": ["9006", "9013", "kneeling_kickbacks", "0333"] },
+    { "query": "calf", "expectedTopIds": ["1373", "0605", "0594", "0088", "1379", "0417"] },
+    { "query": "abs", "expectedTopIds": ["9008", "0274", "0472", "0276", "0979"] },
+    { "query": "core", "expectedTopIds": ["9008", "0274", "0472", "0276", "0979"] },
+    { "query": "plank", "expectedTopIds": ["9008"] },
+    { "query": "side plank", "expectedTopIds": ["vx_ex_bodyweight_side_plank"] },
+    { "query": "cardio", "expectedTopIds": ["9001", "9002", "9003", "2141", "2311", "vx_ex_rowing_machine"] },
+    { "query": "treadmill", "expectedTopIds": ["9001", "3666"] },
+    { "query": "incline walk", "expectedTopIds": ["3666"] },
+    { "query": "bike", "expectedTopIds": ["9003"], "forbiddenWithinTopN": [{ "ids": ["0003"], "topN": 1 }] },
+    { "query": "rowing", "expectedTopIds": ["vx_ex_rowing_machine"] },
+    { "query": "rowing machine", "expectedTopIds": ["vx_ex_rowing_machine"] },
+    { "query": "stair", "expectedTopIds": ["2311"] },
+    { "query": "farmer carry", "expectedTopIds": ["2133"] },
+    { "query": "battle rope", "expectedTopIds": ["0128"] },
+    { "query": "barbell overhead press", "expectedTopIds": ["vx_ex_standing_barbell_overhead_press", "0091"] },
+    {
+      "query": "machine chest fly",
+      "expectedTopIds": ["0596"],
+      "forbiddenWithinTopN": [{ "ids": ["0602", "0188", "0154"], "topN": 3 }]
+    },
+    {
+      "query": "machine reverse fly",
+      "expectedTopIds": ["0602"],
+      "forbiddenWithinTopN": [{ "ids": ["0596", "0188", "0154"], "topN": 3 }]
+    },
+    {
+      "query": "cable chest fly",
+      "expectedTopIds": ["0188"],
+      "forbiddenWithinTopN": [{ "ids": ["0596", "0602", "0154"], "topN": 3 }]
+    },
+    {
+      "query": "cable reverse fly",
+      "expectedTopIds": ["0154", "0225"],
+      "forbiddenWithinTopN": [{ "ids": ["0596", "0602", "0188"], "topN": 3 }]
+    },
+    {
+      "query": "rope rear delt row",
+      "expectedTopIds": ["0203"],
+      "forbiddenWithinTopN": [{ "ids": ["vx_ex_face_pull"], "topN": 3 }]
+    }
+  ]
+}
