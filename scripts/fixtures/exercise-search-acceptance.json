@@ -8,6 +8,13 @@
       "forbiddenWithinTopN": [{ "ids": ["0334", "0178", "0584"], "topN": 20 }],
       "note": "Direct lat movements must outrank lateral raises."
     },
+    {
+      "query": "la",
+      "acceptableTopGroupIds": ["0198", "0579", "1326", "0652"],
+      "forbiddenWithinTopN": [{ "ids": ["0334", "0178", "0584"], "topN": 3 }],
+      "note": "A two-character single-token query may use conservative prefix fallback; direct lat movements should beat lateral raises."
+    },
+    { "query": "lat pul", "expectedTopIds": ["0198", "0579", "0197", "0818"] },
     { "query": "lat pull", "expectedTopIds": ["0198", "0579", "0197", "0818"], "forbiddenWithinTopN": [{ "ids": ["0334", "0178", "0584"], "topN": 20 }] },
     { "query": "lat pulldown", "expectedTopIds": ["0198", "0579", "0197", "0818", "0245"] },
     { "query": "pull down", "expectedTopIds": ["0198", "0579", "0197", "0818", "0245"] },
@@ -28,8 +35,11 @@
     { "query": "pull up", "expectedTopIds": ["0652"] },
     { "query": "chin up", "expectedTopIds": ["1326"] },
     { "query": "chest", "expectedTopIds": ["0025", "0289", "0577", "0576"] },
+    { "query": "chest p", "expectedTopIds": ["0577", "0576", "0025", "0289", "1299", "1300"] },
+    { "query": "chest pre", "expectedTopIds": ["0577", "0576", "0025", "0289", "1299", "1300"] },
     { "query": "chest press", "expectedTopIds": ["0577", "0576", "0025", "0289", "1299", "1300"] },
     { "query": "machine chest", "expectedTopIds": ["0577", "1299", "1300"] },
+    { "query": "machine che", "expectedTopIds": ["0577", "1299", "1300", "0596", "0576"] },
     {
       "query": "press",
       "expectedTopIds": ["0025", "0289", "0577", "0576"],
@@ -69,7 +79,22 @@
     { "query": "quad", "expectedTopIds": ["0585", "0739", "0043", "0042", "1760"] },
     { "query": "squat", "expectedTopIds": ["0043", "0042", "vx_ex_bodyweight_squat", "1760", "0413"] },
     { "query": "leg extension", "expectedTopIds": ["0585"] },
-    { "query": "leg press", "expectedTopIds": ["0739", "0760"] },
+    {
+      "query": "leg press",
+      "expectedTopIds": ["0739", "0760"],
+      "mustAppearWithinTopN": [{ "ids": ["0739", "0760"], "topN": 2, "minimumMatches": 2 }],
+      "forbiddenWithinTopN": [{ "ids": ["1391", "1385", "2289", "2335", "0738", "2334", "1392"], "topN": 5 }]
+    },
+    {
+      "query": "machine leg press",
+      "expectedTopIds": ["0760"],
+      "mustAppearWithinTopN": [{ "ids": ["0739", "2287", "2611", "1425"], "topN": 5 }],
+      "forbiddenWithinTopN": [{ "ids": ["1391", "1385", "2289", "2335", "0738", "2334", "1392"], "topN": 5 }]
+    },
+    {
+      "query": "leg press calf raise",
+      "expectedTopIds": ["1391"]
+    },
     { "query": "hamstring", "expectedTopIds": ["0599", "0586", "0582", "0085", "0044"] },
     { "query": "leg curl", "expectedTopIds": ["0599", "0586", "0582"] },
     { "query": "rdl", "expectedTopIds": ["0085"] },
@@ -81,6 +106,7 @@
     { "query": "core", "normalizationVariantGroup": "core-language", "expectedTopIds": ["9008", "0274", "0472", "0276", "0979"] },
     { "query": "plank", "expectedTopIds": ["9008"] },
     { "query": "side plank", "expectedTopIds": ["vx_ex_bodyweight_side_plank"] },
+    { "query": "bodyweight squ", "expectedTopIds": ["vx_ex_bodyweight_squat"] },
     { "query": "cardio", "expectedTopIds": ["9001", "9002", "9003", "2141", "2311", "vx_ex_rowing_machine"] },
     { "query": "treadmill", "expectedTopIds": ["9001", "3666"] },
     { "query": "incline walk", "expectedTopIds": ["3666"] },

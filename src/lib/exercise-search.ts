@@ -81,6 +81,8 @@ const BROAD_QUERY_PREFERRED_IDS: Readonly<Record<string, readonly string[]>> = {
   "calf raise": ["1373", "0605", "0594", "0417", "1379", "0088"],
   "core crunch": ["0274"],
   "incline dumbbell chest press": ["0314"],
+  "leg press": ["0739", "0760", "2287", "2611", "1425"],
+  "machine leg press": ["0760", "0739", "2287", "2611", "1425"],
   leg: [
     "0739",
     "0043",
@@ -301,8 +303,96 @@ function tokenScore(
   return 0;
 }
 
+function incompleteTokenPrefixScore(
+  queryToken: string,
+  fieldValue: SearchFieldValue,
+): number {
+  const matchingTokens = [
+    ...fieldValue.tokens,
+    ...fieldValue.lexicalTokens,
+  ].filter((token) => token.startsWith(queryToken));
+  if (matchingTokens.length === 0) return 0;
+
+  const shortestCompletion = Math.min(
+    ...matchingTokens.map((token) => token.length - queryToken.length),
+  );
+  const completionBonus = Math.max(0, 100 - shortestCompletion * 10);
+
+  return FIELD_SCORES[fieldValue.field].prefix + completionBonus;
+}
+
+function incompletePhrasePrefixBonus(
+  queryTokens: readonly string[],
+  fieldValue: SearchFieldValue,
+): number {
+  if (queryTokens.length < 2) return 0;
+
+  const fieldTokens = fieldValue.phrase.split(" ");
+  const finalQueryToken = queryTokens[queryTokens.length - 1];
+  const precedingQueryTokens = queryTokens.slice(0, -1);
+
+  for (
+    let start = 0;
+    start <= fieldTokens.length - queryTokens.length;
+    start += 1
+  ) {
+    const precedingTokensMatch = precedingQueryTokens.every(
+      (token, offset) => fieldTokens[start + offset] === token,
+    );
+    const finalTokenMatches = fieldTokens[
+      start + precedingQueryTokens.length
+    ]?.startsWith(finalQueryToken);
+
+    if (precedingTokensMatch && finalTokenMatches) {
+      return Math.round(FIELD_SCORES[fieldValue.field].phrase * 0.2);
+    }
+  }
+
+  return 0;
+}
+
 function hasToken(document: ExerciseSearchDocument, token: string): boolean {
   return document.fields.some((field) => field.tokens.has(token));
+}
+
+function preferredIdBoost(
+  intentPhrase: string,
+  document: ExerciseSearchDocument,
+): number {
+  const preferredIds = BROAD_QUERY_PREFERRED_IDS[intentPhrase];
+  const preferredIndex = preferredIds?.indexOf(document.exercise.id) ?? -1;
+  return preferredIndex >= 0
+    ? Math.max(600, 1_200 - preferredIndex * 90)
+    : 0;
+}
+
+function incompleteBroadIntentAdjustment(
+  queryTokens: readonly string[],
+  document: ExerciseSearchDocument,
+): number {
+  const finalQueryToken = queryTokens.at(-1);
+  if (!finalQueryToken) return 0;
+
+  let bestBoost = 0;
+  for (const intentPhrase of Object.keys(BROAD_QUERY_PREFERRED_IDS)) {
+    const intentTokens = intentPhrase.split(" ");
+    if (intentTokens.length !== queryTokens.length) continue;
+
+    const precedingTokensMatch = queryTokens
+      .slice(0, -1)
+      .every((token, index) => intentTokens[index] === token);
+    if (
+      precedingTokensMatch
+      && intentTokens.at(-1)?.startsWith(finalQueryToken)
+    ) {
+      bestBoost = Math.max(
+        bestBoost,
+        preferredIdBoost(intentPhrase, document),
+      );
+    }
+  }
+
+  return bestBoost;
 }
 
 function broadIntentAdjustment(
@@ -311,11 +401,7 @@ function broadIntentAdjustment(
 ): number {
   const primary = normalizeExerciseSearchText(document.exercise.primaryMuscle);
   const bodyPart = normalizeExerciseSearchText(document.exercise.bodyPart);
-  const preferredIds = BROAD_QUERY_PREFERRED_IDS[queryPhrase];
-  const preferredIndex = preferredIds?.indexOf(document.exercise.id) ?? -1;
-  const preferredBoost = preferredIndex >= 0
-    ? Math.max(600, 1_200 - preferredIndex * 90)
-    : 0;
+  const preferredBoost = preferredIdBoost(queryPhrase, document);
 
   if (queryPhrase === "back") {
     const isDirectBackExercise =
@@ -398,6 +484,59 @@ function scoreDocument(
     + tierBoost
     + approvalBoost
     + broadIntentAdjustment(query.phrase, document);
+}
+
+function scoreDocumentWithIncompleteFinalToken(
+  query: NormalizedSearchValue,
+  document: ExerciseSearchDocument,
+): number | undefined {
+  const queryTokens = query.phrase.split(" ");
+  const finalQueryToken = queryTokens.at(-1);
+  if (!finalQueryToken) return undefined;
+
+  const isSingleTokenQuery = queryTokens.length === 1;
+  if (isSingleTokenQuery && finalQueryToken.length < 2) return undefined;
+
+  let tokenTotal = 0;
+  for (const queryToken of queryTokens.slice(0, -1)) {
+    let bestTokenScore = 0;
+    for (const fieldValue of document.fields) {
+      bestTokenScore = Math.max(
+        bestTokenScore,
+        tokenScore(queryToken, fieldValue),
+      );
+    }
+    if (bestTokenScore === 0) return undefined;
+    tokenTotal += bestTokenScore;
+  }
+
+  let bestFinalPrefixScore = 0;
+  let bestPhrasePrefixBonus = 0;
+  for (const fieldValue of document.fields) {
+    bestFinalPrefixScore = Math.max(
+      bestFinalPrefixScore,
+      incompleteTokenPrefixScore(finalQueryToken, fieldValue),
+    );
+    bestPhrasePrefixBonus = Math.max(
+      bestPhrasePrefixBonus,
+      incompletePhrasePrefixBonus(queryTokens, fieldValue),
+    );
+  }
+  if (bestFinalPrefixScore === 0) return undefined;
+
+  const tierBoost = DISCOVERY_TIER_BOOST[document.exercise.discoveryTier];
+  const approvalBoost = document.exercise.approval === "green"
+    ? 15
+    : document.exercise.approval === "yellow"
+      ? 8
+      : 0;
+
+  return tokenTotal
+    + bestFinalPrefixScore
+    + bestPhrasePrefixBonus
+    + tierBoost
+    + approvalBoost
+    + incompleteBroadIntentAdjustment(queryTokens, document);
 }
 
 function classifyPressGroup(
@@ -485,7 +624,7 @@ export function searchExerciseIndex(
       createNormalizedValue,
     ),
   ];
-  const scored = candidates.flatMap((document) => {
+  let scored = candidates.flatMap((document) => {
     let bestScore: number | undefined;
     queryVariants.forEach((queryVariant, index) => {
       const variantScore = scoreDocument(queryVariant, document);
@@ -498,6 +637,18 @@ export function searchExerciseIndex(
       ? []
       : [{ exercise: document.exercise, score: bestScore }];
   });
+
+  if (scored.length === 0) {
+    scored = candidates.flatMap((document) => {
+      const fallbackScore = scoreDocumentWithIncompleteFinalToken(
+        query,
+        document,
+      );
+      return fallbackScore === undefined
+        ? []
+        : [{ exercise: document.exercise, score: fallbackScore }];
+    });
+  }
 
   scored.sort((left, right) => {
     const scoreDifference = right.score - left.score;
