@@ -4189,6 +4189,149 @@
       "approval": "green",
       "discoveryTier": "advanced",
       "curationSet": "vortixia_addition_2026_09_25"
+    },
+    {
+      "id": "vx_ex_arm_circle",
+      "displayName": "Arm Circle",
+      "aliases": [
+        "arm circles"
+      ],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "delts",
+      "secondaryMuscles": [
+        "traps",
+        "upper back"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "catalog_gaps_2026_09_27",
+      "movementType": "mobility",
+      "usageContexts": [
+        "warmup"
+      ]
+    },
+    {
+      "id": "vx_ex_childs_pose",
+      "displayName": "Child's Pose",
+      "aliases": [
+        "child pose"
+      ],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "spine",
+      "secondaryMuscles": [
+        "lats",
+        "glutes"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "catalog_gaps_2026_09_27",
+      "movementType": "stretch",
+      "usageContexts": [
+        "recovery"
+      ]
+    },
+    {
+      "id": "vx_ex_cat_cow",
+      "displayName": "Cat-Cow",
+      "aliases": [
+        "cat cow pose",
+        "cat cow stretch"
+      ],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "spine",
+      "secondaryMuscles": [
+        "abs",
+        "upper back"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "catalog_gaps_2026_09_27",
+      "movementType": "mobility",
+      "usageContexts": [
+        "warmup",
+        "recovery"
+      ]
+    },
+    {
+      "id": "vx_ex_bird_dog",
+      "displayName": "Bird Dog",
+      "aliases": [
+        "quadruped opposite arm and leg raise"
+      ],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "core",
+      "secondaryMuscles": [
+        "glutes",
+        "spine",
+        "shoulders"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "catalog_gaps_2026_09_27",
+      "movementType": "activation",
+      "usageContexts": [
+        "warmup"
+      ]
+    },
+    {
+      "id": "vx_ex_standing_torso_twist",
+      "displayName": "Standing Torso Twist",
+      "aliases": [
+        "standing trunk rotation",
+        "bodyweight torso twist"
+      ],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "obliques",
+      "secondaryMuscles": [
+        "abs",
+        "spine"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "catalog_gaps_2026_09_27",
+      "movementType": "mobility",
+      "usageContexts": [
+        "warmup"
+      ]
+    },
+    {
+      "id": "vx_ex_machine_leg_press",
+      "displayName": "Machine Leg Press",
+      "aliases": [],
+      "normalizedEquipment": "machine",
+      "machineSubtype": "unknown",
+      "equipmentConfidence": "conservative",
+      "primaryMuscle": "quads",
+      "secondaryMuscles": [
+        "glutes",
+        "hamstrings"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "catalog_gaps_2026_09_27",
+      "movementType": "strength"
+    },
+    {
+      "id": "3021",
+      "displayName": "Scapular Push-Up",
+      "aliases": [
+        "scap push-up",
+        "scap pushup"
+      ],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "serratus anterior",
+      "secondaryMuscles": [
+        "triceps"
+      ],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "catalog_gaps_2026_09_27"
     }
   ]
 }

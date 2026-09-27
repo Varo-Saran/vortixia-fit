@@ -51,10 +51,20 @@ export type ExerciseTrackingType =
 
 export type ExerciseWeightUnit = "kg" | "lb" | "plates" | "unitless";
 
+export type ExerciseMovementType =
+  | "strength"
+  | "cardio"
+  | "mobility"
+  | "stretch"
+  | "activation";
+
+export type ExerciseUsageContext = "warmup" | "recovery";
+
 export type ExerciseCurationSet =
   | "priority_2026_09_25"
   | "supplemental_2026_09_25"
-  | "vortixia_addition_2026_09_25";
+  | "vortixia_addition_2026_09_25"
+  | "catalog_gaps_2026_09_27";
 
 export interface ImportedExerciseRecord {
   id: string;
@@ -87,6 +97,8 @@ export interface ExerciseMetadataOverlay {
   deprecatedForDiscovery?: boolean;
   preferredExerciseId?: string;
   reviewFlags?: readonly ExerciseReviewFlag[];
+  movementType?: ExerciseMovementType;
+  usageContexts?: readonly ExerciseUsageContext[];
 }
 
 export interface ExerciseMetadataFile {
@@ -109,6 +121,8 @@ export interface ResolvedExercise extends ImportedExerciseRecord {
   deprecatedForDiscovery: boolean;
   preferredExerciseId?: string;
   reviewFlags: readonly ExerciseReviewFlag[];
+  movementType?: ExerciseMovementType;
+  usageContexts: readonly ExerciseUsageContext[];
   defaultTrackingType?: ExerciseTrackingType;
   supportedWeightUnits?: readonly ExerciseWeightUnit[];
 }

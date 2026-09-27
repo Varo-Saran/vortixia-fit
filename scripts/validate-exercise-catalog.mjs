@@ -58,6 +58,14 @@ const VALID_TRACKING_TYPES = new Set([
   "reps_only",
 ]);
 const VALID_WEIGHT_UNITS = new Set(["kg", "lb", "plates", "unitless"]);
+const VALID_MOVEMENT_TYPES = new Set([
+  "strength",
+  "cardio",
+  "mobility",
+  "stretch",
+  "activation",
+]);
+const VALID_USAGE_CONTEXTS = new Set(["warmup", "recovery"]);
 const MACHINE_EQUIPMENT = new Set([
   "machine",
   "smith_machine",
@@ -93,6 +101,12 @@ const EXPECTED_VORTIXIA_IDS = new Set([
   "vx_ex_standing_barbell_overhead_press",
   "vx_ex_dumbbell_walking_lunge",
   "vx_ex_dumbbell_ytw_raise",
+  "vx_ex_arm_circle",
+  "vx_ex_childs_pose",
+  "vx_ex_cat_cow",
+  "vx_ex_bird_dog",
+  "vx_ex_standing_torso_twist",
+  "vx_ex_machine_leg_press",
 ]);
 
 const EXPECTED_SUPPLEMENTAL_IMPORTED_IDS = new Set([
@@ -206,6 +220,123 @@ const EXPECTED_VORTIXIA_RECORDS = new Map([
     supportedWeightUnits: ["kg", "lb"],
     primaryMuscle: "rear delts",
     secondaryMuscles: ["upper back", "traps", "rotator-cuff group"],
+  }],
+  ["vx_ex_arm_circle", {
+    name: "bodyweight arm circle",
+    bodyPart: "shoulders",
+    target: "delts",
+    equipment: "body weight",
+    muscleGroup: "traps / upper back",
+    defaultTrackingType: "reps_only",
+    supportedWeightUnits: ["unitless"],
+    primaryMuscle: "delts",
+    secondaryMuscles: ["traps", "upper back"],
+  }],
+  ["vx_ex_childs_pose", {
+    name: "bodyweight child's pose",
+    bodyPart: "back",
+    target: "spine",
+    equipment: "body weight",
+    muscleGroup: "lats / glutes",
+    defaultTrackingType: "time_only",
+    supportedWeightUnits: ["unitless"],
+    primaryMuscle: "spine",
+    secondaryMuscles: ["lats", "glutes"],
+  }],
+  ["vx_ex_cat_cow", {
+    name: "bodyweight cat cow",
+    bodyPart: "back",
+    target: "spine",
+    equipment: "body weight",
+    muscleGroup: "abs / upper back",
+    defaultTrackingType: "reps_only",
+    supportedWeightUnits: ["unitless"],
+    primaryMuscle: "spine",
+    secondaryMuscles: ["abs", "upper back"],
+  }],
+  ["vx_ex_bird_dog", {
+    name: "bodyweight bird dog",
+    bodyPart: "waist",
+    target: "core",
+    equipment: "body weight",
+    muscleGroup: "glutes / spine / shoulders",
+    defaultTrackingType: "reps_only",
+    supportedWeightUnits: ["unitless"],
+    primaryMuscle: "core",
+    secondaryMuscles: ["glutes", "spine", "shoulders"],
+  }],
+  ["vx_ex_standing_torso_twist", {
+    name: "bodyweight standing torso twist",
+    bodyPart: "waist",
+    target: "obliques",
+    equipment: "body weight",
+    muscleGroup: "abs / spine",
+    defaultTrackingType: "reps_only",
+    supportedWeightUnits: ["unitless"],
+    primaryMuscle: "obliques",
+    secondaryMuscles: ["abs", "spine"],
+  }],
+  ["vx_ex_machine_leg_press", {
+    name: "machine leg press",
+    bodyPart: "upper legs",
+    target: "quads",
+    equipment: "machine",
+    muscleGroup: "glutes / hamstrings",
+    defaultTrackingType: "reps_weight",
+    supportedWeightUnits: ["kg", "lb"],
+    primaryMuscle: "quads",
+    secondaryMuscles: ["glutes", "hamstrings"],
+  }],
+]);
+
+const EXPECTED_C2_METADATA = new Map([
+  ["vx_ex_arm_circle", {
+    displayName: "Arm Circle",
+    aliases: ["arm circles"],
+    movementType: "mobility",
+    usageContexts: ["warmup"],
+    approval: "green",
+    discoveryTier: "priority",
+  }],
+  ["vx_ex_childs_pose", {
+    displayName: "Child's Pose",
+    aliases: ["child pose"],
+    movementType: "stretch",
+    usageContexts: ["recovery"],
+    approval: "green",
+    discoveryTier: "priority",
+  }],
+  ["vx_ex_cat_cow", {
+    displayName: "Cat-Cow",
+    aliases: ["cat cow pose", "cat cow stretch"],
+    movementType: "mobility",
+    usageContexts: ["warmup", "recovery"],
+    approval: "green",
+    discoveryTier: "priority",
+  }],
+  ["vx_ex_bird_dog", {
+    displayName: "Bird Dog",
+    aliases: ["quadruped opposite arm and leg raise"],
+    movementType: "activation",
+    usageContexts: ["warmup"],
+    approval: "green",
+    discoveryTier: "priority",
+  }],
+  ["vx_ex_standing_torso_twist", {
+    displayName: "Standing Torso Twist",
+    aliases: ["standing trunk rotation", "bodyweight torso twist"],
+    movementType: "mobility",
+    usageContexts: ["warmup"],
+    approval: "green",
+    discoveryTier: "priority",
+  }],
+  ["vx_ex_machine_leg_press", {
+    displayName: "Machine Leg Press",
+    aliases: [],
+    movementType: "strength",
+    usageContexts: [],
+    approval: "green",
+    discoveryTier: "priority",
   }],
 ]);
 
@@ -416,7 +547,7 @@ check(
   sourceRecords.every((record) => !record.id.startsWith("usr_ex_")),
   "Built-in catalog must not use the reserved usr_ex_ prefix",
 );
-check(vortixiaExercises.length === 9, "Expected exactly 9 Vortixia additions");
+check(vortixiaExercises.length === 15, "Expected exactly 15 Vortixia additions");
 check(
   vortixiaIds.length === EXPECTED_VORTIXIA_IDS.size
     && vortixiaIds.every((id) => EXPECTED_VORTIXIA_IDS.has(id)),
@@ -464,6 +595,23 @@ for (const entry of entries) {
     check(
       MACHINE_EQUIPMENT.has(entry.normalizedEquipment),
       `${entry.id} has machine subtype on non-machine equipment`,
+    );
+  }
+  if (entry.movementType !== undefined) {
+    check(
+      VALID_MOVEMENT_TYPES.has(entry.movementType),
+      `${entry.id} has invalid movement type`,
+    );
+  }
+  if (entry.usageContexts !== undefined) {
+    check(
+      Array.isArray(entry.usageContexts)
+        && entry.usageContexts.every((context) => VALID_USAGE_CONTEXTS.has(context)),
+      `${entry.id} has invalid usage contexts`,
+    );
+    check(
+      new Set(entry.usageContexts).size === entry.usageContexts.length,
+      `${entry.id} has duplicate usage contexts`,
     );
   }
 
@@ -589,6 +737,7 @@ const setCounts = countBy(entries, "curationSet");
 check(setCounts.priority_2026_09_25 === 221, "Priority curation set must contain 221 entries");
 check(setCounts.supplemental_2026_09_25 === 9, "Supplemental curation set must contain 9 entries");
 check(setCounts.vortixia_addition_2026_09_25 === 9, "Addition curation set must contain 9 entries");
+check(setCounts.catalog_gaps_2026_09_27 === 7, "Catalog-gap curation set must contain 7 entries");
 
 const supplementalImportedIds = entries
   .filter((entry) => entry.curationSet === "supplemental_2026_09_25")
@@ -608,10 +757,10 @@ check(priorityCounts.red === 4, "Priority RED count must be 4");
 const importedOverlayCount = entries.filter((entry) => importedIds.includes(entry.id)).length;
 const additionOverlayCount = entries.filter((entry) => EXPECTED_VORTIXIA_IDS.has(entry.id)).length;
 const aggregateCounts = countBy(entries, "approval");
-check(importedOverlayCount === 230, "Imported overlay count must be 230");
-check(additionOverlayCount === 9, "Vortixia overlay count must be 9");
-check(entries.length === 239, "Curated overlay total must be 239");
-check(aggregateCounts.green === 188, "Aggregate GREEN count must be 188");
+check(importedOverlayCount === 231, "Imported overlay count must be 231");
+check(additionOverlayCount === 15, "Vortixia overlay count must be 15");
+check(entries.length === 246, "Curated overlay total must be 246");
+check(aggregateCounts.green === 195, "Aggregate GREEN count must be 195");
 check(aggregateCounts.yellow === 42, "Aggregate YELLOW count must be 42");
 check(aggregateCounts.red === 9, "Aggregate RED count must be 9");
 
@@ -696,6 +845,72 @@ for (const id of EXPECTED_VORTIXIA_IDS) {
     `${id} primary muscle differs from the approved specification`,
   );
 }
+
+for (const [id, expected] of EXPECTED_C2_METADATA) {
+  const entry = entryById.get(id);
+  check(Boolean(entry), `${id} C2 metadata must resolve`);
+  if (!entry) continue;
+
+  for (const field of [
+    "displayName",
+    "movementType",
+    "approval",
+    "discoveryTier",
+  ]) {
+    check(
+      entry[field] === expected[field],
+      `${id} ${field} differs from the approved C2 specification`,
+    );
+  }
+  check(
+    JSON.stringify(entry.aliases) === JSON.stringify(expected.aliases),
+    `${id} aliases differ from the approved C2 specification`,
+  );
+  check(
+    JSON.stringify(entry.usageContexts ?? [])
+      === JSON.stringify(expected.usageContexts),
+    `${id} usage contexts differ from the approved C2 specification`,
+  );
+  check(
+    entry.curationSet === "catalog_gaps_2026_09_27",
+    `${id} must belong to the C2 catalog-gap curation set`,
+  );
+}
+
+for (const id of [
+  "vx_ex_arm_circle",
+  "vx_ex_childs_pose",
+  "vx_ex_cat_cow",
+  "vx_ex_bird_dog",
+  "vx_ex_standing_torso_twist",
+]) {
+  const entry = entryById.get(id);
+  check(entry?.normalizedEquipment === "bodyweight", `${id} must use bodyweight equipment`);
+  check(entry?.equipmentConfidence === "local", `${id} must use local equipment confidence`);
+}
+
+const machineLegPress = entryById.get("vx_ex_machine_leg_press");
+check(machineLegPress?.normalizedEquipment === "machine", "Machine Leg Press must use machine equipment");
+check(machineLegPress?.machineSubtype === "unknown", "Machine Leg Press subtype must remain unknown");
+check(
+  machineLegPress?.equipmentConfidence === "conservative",
+  "Machine Leg Press must use conservative generic-equipment confidence",
+);
+check(
+  !machineLegPress?.reviewFlags?.includes("mechanism"),
+  "Machine Leg Press must not carry a mechanism review flag",
+);
+
+const scapularPushUp = entryById.get("3021");
+check(scapularPushUp?.displayName === "Scapular Push-Up", "3021 display mismatch");
+check(
+  JSON.stringify(scapularPushUp?.aliases) === JSON.stringify(["scap push-up", "scap pushup"]),
+  "3021 aliases differ from the approved same-identity language",
+);
+check(
+  !entryById.has("3011") || entryById.get("3011")?.displayName !== "Scapular Push-Up",
+  "3011 must remain separate from the ordinary Scapular Push-Up",
+);
 
 if (errors.length > 0) {
   console.error(`Exercise catalog validation failed with ${errors.length} error(s):`);

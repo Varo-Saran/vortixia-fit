@@ -118,5 +118,84 @@
       "kg",
       "lb"
     ]
+  },
+  {
+    "id": "vx_ex_arm_circle",
+    "name": "bodyweight arm circle",
+    "bodyPart": "shoulders",
+    "target": "delts",
+    "equipment": "body weight",
+    "muscleGroup": "traps / upper back",
+    "source": "vortixia",
+    "defaultTrackingType": "reps_only",
+    "supportedWeightUnits": [
+      "unitless"
+    ]
+  },
+  {
+    "id": "vx_ex_childs_pose",
+    "name": "bodyweight child's pose",
+    "bodyPart": "back",
+    "target": "spine",
+    "equipment": "body weight",
+    "muscleGroup": "lats / glutes",
+    "source": "vortixia",
+    "defaultTrackingType": "time_only",
+    "supportedWeightUnits": [
+      "unitless"
+    ]
+  },
+  {
+    "id": "vx_ex_cat_cow",
+    "name": "bodyweight cat cow",
+    "bodyPart": "back",
+    "target": "spine",
+    "equipment": "body weight",
+    "muscleGroup": "abs / upper back",
+    "source": "vortixia",
+    "defaultTrackingType": "reps_only",
+    "supportedWeightUnits": [
+      "unitless"
+    ]
+  },
+  {
+    "id": "vx_ex_bird_dog",
+    "name": "bodyweight bird dog",
+    "bodyPart": "waist",
+    "target": "core",
+    "equipment": "body weight",
+    "muscleGroup": "glutes / spine / shoulders",
+    "source": "vortixia",
+    "defaultTrackingType": "reps_only",
+    "supportedWeightUnits": [
+      "unitless"
+    ]
+  },
+  {
+    "id": "vx_ex_standing_torso_twist",
+    "name": "bodyweight standing torso twist",
+    "bodyPart": "waist",
+    "target": "obliques",
+    "equipment": "body weight",
+    "muscleGroup": "abs / spine",
+    "source": "vortixia",
+    "defaultTrackingType": "reps_only",
+    "supportedWeightUnits": [
+      "unitless"
+    ]
+  },
+  {
+    "id": "vx_ex_machine_leg_press",
+    "name": "machine leg press",
+    "bodyPart": "upper legs",
+    "target": "quads",
+    "equipment": "machine",
+    "muscleGroup": "glutes / hamstrings",
+    "source": "vortixia",
+    "defaultTrackingType": "reps_weight",
+    "supportedWeightUnits": [
+      "kg",
+      "lb"
+    ]
   }
 ]
