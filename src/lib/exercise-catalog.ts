@@ -36,6 +36,9 @@ const metadataEntries = Object.freeze(
       reviewFlags: entry.reviewFlags
         ? Object.freeze([...entry.reviewFlags])
         : undefined,
+      usageContexts: entry.usageContexts
+        ? Object.freeze([...entry.usageContexts])
+        : undefined,
     }),
   ),
 );
@@ -130,6 +133,8 @@ const resolvedCatalog = Object.freeze(
       deprecatedForDiscovery: metadata?.deprecatedForDiscovery ?? false,
       preferredExerciseId: metadata?.preferredExerciseId,
       reviewFlags: metadata?.reviewFlags ?? Object.freeze([]),
+      movementType: metadata?.movementType,
+      usageContexts: metadata?.usageContexts ?? Object.freeze([]),
       defaultTrackingType: isVortixia
         ? record.defaultTrackingType
         : undefined,

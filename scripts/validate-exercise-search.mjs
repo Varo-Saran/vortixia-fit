@@ -107,6 +107,8 @@ const resolvedCatalog = [...importedExercises, ...vortixiaExercises].map((record
     deprecatedForDiscovery: metadata?.deprecatedForDiscovery ?? false,
     preferredExerciseId: metadata?.preferredExerciseId,
     reviewFlags: metadata?.reviewFlags ?? [],
+    movementType: metadata?.movementType,
+    usageContexts: metadata?.usageContexts ?? [],
     defaultTrackingType: record.defaultTrackingType,
     supportedWeightUnits: record.supportedWeightUnits,
   };
@@ -118,12 +120,12 @@ const discoverableCatalog = resolvedCatalog.filter(
 );
 const index = searchModule.createExerciseSearchIndex(discoverableCatalog);
 
-if (resolvedCatalog.length !== 1_352) {
-  fail(`Expected 1,352 source records; found ${resolvedCatalog.length}`);
+if (resolvedCatalog.length !== 1_358) {
+  fail(`Expected 1,358 source records; found ${resolvedCatalog.length}`);
 }
-if (discoverableCatalog.length !== 1_343 || index.documents.length !== 1_343) {
+if (discoverableCatalog.length !== 1_349 || index.documents.length !== 1_349) {
   fail(
-    `Expected 1,343 discoverable/indexed records; found ${discoverableCatalog.length}/${index.documents.length}`,
+    `Expected 1,349 discoverable/indexed records; found ${discoverableCatalog.length}/${index.documents.length}`,
   );
 }
 
@@ -573,6 +575,12 @@ const expectedVortixiaIds = [
   "vx_ex_standing_barbell_overhead_press",
   "vx_ex_dumbbell_walking_lunge",
   "vx_ex_dumbbell_ytw_raise",
+  "vx_ex_arm_circle",
+  "vx_ex_childs_pose",
+  "vx_ex_cat_cow",
+  "vx_ex_bird_dog",
+  "vx_ex_standing_torso_twist",
+  "vx_ex_machine_leg_press",
 ];
 for (const id of expectedVortixiaIds) {
   if (!index.documentsById.has(id)) {
@@ -590,6 +598,12 @@ const vortixiaSearchCases = [
   ["barbell overhead press", "vx_ex_standing_barbell_overhead_press"],
   ["walking lunge", "vx_ex_dumbbell_walking_lunge"],
   ["ytw", "vx_ex_dumbbell_ytw_raise"],
+  ["arm circle", "vx_ex_arm_circle"],
+  ["child pose", "vx_ex_childs_pose"],
+  ["cat cow", "vx_ex_cat_cow"],
+  ["bird dog", "vx_ex_bird_dog"],
+  ["standing torso twist", "vx_ex_standing_torso_twist"],
+  ["machine leg press", "vx_ex_machine_leg_press"],
 ];
 for (const [query, expectedId] of vortixiaSearchCases) {
   if (!resultIds(query, 10).includes(expectedId)) {
@@ -645,14 +659,34 @@ if (process.argv.includes("--probes")) {
     "overhead dumbbell tricep extension",
     "standing hip circle",
     "leg swings",
+    "arm circle",
     "arm circles",
     "towel lat pulls",
     "child pose",
+    "child's pose",
     "seal stretch",
+    "cat cow",
     "cat cow pose",
     "bird dog",
+    "standing torso twist",
     "standing torso twists",
     "wall angels",
+    "mobility",
+    "stretch",
+    "activation",
+    "warmup",
+    "machine leg press",
+    "lat",
+    "lat pul",
+    "back",
+    "row",
+    "curl",
+    "press",
+    "leg press",
+    "leg press calf raise",
+    "bike",
+    "face pull",
+    "pec deck",
   ];
   for (const query of probes) {
     const results = searchModule.searchExerciseIndex(index, query, { limit: 8 });

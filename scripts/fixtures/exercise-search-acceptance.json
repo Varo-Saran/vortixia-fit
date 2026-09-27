@@ -81,14 +81,14 @@
     { "query": "leg extension", "expectedTopIds": ["0585"] },
     {
       "query": "leg press",
-      "expectedTopIds": ["0739", "0760"],
-      "mustAppearWithinTopN": [{ "ids": ["0739", "0760"], "topN": 2, "minimumMatches": 2 }],
+      "expectedTopIds": ["0739", "vx_ex_machine_leg_press"],
+      "mustAppearWithinTopN": [{ "ids": ["0739", "vx_ex_machine_leg_press"], "topN": 2, "minimumMatches": 2 }],
       "forbiddenWithinTopN": [{ "ids": ["1391", "1385", "2289", "2335", "0738", "2334", "1392"], "topN": 5 }]
     },
     {
       "query": "machine leg press",
-      "expectedTopIds": ["0760"],
-      "mustAppearWithinTopN": [{ "ids": ["0739", "2287", "2611", "1425"], "topN": 5 }],
+      "expectedTopIds": ["vx_ex_machine_leg_press"],
+      "mustAppearWithinTopN": [{ "ids": ["0739", "0760", "2287", "2611", "1425"], "topN": 6 }],
       "forbiddenWithinTopN": [{ "ids": ["1391", "1385", "2289", "2335", "0738", "2334", "1392"], "topN": 5 }]
     },
     {
@@ -117,6 +117,45 @@
     { "query": "farmer carry", "expectedTopIds": ["2133"] },
     { "query": "battle rope", "expectedTopIds": ["0128"] },
     { "query": "barbell overhead press", "expectedTopIds": ["vx_ex_standing_barbell_overhead_press", "0091"] },
+    {
+      "query": "mobility",
+      "mustAppearWithinTopN": [
+        { "ids": ["vx_ex_arm_circle", "vx_ex_cat_cow", "vx_ex_standing_torso_twist"], "topN": 5, "minimumMatches": 3 }
+      ]
+    },
+    {
+      "query": "stretch",
+      "mustAppearWithinTopN": [
+        { "ids": ["vx_ex_childs_pose"], "topN": 50 }
+      ]
+    },
+    {
+      "query": "activation",
+      "mustAppearWithinTopN": [
+        { "ids": ["vx_ex_bird_dog"], "topN": 5 }
+      ]
+    },
+    {
+      "query": "warmup",
+      "normalizationVariantGroup": "warmup-language",
+      "mustAppearWithinTopN": [
+        { "ids": ["vx_ex_arm_circle", "vx_ex_cat_cow", "vx_ex_bird_dog", "vx_ex_standing_torso_twist"], "topN": 6, "minimumMatches": 4 }
+      ]
+    },
+    {
+      "query": "warm up",
+      "normalizationVariantGroup": "warmup-language",
+      "mustAppearWithinTopN": [
+        { "ids": ["vx_ex_arm_circle", "vx_ex_cat_cow", "vx_ex_bird_dog", "vx_ex_standing_torso_twist"], "topN": 6, "minimumMatches": 4 }
+      ]
+    },
+    {
+      "query": "warm-up",
+      "normalizationVariantGroup": "warmup-language",
+      "mustAppearWithinTopN": [
+        { "ids": ["vx_ex_arm_circle", "vx_ex_cat_cow", "vx_ex_bird_dog", "vx_ex_standing_torso_twist"], "topN": 6, "minimumMatches": 4 }
+      ]
+    },
     {
       "query": "machine chest fly",
       "expectedTopIds": ["0596"],

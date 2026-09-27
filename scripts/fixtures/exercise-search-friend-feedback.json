@@ -29,9 +29,9 @@
     },
     {
       "query": "arm circles",
-      "status": "deferred",
-      "classification": "missing",
-      "note": "Approved for later catalog-gap work; no exercise is added in C1."
+      "status": "active",
+      "expectedTopIds": ["vx_ex_arm_circle"],
+      "note": "The verified Vortixia Arm Circle identity must lead."
     },
     {
       "query": "towel lat pulls",
@@ -41,9 +41,9 @@
     },
     {
       "query": "child pose",
-      "status": "deferred",
-      "classification": "missing",
-      "note": "Approved for later catalog-gap work; no exercise is added in C1."
+      "status": "active",
+      "expectedTopIds": ["vx_ex_childs_pose"],
+      "note": "The verified Vortixia Child's Pose identity must lead."
     },
     {
       "query": "seal stretch",
@@ -59,21 +59,21 @@
     },
     {
       "query": "cat cow pose",
-      "status": "deferred",
-      "classification": "missing",
-      "note": "Approved for later catalog-gap work; no exercise is added in C1."
+      "status": "active",
+      "expectedTopIds": ["vx_ex_cat_cow"],
+      "note": "The verified Vortixia Cat-Cow identity must lead."
     },
     {
       "query": "bird dog",
-      "status": "deferred",
-      "classification": "missing",
-      "note": "Approved for later catalog-gap work; no exercise is added in C1."
+      "status": "active",
+      "expectedTopIds": ["vx_ex_bird_dog"],
+      "note": "The verified Vortixia Bird Dog identity must lead."
     },
     {
       "query": "standing torso twists",
-      "status": "deferred",
-      "classification": "missing",
-      "note": "Approved for later catalog-gap work; no exercise is added in C1."
+      "status": "active",
+      "expectedTopIds": ["vx_ex_standing_torso_twist"],
+      "note": "The verified Vortixia Standing Torso Twist identity must lead."
     },
     {
       "query": "wall angels",
@@ -115,7 +115,7 @@
     { "query": "reverse crunch", "status": "active", "expectedTopIds": ["0872"] },
     { "query": "leg raise", "status": "active", "expectedTopIds": ["2963", "0472", "0620"] },
     { "query": "side plank", "status": "active", "expectedTopIds": ["vx_ex_bodyweight_side_plank"] },
-    { "query": "leg press", "status": "active", "expectedTopIds": ["0739", "0760"] },
+    { "query": "leg press", "status": "active", "expectedTopIds": ["0739", "vx_ex_machine_leg_press"] },
     { "query": "dumbbell romanian deadlift", "status": "active", "expectedTopIds": ["1459"] },
     { "query": "prone leg curl", "status": "active", "expectedTopIds": ["0586"] },
     { "query": "reverse lunges", "status": "active", "expectedTopIds": ["0381"] },

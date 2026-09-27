@@ -7,6 +7,8 @@ const FIELD_SCORES = {
   primaryMuscle: { exact: 420, phrase: 300, token: 260, prefix: 180 },
   bodyPart: { exact: 400, phrase: 280, token: 240, prefix: 170 },
   equipment: { exact: 380, phrase: 260, token: 220, prefix: 160 },
+  movementType: { exact: 180, phrase: 130, token: 110, prefix: 75 },
+  usageContext: { exact: 110, phrase: 80, token: 65, prefix: 45 },
   secondaryMuscle: { exact: 220, phrase: 150, token: 120, prefix: 80 },
 } as const;
 
@@ -28,6 +30,7 @@ const TOKEN_EXPANSIONS: Readonly<Record<string, readonly string[]>> = {
   pushup: ["push", "up"],
   pushdown: ["push", "down"],
   bodyweight: ["body", "weight"],
+  warmup: ["warm", "up"],
   ytw: ["y", "t", "w"],
 };
 
@@ -53,6 +56,7 @@ const TOKEN_EQUIVALENTS: Readonly<Record<string, string>> = {
   squats: "squat",
   stretching: "stretch",
   triceps: "tricep",
+  twists: "twist",
 };
 
 const TRAILING_QUERY_INTENT_TOKENS = new Set([
@@ -81,8 +85,22 @@ const BROAD_QUERY_PREFERRED_IDS: Readonly<Record<string, readonly string[]>> = {
   "calf raise": ["1373", "0605", "0594", "0417", "1379", "0088"],
   "core crunch": ["0274"],
   "incline dumbbell chest press": ["0314"],
-  "leg press": ["0739", "0760", "2287", "2611", "1425"],
-  "machine leg press": ["0760", "0739", "2287", "2611", "1425"],
+  "leg press": [
+    "0739",
+    "vx_ex_machine_leg_press",
+    "0760",
+    "2287",
+    "2611",
+    "1425",
+  ],
+  "machine leg press": [
+    "vx_ex_machine_leg_press",
+    "0760",
+    "0739",
+    "2287",
+    "2611",
+    "1425",
+  ],
   leg: [
     "0739",
     "0043",
@@ -244,6 +262,12 @@ export function createExerciseSearchIndex(
         createField("primaryMuscle", exercise.primaryMuscle),
         createField("bodyPart", exercise.bodyPart),
         createField("equipment", exercise.normalizedEquipment),
+        ...(exercise.movementType
+          ? [createField("movementType", exercise.movementType)]
+          : []),
+        ...exercise.usageContexts.map((usageContext) =>
+          createField("usageContext", usageContext),
+        ),
         ...exercise.secondaryMuscles.map((muscle) =>
           createField("secondaryMuscle", muscle),
         ),
@@ -592,6 +616,47 @@ function diversifyBarePress(
   return diversified;
 }
 
+function includeSemanticMetadataMatches(
+  results: readonly ExerciseSearchResult[],
+  queryPhrase: string,
+  limit: number,
+): ExerciseSearchResult[] {
+  const cappedLimit = Math.max(0, limit);
+  const semanticMatches = results.filter(({ exercise }) =>
+    exercise.movementType === queryPhrase
+    || exercise.usageContexts.some(
+      (context) => normalizeExerciseSearchText(context) === queryPhrase,
+    )
+  );
+  if (semanticMatches.length === 0) return results.slice(0, cappedLimit);
+
+  const semanticIds = new Set(
+    semanticMatches.map(({ exercise }) => exercise.id),
+  );
+  const selected = results.slice(0, cappedLimit);
+  const selectedIds = new Set(selected.map(({ exercise }) => exercise.id));
+
+  for (const semanticMatch of semanticMatches) {
+    if (selectedIds.has(semanticMatch.exercise.id)) continue;
+
+    let replacementIndex = -1;
+    for (let index = selected.length - 1; index >= 0; index -= 1) {
+      if (!semanticIds.has(selected[index].exercise.id)) {
+        replacementIndex = index;
+        break;
+      }
+    }
+    if (replacementIndex < 0) break;
+
+    selectedIds.delete(selected[replacementIndex].exercise.id);
+    selected.splice(replacementIndex, 1);
+    selected.push(semanticMatch);
+    selectedIds.add(semanticMatch.exercise.id);
+  }
+
+  return selected;
+}
+
 export function searchExerciseIndex(
   index: ExerciseSearchIndex,
   queryText: string,
@@ -668,5 +733,5 @@ export function searchExerciseIndex(
       )
     : scored;
 
-  return ordered.slice(0, Math.max(0, limit));
+  return includeSemanticMetadataMatches(ordered, query.phrase, limit);
 }
