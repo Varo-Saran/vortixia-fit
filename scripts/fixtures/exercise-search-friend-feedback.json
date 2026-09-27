@@ -1,0 +1,166 @@
+{
+  "version": 1,
+  "source": "friend_feedback_2026_09",
+  "fixtures": [
+    {
+      "query": "dumbbell squats",
+      "status": "active",
+      "expectedTopIds": ["0413"],
+      "forbiddenTopIds": ["bulgarian_split_squats", "sissy_squats", "2368"],
+      "note": "Controlled squat plural normalization must lead to the ordinary Dumbbell Squat identity."
+    },
+    {
+      "query": "overhead dumbbell tricep extension",
+      "status": "deferred",
+      "classification": "distinct_variant",
+      "note": "Seated/standing, one-arm/two-arm, and reverse-grip candidates remain distinct pending identity curation."
+    },
+    {
+      "query": "standing hip circle",
+      "status": "deferred",
+      "classification": "ambiguous",
+      "note": "Direction and movement identity remain unresolved."
+    },
+    {
+      "query": "leg swings",
+      "status": "deferred",
+      "classification": "ambiguous",
+      "note": "Direction and movement identity remain unresolved."
+    },
+    {
+      "query": "arm circles",
+      "status": "deferred",
+      "classification": "missing",
+      "note": "Approved for later catalog-gap work; no exercise is added in C1."
+    },
+    {
+      "query": "towel lat pulls",
+      "status": "deferred",
+      "classification": "ambiguous",
+      "note": "Must not be identity-mapped to a loaded pulldown without evidence."
+    },
+    {
+      "query": "child pose",
+      "status": "deferred",
+      "classification": "missing",
+      "note": "Approved for later catalog-gap work; no exercise is added in C1."
+    },
+    {
+      "query": "seal stretch",
+      "status": "deferred",
+      "classification": "ambiguous",
+      "note": "Stretch identity remains unresolved."
+    },
+    {
+      "query": "ab crunch",
+      "status": "active",
+      "expectedTopIds": ["0274"],
+      "note": "Ab/core language must retain common Crunch intent."
+    },
+    {
+      "query": "cat cow pose",
+      "status": "deferred",
+      "classification": "missing",
+      "note": "Approved for later catalog-gap work; no exercise is added in C1."
+    },
+    {
+      "query": "bird dog",
+      "status": "deferred",
+      "classification": "missing",
+      "note": "Approved for later catalog-gap work; no exercise is added in C1."
+    },
+    {
+      "query": "standing torso twists",
+      "status": "deferred",
+      "classification": "missing",
+      "note": "Approved for later catalog-gap work; no exercise is added in C1."
+    },
+    {
+      "query": "wall angels",
+      "status": "deferred",
+      "classification": "ambiguous",
+      "note": "Wall Angel and Wall Slide equivalence is not approved."
+    },
+    {
+      "query": "scapular push up",
+      "status": "active",
+      "normalizationVariantGroup": "scapular-pushup-language",
+      "expectedTopIds": ["3021"],
+      "forbiddenTopIds": ["3011"],
+      "note": "The ordinary Scapula Push-Up must lead while the incline variant remains separate."
+    },
+
+    { "query": "back extension", "status": "active", "expectedTopIds": ["0489"] },
+    { "query": "plank", "status": "active", "expectedTopIds": ["9008"] },
+    { "query": "hip thrust", "status": "active", "expectedTopIds": ["9004", "9012"] },
+    { "query": "bulgarian split squats", "status": "active", "expectedTopIds": ["bulgarian_split_squats"] },
+    { "query": "leg extension", "status": "active", "expectedTopIds": ["0585"] },
+    { "query": "hip abduction", "status": "active", "expectedTopIds": ["0710", "0597"] },
+    { "query": "hip adduction", "status": "active", "expectedTopIds": ["0168", "0598"] },
+    {
+      "query": "calf raises",
+      "status": "active",
+      "expectedTopIds": ["1373"],
+      "forbiddenWithinTopN": [
+        { "ids": ["0763", "1394"], "topN": 3 }
+      ]
+    },
+    { "query": "step up", "status": "active", "expectedTopIds": ["0431"] },
+    { "query": "lat pulldown", "status": "active", "expectedTopIds": ["0198", "0579", "0197", "0818"] },
+    { "query": "dumbbell biceps curl", "status": "active", "expectedTopIds": ["0294"] },
+    { "query": "hammer curl", "status": "active", "expectedTopIds": ["0313", "0165"] },
+    { "query": "shoulder press", "status": "active", "expectedTopIds": ["0603", "0405", "0219", "0426", "0766"] },
+    { "query": "one arm dumbbell row", "status": "active", "expectedTopIds": ["0292"] },
+    { "query": "dead bug", "status": "active", "expectedTopIds": ["0276"] },
+    { "query": "reverse crunch", "status": "active", "expectedTopIds": ["0872"] },
+    { "query": "leg raise", "status": "active", "expectedTopIds": ["2963", "0472", "0620"] },
+    { "query": "side plank", "status": "active", "expectedTopIds": ["vx_ex_bodyweight_side_plank"] },
+    { "query": "leg press", "status": "active", "expectedTopIds": ["0739", "0760"] },
+    { "query": "dumbbell romanian deadlift", "status": "active", "expectedTopIds": ["1459"] },
+    { "query": "prone leg curl", "status": "active", "expectedTopIds": ["0586"] },
+    { "query": "reverse lunges", "status": "active", "expectedTopIds": ["0381"] },
+    { "query": "tibialis raises", "status": "active", "expectedTopIds": ["9007"] },
+    {
+      "query": "incline dumbbell chest press",
+      "status": "active",
+      "expectedTopIds": ["0314"],
+      "forbiddenTopIds": ["1289"],
+      "mustAppearWithinTopN": [
+        { "ids": ["1289"], "topN": 10 }
+      ],
+      "note": "The common incline press leads; the one-arm variation remains discoverable."
+    },
+    { "query": "dumbbell chest press", "status": "active", "expectedTopIds": ["0289"] },
+    { "query": "dumbbell shoulder press", "status": "active", "expectedTopIds": ["0426", "0405"] },
+    { "query": "dumbbell chest fly", "status": "active", "expectedTopIds": ["0308"] },
+    { "query": "dumbbell lateral raise", "status": "active", "expectedTopIds": ["0334"] },
+    { "query": "incline treadmill", "status": "active", "expectedTopIds": ["3666"] },
+    {
+      "query": "body weight squats",
+      "status": "active",
+      "normalizationVariantGroup": "bodyweight-squat-language",
+      "expectedTopIds": ["vx_ex_bodyweight_squat"],
+      "forbiddenTopIds": ["sissy_squats", "2368"]
+    },
+    { "query": "glute kickback", "status": "active", "expectedTopIds": ["9006", "9013", "kneeling_kickbacks"] },
+    { "query": "glute bridge", "status": "active", "expectedTopIds": ["3013", "1409", "9005"] },
+    { "query": "good morning", "status": "active", "expectedTopIds": ["0044"] },
+    { "query": "walking lunges", "status": "active", "expectedTopIds": ["1460", "vx_ex_dumbbell_walking_lunge"] },
+    { "query": "overhead triceps stretch", "status": "active", "expectedTopIds": ["0643"] },
+
+    { "query": "chest workout", "status": "active", "normalizationVariantGroup": "chest-intent-language", "expectedTopIds": ["0025", "0289", "0577", "0576"] },
+    { "query": "back workout", "status": "active", "normalizationVariantGroup": "back-intent-language", "expectedTopIds": ["0027", "0293", "0861", "1350", "0489"] },
+    { "query": "leg workout", "status": "active", "normalizationVariantGroup": "leg-intent-language", "expectedTopIds": ["0739", "0585", "0599", "0586", "0043", "vx_ex_bodyweight_squat"] },
+    { "query": "chest exercises", "status": "active", "normalizationVariantGroup": "chest-intent-language", "expectedTopIds": ["0025", "0289", "0577", "0576"] },
+    { "query": "back exercises", "status": "active", "normalizationVariantGroup": "back-intent-language", "expectedTopIds": ["0027", "0293", "0861", "1350", "0489"] },
+    { "query": "leg exercises", "status": "active", "normalizationVariantGroup": "leg-intent-language", "expectedTopIds": ["0739", "0585", "0599", "0586", "0043", "vx_ex_bodyweight_squat"] },
+    { "query": "workout", "status": "active", "normalizationVariantGroup": "intent-only-language", "expectedNoResults": true },
+    { "query": "workouts", "status": "active", "normalizationVariantGroup": "intent-only-language", "expectedNoResults": true },
+    { "query": "exercise", "status": "active", "normalizationVariantGroup": "intent-only-language", "expectedNoResults": true },
+    { "query": "exercises", "status": "active", "normalizationVariantGroup": "intent-only-language", "expectedNoResults": true },
+    { "query": "stretching", "status": "active", "expectedTopIds": ["1604"] },
+    { "query": "scapular push-up", "status": "active", "normalizationVariantGroup": "scapular-pushup-language", "expectedTopIds": ["3021"], "forbiddenTopIds": ["3011"] },
+    { "query": "scap pushup", "status": "active", "normalizationVariantGroup": "scapular-pushup-language", "expectedTopIds": ["3021"], "forbiddenTopIds": ["3011"] },
+    { "query": "bodyweight squats", "status": "active", "normalizationVariantGroup": "bodyweight-squat-language", "expectedTopIds": ["vx_ex_bodyweight_squat"] }
+  ]
+}
