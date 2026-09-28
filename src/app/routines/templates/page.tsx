@@ -1,10 +1,11 @@
 "use client";
 
 import { useRoutineStore, RoutineTemplate } from "@/store/useRoutineStore";
-import { ChevronLeft, Library, Check, X, Download, AlertTriangle, Plus, Trash2, Save, Share } from "lucide-react";
+import type { LegacyDayPlan } from "@/types/routine";
+import { ChevronLeft, Library, Check, X, Plus, Trash2, Save, Share } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { GoalType, SplitType } from "@/lib/ixia-ai";
 import { IxiaLoadingState } from "@/components/IxiaLoadingState";
 import Orb from "@/components/Orb";
@@ -14,8 +15,13 @@ export default function TemplatesPage() {
   const { 
     templates, 
     customTemplates = [], 
-    weeklyPlan, 
-    loadTemplate, 
+    routine,
+    loadStatus,
+    isLoading,
+    isSaving,
+    error,
+    fetchRoutine,
+    applyTemplate,
     applyAiRoutine, 
     exportRoutine,
     saveCustomTemplate,
@@ -25,6 +31,7 @@ export default function TemplatesPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"my-plans" | "explore">("my-plans");
   const [appliedId, setAppliedId] = useState<string | null>(null);
+  const [applyingId, setApplyingId] = useState<string | null>(null);
   const [selectedViewTemplate, setSelectedViewTemplate] = useState<RoutineTemplate | null>(null);
   const [activeViewDay, setActiveViewDay] = useState<string>("Monday");
 
@@ -36,7 +43,7 @@ export default function TemplatesPage() {
   
   // Confirmation state for AI
   const [isConfirming, setIsConfirming] = useState(false);
-  const [generatedPlan, setGeneratedPlan] = useState<any>(null);
+  const [generatedPlan, setGeneratedPlan] = useState<LegacyDayPlan[] | null>(null);
   
   // AI Save naming sub-view state
   const [ixiaSaveMode, setIxiaSaveMode] = useState(false);
@@ -49,13 +56,30 @@ export default function TemplatesPage() {
   const [activeTemplateName, setActiveTemplateName] = useState("");
   const [activeTemplateDesc, setActiveTemplateDesc] = useState("");
 
-  const handleApplyTemplate = (id: string) => {
-    loadTemplate(id);
-    setAppliedId(id);
-    toast.success("Routine applied successfully!");
-    setTimeout(() => {
+  useEffect(() => {
+    if (loadStatus === 'idle') void fetchRoutine();
+  }, [fetchRoutine, loadStatus]);
+
+  const replacementUnavailable = loadStatus !== 'ready' || isSaving;
+
+  const handleApplyTemplate = async (id: string) => {
+    if (applyingId !== null || replacementUnavailable) return;
+
+    setApplyingId(id);
+    try {
+      await applyTemplate(id);
+      setAppliedId(id);
+      setSelectedViewTemplate(null);
+      toast.success("Routine applied and saved successfully!");
       router.push("/routines");
-    }, 800);
+    } catch (error) {
+      const message = error instanceof Error
+        ? error.message
+        : "Unable to apply and save the routine.";
+      toast.error(message);
+    } finally {
+      setApplyingId(null);
+    }
   };
 
   const handleGenerateAi = async () => {
@@ -101,41 +125,90 @@ export default function TemplatesPage() {
     }
   };
 
-  const handleApplyAiDirectly = () => {
+  const handleApplyAiDirectly = async () => {
+    if (!generatedPlan || applyingId !== null || replacementUnavailable) return;
+
+    setApplyingId('ai-direct');
     if (shouldDownloadBackup) {
       triggerBackupDownload();
     }
-    if (generatedPlan) {
-      applyAiRoutine(generatedPlan);
+
+    try {
+      await applyAiRoutine(generatedPlan);
+      setShowAiModal(false);
+      setIsConfirming(false);
+      toast.success("AI Routine applied and saved successfully!");
+      router.push("/routines");
+    } catch (error) {
+      const message = error instanceof Error
+        ? error.message
+        : "Unable to apply and save the AI routine.";
+      toast.error(message);
+    } finally {
+      setApplyingId(null);
     }
-    setShowAiModal(false);
-    setIsConfirming(false);
-    toast.success("AI Routine applied to active split!");
-    router.push("/routines");
   };
 
-  const handleSaveAiTemplate = (applyAfterSaving: boolean) => {
+  const handleSaveAiTemplate = async (applyAfterSaving: boolean) => {
     if (!ixiaTemplateName.trim()) {
       toast.error("Please enter a template name.");
       return;
     }
+    if (!generatedPlan) {
+      toast.error("No generated routine is available to save.");
+      return;
+    }
+    if (applyAfterSaving && (applyingId !== null || replacementUnavailable)) {
+      toast.error("Load the saved routine before applying this plan.");
+      return;
+    }
 
-    const success = saveCustomTemplate(ixiaTemplateName, ixiaTemplateDesc, generatedPlan);
-    if (success) {
-      toast.success("Routine saved to My Plans!");
-      if (applyAfterSaving) {
-        if (shouldDownloadBackup) {
-          triggerBackupDownload();
+    if (customTemplates.length >= 15) {
+      toast.error("Limit reached: You can save up to 15 custom templates.");
+      return;
+    }
+
+    if (applyAfterSaving) {
+      setApplyingId('ai-save-apply');
+      if (shouldDownloadBackup) {
+        triggerBackupDownload();
+      }
+      try {
+        await applyAiRoutine(generatedPlan);
+        const saved = saveCustomTemplate(
+          ixiaTemplateName,
+          ixiaTemplateDesc,
+          generatedPlan,
+        );
+        if (!saved) {
+          throw new Error(
+            "The active routine was saved, but the template could not be added to My Plans.",
+          );
         }
-        applyAiRoutine(generatedPlan);
-        toast.success("Routine applied as active split!");
+        toast.success("Routine saved to My Plans and applied as the active split!");
         setShowAiModal(false);
         setIsConfirming(false);
         router.push("/routines");
-      } else {
-        setShowAiModal(false);
-        setIsConfirming(false);
+      } catch (error) {
+        const message = error instanceof Error
+          ? error.message
+          : "Unable to save and apply the AI routine.";
+        toast.error(message);
+      } finally {
+        setApplyingId(null);
       }
+      return;
+    }
+
+    const saved = saveCustomTemplate(
+      ixiaTemplateName,
+      ixiaTemplateDesc,
+      generatedPlan,
+    );
+    if (saved) {
+      toast.success("Routine saved to My Plans!");
+      setShowAiModal(false);
+      setIsConfirming(false);
     } else {
       toast.error("Limit reached: You can save up to 15 custom templates.");
     }
@@ -147,7 +220,11 @@ export default function TemplatesPage() {
       return;
     }
 
-    const success = saveCustomTemplate(activeTemplateName, activeTemplateDesc, weeklyPlan);
+    if (!routine) {
+      toast.error("No active routine is available to save.");
+      return;
+    }
+    const success = saveCustomTemplate(activeTemplateName, activeTemplateDesc, routine);
     if (success) {
       toast.success("Active routine saved to templates!");
       setShowSaveActiveModal(false);
@@ -166,7 +243,7 @@ export default function TemplatesPage() {
     }
   };
 
-  const handleExportCustom = (e: React.MouseEvent, tpl: any) => {
+  const handleExportCustom = (e: React.MouseEvent, tpl: RoutineTemplate) => {
     e.stopPropagation();
     try {
       const jsonStr = JSON.stringify(tpl.plan);
@@ -179,7 +256,7 @@ export default function TemplatesPage() {
       element.click();
       document.body.removeChild(element);
       toast.success("Template downloaded!");
-    } catch (err) {
+    } catch {
       toast.error("Failed to export template.");
     }
   };
@@ -198,6 +275,24 @@ export default function TemplatesPage() {
           </div>
         </div>
       </header>
+
+      {loadStatus !== 'ready' && (
+        <div
+          role={loadStatus === 'error' ? "alert" : "status"}
+          className="mb-4 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-text-muted"
+        >
+          <p>{isLoading ? "Loading your saved routine…" : (error ?? "Your saved routine is unavailable.")}</p>
+          {loadStatus === 'error' && (
+            <button
+              type="button"
+              onClick={() => void fetchRoutine()}
+              className="mt-3 rounded-lg border border-accent-green/30 bg-accent-green/20 px-3 py-2 font-bold uppercase tracking-wider text-accent-green"
+            >
+              Retry
+            </button>
+          )}
+        </div>
+      )}
 
       {/* iXiA AI Premium Button */}
       <button 
@@ -269,15 +364,17 @@ export default function TemplatesPage() {
                   VIEW WORKOUT
                 </button>
                 <button
-                  onClick={() => handleApplyTemplate(tpl.id)}
-                  disabled={appliedId !== null}
+                  onClick={() => void handleApplyTemplate(tpl.id)}
+                  disabled={applyingId !== null || appliedId !== null || replacementUnavailable}
                   className={`flex-1 py-3 rounded-xl font-bold text-xs tracking-wider transition-all ${
                     appliedId === tpl.id 
                       ? 'bg-accent-green text-black' 
                       : 'bg-white/10 text-white hover:bg-white/20 border border-white/5'
                   }`}
                 >
-                  {appliedId === tpl.id ? (
+                  {applyingId === tpl.id ? (
+                    "APPLYING..."
+                  ) : appliedId === tpl.id ? (
                     <span className="flex items-center justify-center gap-2">
                       <Check className="w-4 h-4" /> APPLIED
                     </span>
@@ -354,15 +451,17 @@ export default function TemplatesPage() {
                     VIEW WORKOUT
                   </button>
                   <button
-                    onClick={() => handleApplyTemplate(tpl.id)}
-                    disabled={appliedId !== null}
+                    onClick={() => void handleApplyTemplate(tpl.id)}
+                    disabled={applyingId !== null || appliedId !== null || replacementUnavailable}
                     className={`flex-1 py-3 rounded-xl font-bold text-xs tracking-wider transition-all ${
                       appliedId === tpl.id 
                         ? 'bg-accent-green text-black' 
                         : 'bg-white/10 text-white hover:bg-white/20 border border-white/5'
                     }`}
                   >
-                    {appliedId === tpl.id ? (
+                    {applyingId === tpl.id ? (
+                      "APPLYING..."
+                    ) : appliedId === tpl.id ? (
                       <span className="flex items-center justify-center gap-2">
                         <Check className="w-4 h-4" /> APPLIED
                       </span>
@@ -483,10 +582,11 @@ export default function TemplatesPage() {
                       </button>
                       
                       <button
-                        onClick={handleApplyAiDirectly}
+                        onClick={() => void handleApplyAiDirectly()}
+                        disabled={applyingId !== null || replacementUnavailable}
                         className="w-full bg-white/10 hover:bg-white/15 border border-white/10 text-white font-black text-xs uppercase tracking-widest py-4 rounded-xl transition-all"
                       >
-                        Apply Directly
+                        {applyingId === 'ai-direct' ? "Applying..." : "Apply Directly"}
                       </button>
 
                       <button
@@ -541,13 +641,15 @@ export default function TemplatesPage() {
 
                     <div className="flex flex-col gap-2 mt-2">
                       <button 
-                        onClick={() => handleSaveAiTemplate(true)}
+                        onClick={() => void handleSaveAiTemplate(true)}
+                        disabled={applyingId !== null || replacementUnavailable}
                         className="w-full py-4 bg-[#2EEA82] text-black font-black text-xs uppercase tracking-widest rounded-xl transition-all active:scale-95 shadow-lg flex items-center justify-center gap-1"
                       >
-                        Save & Apply Active
+                        {applyingId === 'ai-save-apply' ? "Saving & Applying..." : "Save & Apply Active"}
                       </button>
                       <button 
-                        onClick={() => handleSaveAiTemplate(false)}
+                        onClick={() => void handleSaveAiTemplate(false)}
+                        disabled={applyingId !== null}
                         className="w-full py-4 bg-white/10 hover:bg-white/15 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all active:scale-95 border border-white/5"
                       >
                         Just Save
@@ -696,7 +798,7 @@ export default function TemplatesPage() {
                 const currentDayPlan = selectedViewTemplate.plan.find(p => p.day === activeViewDay);
                 if (!currentDayPlan) return null;
                 
-                if (currentDayPlan.type === 'Rest' || (currentDayPlan.warmups.length === 0 && currentDayPlan.mainLifts.length === 0)) {
+                if (currentDayPlan.warmups.length === 0 && currentDayPlan.mainLifts.length === 0) {
                   return (
                     <div className="flex flex-col items-center justify-center py-10 text-text-muted">
                       <span className="text-3xl mb-2">😴</span>
@@ -729,7 +831,9 @@ export default function TemplatesPage() {
                     {/* Main Lifts */}
                     {currentDayPlan.mainLifts.length > 0 && (
                       <div>
-                        <span className="text-[9px] uppercase font-bold text-accent-green tracking-widest block mb-2">Main Lifts</span>
+                        <span className="text-[9px] uppercase font-bold text-accent-green tracking-widest block mb-2">
+                          {currentDayPlan.type === 'Rest' ? 'Recovery Activities' : 'Main Lifts'}
+                        </span>
                         <div className="flex flex-col gap-2">
                           {currentDayPlan.mainLifts.map((ex) => (
                             <div key={ex.id} className="bg-white/5 border border-white/5 rounded-xl p-3">
@@ -757,15 +861,11 @@ export default function TemplatesPage() {
                 Close
               </button>
               <button
-                onClick={() => {
-                  const id = selectedViewTemplate.id;
-                  setSelectedViewTemplate(null);
-                  handleApplyTemplate(id);
-                }}
-                disabled={appliedId !== null}
+                onClick={() => void handleApplyTemplate(selectedViewTemplate.id)}
+                disabled={applyingId !== null || appliedId !== null || replacementUnavailable}
                 className="flex-1 py-3 bg-accent-green text-black font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-lg active:scale-95"
               >
-                APPLY THIS PLAN
+                {applyingId === selectedViewTemplate.id ? "APPLYING..." : "APPLY THIS PLAN"}
               </button>
             </div>
             

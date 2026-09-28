@@ -1,40 +1,38 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { supabase } from '@/lib/supabase';
+import {
+  createOccurrence,
+  createRoutineUuid,
+  legacyPlanToRoutinePlan,
+  normalizeRoutineName,
+  reorderOccurrences,
+  routinePlanToLegacyPlan,
+} from '@/lib/routine-model';
+import {
+  loadActiveRoutine,
+  saveActiveRoutine,
+} from '@/lib/routine-persistence';
+import type {
+  LegacyDayPlan,
+  NewPlannedExerciseOccurrence,
+  PlannedExerciseOccurrence,
+  RoutinePlan,
+  RoutineTemplate,
+  Weekday,
+} from '@/types/routine';
 
-// New flexible tracking schemas
-export type TrackingType = 'reps_weight' | 'time_weight' | 'time_only' | 'cardio_hr' | 'reps_only';
-export type WeightUnit = 'kg' | 'lbs' | 'plates' | 'unitless';
-
-export interface PlannedExercise {
-  id: string;
-  exerciseId?: string; // Links to global library
-  name: string;
-  targetMuscle: string;
-  trackingType: TrackingType;
-  weightUnit: WeightUnit;
-  targetSets: number;
-  targetValue: string; // e.g., "8-10 reps", "60 secs", "Zone 2"
-  note?: string;
-  isWarmup?: boolean;
-}
-
-export interface DayPlan {
-  day: string;
-  shortDay: string;
-  type: string;
-  title: string;
-  warmups: PlannedExercise[];
-  mainLifts: PlannedExercise[];
-}
-
-export interface RoutineTemplate {
-  id: string;
-  name: string;
-  description: string;
-  frequency: string;
-  plan: DayPlan[];
-}
+export type {
+  DayKind,
+  LegacyDayPlan,
+  LegacyPlannedExercise,
+  NewPlannedExerciseOccurrence,
+  PlannedExerciseOccurrence,
+  RoutinePlan,
+  RoutineTemplate,
+  TrackingType,
+  Weekday,
+  WeightUnit,
+} from '@/types/routine';
 
 // --- Predefined Templates using new schema ---
 const PREDEFINED_TEMPLATES: RoutineTemplate[] = [
@@ -234,316 +232,342 @@ const PREDEFINED_TEMPLATES: RoutineTemplate[] = [
   }
 ];
 
+let routineLoadFlight: Promise<void> | null = null;
+
 export interface RoutineStore {
-  weeklyPlan: DayPlan[];
+  routine: RoutinePlan | null;
+  loadStatus: 'idle' | 'loading' | 'ready' | 'error';
   isLoading: boolean;
+  isSaving: boolean;
+  isDirty: boolean;
+  error: string | null;
   templates: RoutineTemplate[];
   customTemplates: RoutineTemplate[];
   fetchRoutine: () => Promise<void>;
-  updateDayPlan: (dayName: string, exercises: PlannedExercise[]) => void;
+  setRoutine: (routine: RoutinePlan) => void;
+  setRoutineName: (name: string) => void;
+  updateDayMetadata: (
+    weekday: Weekday,
+    updates: Partial<Pick<RoutinePlan["days"][number], "title" | "kind">>,
+  ) => void;
+  addOccurrence: (
+    weekday: Weekday,
+    occurrence: NewPlannedExerciseOccurrence,
+  ) => void;
+  updateOccurrence: (
+    occurrenceId: string,
+    updates: Partial<Omit<PlannedExerciseOccurrence, "id">>,
+  ) => void;
+  removeOccurrence: (occurrenceId: string) => void;
+  reorderDayOccurrences: (weekday: Weekday, orderedIds: string[]) => void;
   saveRoutineToDb: () => Promise<void>;
-  loadTemplate: (templateId: string) => void;
+  replaceAndSaveRoutine: (
+    plan: LegacyDayPlan[],
+    name?: string,
+  ) => Promise<void>;
+  applyTemplate: (templateId: string) => Promise<void>;
   exportRoutine: () => string;
-  importRoutine: (base64Str: string) => boolean;
-  applyAiRoutine: (plan: DayPlan[]) => void;
-  saveCustomTemplate: (name: string, description: string, plan: DayPlan[]) => boolean;
+  importRoutine: (base64Str: string) => Promise<void>;
+  applyAiRoutine: (plan: LegacyDayPlan[]) => Promise<void>;
+  saveCustomTemplate: (
+    name: string,
+    description: string,
+    plan: LegacyDayPlan[] | RoutinePlan,
+  ) => boolean;
   deleteCustomTemplate: (templateId: string) => void;
-  resetActiveSplit: () => void;
+  resetActiveSplit: () => Promise<void>;
   clearAllCustomTemplates: () => void;
 }
 
 export const useRoutineStore = create<RoutineStore>()(
   persist(
     (set, get) => ({
-      weeklyPlan: [],
-      isLoading: true,
+      routine: null,
+      loadStatus: 'idle',
+      isLoading: false,
+      isSaving: false,
+      isDirty: false,
+      error: null,
       templates: PREDEFINED_TEMPLATES,
       customTemplates: [],
       
       fetchRoutine: async () => {
-        set({ isLoading: true });
+        const currentState = get();
+        if (currentState.isDirty && currentState.routine) {
+          return;
+        }
+
+        if (routineLoadFlight) {
+          return routineLoadFlight;
+        }
+
+        routineLoadFlight = (async () => {
+          set({ loadStatus: 'loading', isLoading: true, error: null });
+          try {
+            const loadedRoutine = await loadActiveRoutine();
+            set((state) => {
+              if (state.isDirty && state.routine) {
+                return {
+                  loadStatus: 'ready',
+                  isLoading: false,
+                  error: null,
+                };
+              }
+
+              return {
+                routine:
+                  loadedRoutine
+                  ?? legacyPlanToRoutinePlan(
+                    PREDEFINED_TEMPLATES[0].name,
+                    PREDEFINED_TEMPLATES[0].plan,
+                  ),
+                loadStatus: 'ready',
+                isLoading: false,
+                isDirty: false,
+                error: null,
+              };
+            });
+          } catch (error) {
+            const message = error instanceof Error
+              ? error.message
+              : 'Unable to load the active routine.';
+            console.error('Error fetching routine:', error);
+            set((state) => {
+              if (state.isDirty && state.routine) {
+                return {
+                  loadStatus: 'ready',
+                  isLoading: false,
+                  error: message,
+                };
+              }
+
+              return {
+                routine: null,
+                loadStatus: 'error',
+                isLoading: false,
+                isDirty: false,
+                error: message,
+              };
+            });
+          }
+        })();
+
         try {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (!session) {
-            const localPlan = get().weeklyPlan;
-            if (localPlan && localPlan.length > 0) {
-              set({ weeklyPlan: localPlan, isLoading: false });
-            } else {
-              set({ weeklyPlan: PREDEFINED_TEMPLATES[0].plan, isLoading: false });
-            }
-            return;
-          }
-
-          const userId = session.user.id;
-
-          // Try to fetch the user's active routine from Supabase
-          const { data: routine, error: routineErr } = await supabase
-            .from('routines')
-            .select('id, name')
-            .eq('user_id', userId)
-            .eq('is_active', true)
-            .maybeSingle();
-
-          if (routineErr || !routine) {
-            // No routine in DB - fallback to local plan or default
-            const localPlan = get().weeklyPlan;
-            if (localPlan && localPlan.length > 0) {
-              set({ weeklyPlan: localPlan, isLoading: false });
-            } else {
-              set({ weeklyPlan: PREDEFINED_TEMPLATES[0].plan, isLoading: false });
-            }
-            return;
-          }
-
-          // Fetch routine days
-          const { data: days, error: daysErr } = await supabase
-            .from('routine_days')
-            .select('id, day_name, short_day, type, title')
-            .eq('routine_id', routine.id)
-            .order('created_at');
-
-          if (daysErr || !days || days.length === 0) {
-            const localPlan = get().weeklyPlan;
-            if (localPlan && localPlan.length > 0) {
-              set({ weeklyPlan: localPlan, isLoading: false });
-            } else {
-              set({ weeklyPlan: PREDEFINED_TEMPLATES[0].plan, isLoading: false });
-            }
-            return;
-          }
-
-          // Fetch all planned exercises for these days
-          const dayIds = days.map(d => d.id);
-          const { data: exercises, error: exErr } = await supabase
-            .from('planned_exercises')
-            .select('*')
-            .in('routine_day_id', dayIds)
-            .order('order_index');
-
-          // Build the weekly plan
-          const weeklyPlan: DayPlan[] = days.map(day => {
-            const dayExercises = (exercises || []).filter(ex => ex.routine_day_id === day.id);
-            const mainLifts: PlannedExercise[] = dayExercises
-              .filter(ex => !ex.is_warmup)
-              .map(ex => ({
-                id: ex.id,
-                name: ex.name,
-                targetMuscle: ex.type || 'unknown',
-                trackingType: (ex.tracking_style || 'reps_weight') as TrackingType,
-                weightUnit: 'kg' as WeightUnit,
-                targetSets: ex.target_sets,
-                targetValue: ex.target_reps,
-                note: ex.note || undefined,
-                isWarmup: false,
-              }));
-            const warmups: PlannedExercise[] = dayExercises
-              .filter(ex => ex.is_warmup)
-              .map(ex => ({
-                id: ex.id,
-                name: ex.name,
-                targetMuscle: ex.type || 'unknown',
-                trackingType: (ex.tracking_style || 'reps_weight') as TrackingType,
-                weightUnit: 'kg' as WeightUnit,
-                targetSets: ex.target_sets,
-                targetValue: ex.target_reps,
-                isWarmup: true,
-              }));
-
-            return {
-              day: day.day_name,
-              shortDay: day.short_day,
-              type: day.type,
-              title: day.title,
-              warmups,
-              mainLifts,
-            };
-          });
-
-          // Sort weeklyPlan by standard day order
-          const DAY_ORDER: Record<string, number> = {
-            Monday: 0,
-            Tuesday: 1,
-            Wednesday: 2,
-            Thursday: 3,
-            Friday: 4,
-            Saturday: 5,
-            Sunday: 6
-          };
-          weeklyPlan.sort((a, b) => (DAY_ORDER[a.day] ?? 0) - (DAY_ORDER[b.day] ?? 0));
-
-          set({ weeklyPlan, isLoading: false });
-        } catch (err) {
-          console.error('Error fetching routine:', err);
-          const localPlan = get().weeklyPlan;
-          if (localPlan && localPlan.length > 0) {
-            set({ weeklyPlan: localPlan, isLoading: false });
-          } else {
-            set({ weeklyPlan: PREDEFINED_TEMPLATES[0].plan, isLoading: false });
-          }
+          await routineLoadFlight;
+        } finally {
+          routineLoadFlight = null;
         }
       },
 
-      updateDayPlan: (dayName, exercises) => set((state) => {
-        const newPlan = [...state.weeklyPlan];
-        const index = newPlan.findIndex(p => p.day === dayName);
-        if (index !== -1) {
-          newPlan[index] = { ...newPlan[index], mainLifts: exercises };
-        }
-        return { weeklyPlan: newPlan };
+      setRoutine: (routine) => set({
+        routine,
+        loadStatus: 'ready',
+        isDirty: true,
+        error: null,
       }),
 
+      setRoutineName: (name) => set((state) => ({
+        routine: state.routine
+          ? { ...state.routine, name }
+          : state.routine,
+        isDirty: state.routine ? true : state.isDirty,
+        error: null,
+      })),
+
+      updateDayMetadata: (weekday, updates) => set((state) => ({
+        routine: state.routine
+          ? {
+              ...state.routine,
+              days: state.routine.days.map((day) =>
+                day.weekday === weekday ? { ...day, ...updates } : day,
+              ),
+            }
+          : state.routine,
+        isDirty: state.routine ? true : state.isDirty,
+        error: null,
+      })),
+
+      addOccurrence: (weekday, occurrence) => set((state) => ({
+        routine: state.routine
+          ? {
+              ...state.routine,
+              days: state.routine.days.map((day) =>
+                day.weekday === weekday
+                  ? {
+                      ...day,
+                      exercises: [
+                        ...day.exercises,
+                        createOccurrence(occurrence, day.exercises.length),
+                      ],
+                    }
+                  : day,
+              ),
+            }
+          : state.routine,
+        isDirty: state.routine ? true : state.isDirty,
+        error: null,
+      })),
+
+      updateOccurrence: (occurrenceId, updates) => set((state) => ({
+        routine: state.routine
+          ? {
+              ...state.routine,
+              days: state.routine.days.map((day) => ({
+                ...day,
+                exercises: day.exercises.map((exercise) =>
+                  exercise.id === occurrenceId
+                    ? { ...exercise, ...updates, id: exercise.id }
+                    : exercise,
+                ),
+              })),
+            }
+          : state.routine,
+        isDirty: state.routine ? true : state.isDirty,
+        error: null,
+      })),
+
+      removeOccurrence: (occurrenceId) => set((state) => ({
+        routine: state.routine
+          ? {
+              ...state.routine,
+              days: state.routine.days.map((day) => ({
+                ...day,
+                exercises: day.exercises
+                  .filter((exercise) => exercise.id !== occurrenceId)
+                  .map((exercise, order) => ({ ...exercise, order })),
+              })),
+            }
+          : state.routine,
+        isDirty: state.routine ? true : state.isDirty,
+        error: null,
+      })),
+
+      reorderDayOccurrences: (weekday, orderedIds) => set((state) => ({
+        routine: state.routine
+          ? {
+              ...state.routine,
+              days: state.routine.days.map((day) =>
+                day.weekday === weekday
+                  ? {
+                      ...day,
+                      exercises: reorderOccurrences(day.exercises, orderedIds),
+                    }
+                  : day,
+              ),
+            }
+          : state.routine,
+        isDirty: state.routine ? true : state.isDirty,
+        error: null,
+      })),
+
       saveRoutineToDb: async () => {
+        const { routine, loadStatus } = get();
+        if (!routine || loadStatus !== 'ready') {
+          const error = new Error(
+            'A verified routine draft is required before saving.',
+          );
+          set({ error: error.message });
+          throw error;
+        }
+
+        set({ isSaving: true, error: null });
         try {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (!session) return;
-          const userId = session.user.id;
-          const weeklyPlan = get().weeklyPlan;
-
-          // 1. Get or create active routine
-          let { data: routine, error: routineErr } = await supabase
-            .from('routines')
-            .select('id')
-            .eq('user_id', userId)
-            .eq('is_active', true)
-            .maybeSingle();
-
-          if (routineErr) {
-            console.error('Error fetching routine for sync:', routineErr);
-            return;
-          }
-
-          if (!routine) {
-            const { data: newRoutine, error: createErr } = await supabase
-              .from('routines')
-              .insert({
-                user_id: userId,
-                name: 'My Routine',
-                is_active: true
-              })
-              .select('id')
-              .single();
-
-            if (createErr || !newRoutine) {
-              console.error('Error creating routine for sync:', createErr);
-              return;
-            }
-            routine = newRoutine;
-          }
-
-          // 2. Fetch existing days to clean them up
-          const { data: existingDays, error: fetchDaysErr } = await supabase
-            .from('routine_days')
-            .select('id')
-            .eq('routine_id', routine.id);
-
-          if (fetchDaysErr) {
-            console.error('Error fetching existing days:', fetchDaysErr);
-            return;
-          }
-
-          if (existingDays && existingDays.length > 0) {
-            const dayIds = existingDays.map(d => d.id);
-            // Delete exercises first
-            const { error: delExErr } = await supabase
-              .from('planned_exercises')
-              .delete()
-              .in('routine_day_id', dayIds);
-            
-            if (delExErr) {
-              console.error('Error deleting old planned exercises:', delExErr);
-              return;
-            }
-          }
-
-          // Delete routine days
-          const { error: delDaysErr } = await supabase
-            .from('routine_days')
-            .delete()
-            .eq('routine_id', routine.id);
-
-          if (delDaysErr) {
-            console.error('Error deleting old routine days:', delDaysErr);
-            return;
-          }
-
-          // 3. Bulk insert new days
-          const daysToInsert = weeklyPlan.map(day => ({
-            routine_id: routine.id,
-            day_name: day.day,
-            short_day: day.shortDay,
-            type: day.type,
-            title: day.title
-          }));
-
-          const { data: insertedDays, error: daysErr } = await supabase
-            .from('routine_days')
-            .insert(daysToInsert)
-            .select('id, day_name');
-
-          if (daysErr || !insertedDays) {
-            console.error('Error inserting routine days:', daysErr);
-            return;
-          }
-
-          // 4. Bulk insert planned exercises
-          const exercisesToInsert: any[] = [];
-          insertedDays.forEach(dayRow => {
-            const localDay = weeklyPlan.find(d => d.day === dayRow.day_name);
-            if (!localDay) return;
-
-            const warmups = (localDay.warmups || []).map((ex, index) => ({
-              routine_day_id: dayRow.id,
-              name: ex.name,
-              type: ex.targetMuscle,
-              tracking_style: ex.trackingType,
-              target_sets: ex.targetSets,
-              target_reps: ex.targetValue,
-              note: ex.note || null,
-              is_warmup: true,
-              order_index: index
-            }));
-
-            const mainLifts = (localDay.mainLifts || []).map((ex, index) => ({
-              routine_day_id: dayRow.id,
-              name: ex.name,
-              type: ex.targetMuscle,
-              tracking_style: ex.trackingType,
-              target_sets: ex.targetSets,
-              target_reps: ex.targetValue,
-              note: ex.note || null,
-              is_warmup: false,
-              order_index: (localDay.warmups || []).length + index
-            }));
-
-            exercisesToInsert.push(...warmups, ...mainLifts);
+          const savedRoutine = await saveActiveRoutine(routine);
+          set({
+            routine: savedRoutine,
+            loadStatus: 'ready',
+            isSaving: false,
+            isDirty: false,
+            error: null,
           });
-
-          if (exercisesToInsert.length > 0) {
-            const { error: exErr } = await supabase
-              .from('planned_exercises')
-              .insert(exercisesToInsert);
-            if (exErr) {
-              console.error('Error inserting planned exercises:', exErr);
-            }
-          }
-        } catch (err) {
-          console.error('Unhandled error in saveRoutineToDb:', err);
+        } catch (error) {
+          const message = error instanceof Error
+            ? error.message
+            : 'Unable to save the routine.';
+          console.error('Error saving routine:', error);
+          set({ isSaving: false, isDirty: true, error: message });
+          throw error;
         }
       },
 
-      loadTemplate: (templateId: string) => {
-        const template = get().templates.find(t => t.id === templateId) || get().customTemplates.find(t => t.id === templateId);
-        if (template) {
-          set({ weeklyPlan: template.plan });
+      replaceAndSaveRoutine: async (plan, name) => {
+        let currentState = get();
+        if (currentState.isSaving) {
+          const error = new Error('A routine save is already in progress.');
+          set({ error: error.message });
+          throw error;
         }
+
+        if (
+          currentState.loadStatus === 'idle'
+          || currentState.loadStatus === 'loading'
+        ) {
+          await get().fetchRoutine();
+          currentState = get();
+        }
+
+        if (currentState.loadStatus !== 'ready' || !currentState.routine) {
+          const error = new Error(
+            'Load the saved routine successfully before replacing it.',
+          );
+          set({ error: error.message });
+          throw error;
+        }
+        if (currentState.isSaving) {
+          const error = new Error('A routine save is already in progress.');
+          set({ error: error.message });
+          throw error;
+        }
+
+        let replacement: RoutinePlan;
+        try {
+          replacement = legacyPlanToRoutinePlan(
+            name ?? currentState.routine.name,
+            plan,
+            currentState.routine.id,
+          );
+        } catch (error) {
+          const message = error instanceof Error
+            ? error.message
+            : 'The replacement routine is invalid.';
+          set({ error: message });
+          throw error;
+        }
+
+        set({
+          routine: replacement,
+          loadStatus: 'ready',
+          isDirty: true,
+          error: null,
+        });
+        await get().saveRoutineToDb();
       },
 
-      applyAiRoutine: (plan: DayPlan[]) => set({ weeklyPlan: plan }),
+      applyTemplate: async (templateId: string) => {
+        const currentState = get();
+        const template = currentState.templates.find(
+          (candidate) => candidate.id === templateId,
+        ) ?? currentState.customTemplates.find(
+          (candidate) => candidate.id === templateId,
+        );
+        if (!template) {
+          const error = new Error('The selected routine template is unavailable.');
+          set({ error: error.message });
+          throw error;
+        }
+
+        await get().replaceAndSaveRoutine(template.plan, template.name);
+      },
+
+      applyAiRoutine: async (plan) => {
+        await get().replaceAndSaveRoutine(plan);
+      },
 
       exportRoutine: () => {
-        const plan = get().weeklyPlan;
+        const routine = get().routine;
+        if (!routine) return '';
         try {
-          const jsonStr = JSON.stringify(plan);
+          const jsonStr = JSON.stringify(routinePlanToLegacyPlan(routine));
           return btoa(encodeURIComponent(jsonStr));
         } catch (e) {
           console.error("Failed to export routine", e);
@@ -551,19 +575,25 @@ export const useRoutineStore = create<RoutineStore>()(
         }
       },
 
-      importRoutine: (base64Str: string) => {
+      importRoutine: async (base64Str: string) => {
+        let plan: LegacyDayPlan[];
         try {
           const jsonStr = decodeURIComponent(atob(base64Str));
-          const plan = JSON.parse(jsonStr) as DayPlan[];
-          if (Array.isArray(plan) && plan.length === 7) {
-            set({ weeklyPlan: plan });
-            return true;
+          const parsed = JSON.parse(jsonStr) as unknown;
+          if (!Array.isArray(parsed) || parsed.length !== 7) {
+            throw new Error('The imported routine must contain seven days.');
           }
-          return false;
-        } catch (e) {
-          console.error("Failed to import routine", e);
-          return false;
+          plan = parsed as LegacyDayPlan[];
+        } catch (error) {
+          const message = error instanceof Error
+            ? error.message
+            : 'Unable to parse the imported routine.';
+          console.error('Failed to import routine', error);
+          set({ error: message });
+          throw error;
         }
+
+        await get().replaceAndSaveRoutine(plan, 'Imported Routine');
       },
 
       saveCustomTemplate: (name, description, plan) => {
@@ -571,13 +601,18 @@ export const useRoutineStore = create<RoutineStore>()(
         if (customTemplates.length >= 15) {
           return false; // Rate limit exceeded
         }
-        const activeDaysCount = plan.filter(p => p.type !== 'Rest' && p.mainLifts.length > 0).length;
+        const legacyPlan = Array.isArray(plan)
+          ? plan
+          : routinePlanToLegacyPlan(plan);
+        const activeDaysCount = legacyPlan.filter(
+          (day) => day.type !== 'Rest' && day.mainLifts.length > 0,
+        ).length;
         const newTemplate: RoutineTemplate = {
-          id: `cust_${Date.now()}`,
-          name,
+          id: `cust_${createRoutineUuid()}`,
+          name: normalizeRoutineName(name),
           description: description || "Custom workout plan saved in app.",
-          frequency: `${activeDaysCount || plan.filter(p => p.type !== 'Rest').length} days/week`,
-          plan
+          frequency: `${activeDaysCount || legacyPlan.filter(p => p.type !== 'Rest').length} days/week`,
+          plan: legacyPlan,
         };
         set({ customTemplates: [...customTemplates, newTemplate] });
         return true;
@@ -589,8 +624,11 @@ export const useRoutineStore = create<RoutineStore>()(
         });
       },
 
-      resetActiveSplit: () => {
-        set({ weeklyPlan: PREDEFINED_TEMPLATES[0].plan });
+      resetActiveSplit: async () => {
+        await get().replaceAndSaveRoutine(
+          PREDEFINED_TEMPLATES[0].plan,
+          PREDEFINED_TEMPLATES[0].name,
+        );
       },
 
       clearAllCustomTemplates: () => {
@@ -599,9 +637,15 @@ export const useRoutineStore = create<RoutineStore>()(
     }),
     {
       name: 'vortixia-custom-templates-storage',
+      version: 1,
+      migrate: () => ({ customTemplates: [] }),
       partialize: (state) => ({
         customTemplates: state.customTemplates,
-        weeklyPlan: state.weeklyPlan,
+      }),
+      merge: (persistedState, currentState) => ({
+        ...currentState,
+        customTemplates:
+          (persistedState as Partial<RoutineStore>)?.customTemplates ?? [],
       }),
     }
   )

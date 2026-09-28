@@ -1,6 +1,5 @@
 import exerciseLibrary from '@/data/exerciseLibrary.json';
-// Using crypto.randomUUID() instead of uuid package
-import { PlannedExercise } from '@/store/useRoutineStore';
+import type { LegacyPlannedExercise } from '@/types/routine';
 
 export type GoalType = 'hypertrophy' | 'strength' | 'endurance';
 export type SplitType = 'ppl' | 'bro_split' | 'upper_lower' | 'full_body';
@@ -51,7 +50,7 @@ function shuffleArray<T>(array: T[]): T[] {
 export function generateRoutine(goal: GoalType, split: SplitType) {
   const scheme = SCHEMES[goal];
   const splitDef = SPLITS[split];
-  const routine: Record<string, PlannedExercise[]> = {
+  const routine: Record<string, LegacyPlannedExercise[]> = {
     Monday: [],
     Tuesday: [],
     Wednesday: [],
@@ -66,8 +65,6 @@ export function generateRoutine(goal: GoalType, split: SplitType) {
   
   // Decide how many times to loop the split over 7 days.
   // Bro split = 5 days usually. PPL = 6 days. Upper/Lower = 4 days. Full body = 3 days.
-  let assignedDays = 0;
-  
   // Custom logic to distribute days with rest days
   let distribution: string[] = [];
   if (split === 'bro_split') {
@@ -91,7 +88,7 @@ export function generateRoutine(goal: GoalType, split: SplitType) {
     const targetMuscles = splitDef[dayType as keyof typeof splitDef] || [];
     
     // Filter library for these muscles
-    const availableExercises = exerciseLibrary.filter((ex: any) => 
+  const availableExercises = exerciseLibrary.filter((ex) =>
       targetMuscles.some(m => ex.target?.toLowerCase().includes(m) || ex.bodyPart?.toLowerCase().includes(m))
     );
 
@@ -101,9 +98,9 @@ export function generateRoutine(goal: GoalType, split: SplitType) {
     // Pick 5-6 exercises per day
     const selected = shuffled.slice(0, 5);
 
-    selected.forEach((ex: any, i) => {
+    selected.forEach((ex) => {
       routine[dayName].push({
-        id: `id-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+        id: crypto.randomUUID(),
         exerciseId: ex.id || ex.name,
         name: ex.name,
         targetSets: scheme.sets,

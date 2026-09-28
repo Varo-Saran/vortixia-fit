@@ -1,10 +1,11 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import {
-  type PlannedExercise,
-  type TrackingType,
-  type WeightUnit,
-} from './useRoutineStore';
+import type {
+  PlannedExerciseOccurrence,
+  TrackingType,
+  WeightUnit,
+} from '@/types/routine';
+import { validateOptionalRestSeconds } from '@/lib/routine-model';
 import { useTrophyStore } from './useTrophyStore';
 import { type MuscleGroup, useRecoveryStore } from './useRecoveryStore';
 import { useSocialStore } from './useSocialStore';
@@ -27,7 +28,7 @@ const MAX_HANDLED_EFFECT_OPERATIONS = 100;
 const DEFAULT_REST_SECONDS = 90;
 const MIN_REST_SECONDS = 1;
 const MAX_REST_SECONDS = 60 * 60;
-const WORKOUT_STORE_VERSION = 2;
+const WORKOUT_STORE_VERSION = 3;
 const completionFlights = new Map<
   string,
   Promise<WorkoutCompletionUiOutcome>
@@ -48,6 +49,7 @@ export interface WorkoutExercise {
   sets: WorkoutSet[];
   trackingType?: TrackingType;
   weightUnit?: WeightUnit;
+  restSeconds: number | null;
 }
 
 export interface WorkoutSummary {
@@ -111,7 +113,10 @@ interface WorkoutStore {
   lastWorkoutSummary: WorkoutSummary | null;
   isSummaryDismissed: boolean;
 
-  startWorkout: (routineName: string, plannedExercises: PlannedExercise[]) => void;
+  startWorkout: (
+    routineName: string,
+    plannedExercises: PlannedExerciseOccurrence[],
+  ) => void;
   completeWorkout: () => Promise<WorkoutCompletionUiOutcome>;
   dismissWorkoutSummary: () => void;
   applyCompletionResult: (
@@ -141,6 +146,10 @@ interface WorkoutStore {
     exerciseId: string,
     trackingType: TrackingType,
     weightUnit: WeightUnit,
+  ) => void;
+  setExerciseRestSeconds: (
+    exerciseId: string,
+    restSeconds: number | null,
   ) => void;
   resetWorkout: () => void;
 }
@@ -243,6 +252,13 @@ function migrateWorkoutStore(
       migratedState.restEndsAt = null;
       migratedState.restCycleId = null;
     }
+  }
+
+  if (storedVersion < 3 && Array.isArray(migratedState.exercises)) {
+    migratedState.exercises = migratedState.exercises.map((exercise) => ({
+      ...exercise,
+      restSeconds: null,
+    }));
   }
 
   return migratedState;
@@ -491,6 +507,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
               sets,
               trackingType: exercise.trackingType,
               weightUnit: exercise.weightUnit,
+              restSeconds: exercise.restSeconds,
             };
           });
 
@@ -622,9 +639,11 @@ export const useWorkoutStore = create<WorkoutStore>()(
 
         toggleSetComplete: (exerciseId, setId) => {
           let justCompleted = false;
+          let completedExerciseRestSeconds: number | null = null;
           set((currentState) => ({
             exercises: currentState.exercises.map((exercise) => {
               if (exercise.id !== exerciseId) return exercise;
+              completedExerciseRestSeconds = exercise.restSeconds;
               return {
                 ...exercise,
                 sets: exercise.sets.map((workoutSet) => {
@@ -635,7 +654,9 @@ export const useWorkoutStore = create<WorkoutStore>()(
               };
             }),
           }));
-          if (justCompleted) get().startRest();
+          if (justCompleted) {
+            get().startRest(completedExerciseRestSeconds ?? undefined);
+          }
         },
 
         startRest: (seconds) => {
@@ -772,7 +793,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
 
         addExerciseToWorkout: (exerciseName) => {
           set((currentState) => {
-            const exerciseId = `custom-ex-${Date.now()}`;
+            const exerciseId = crypto.randomUUID();
             const newExercise: WorkoutExercise = {
               id: exerciseId,
               name: exerciseName,
@@ -786,6 +807,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
               }],
               trackingType: 'reps_weight',
               weightUnit: 'lbs',
+              restSeconds: null,
             };
             return { exercises: [...currentState.exercises, newExercise] };
           });
@@ -796,6 +818,17 @@ export const useWorkoutStore = create<WorkoutStore>()(
             exercises: currentState.exercises.map((exercise) =>
               exercise.id === exerciseId
                 ? { ...exercise, trackingType, weightUnit }
+                : exercise,
+            ),
+          }));
+        },
+
+        setExerciseRestSeconds: (exerciseId, restSeconds) => {
+          validateOptionalRestSeconds(restSeconds);
+          set((currentState) => ({
+            exercises: currentState.exercises.map((exercise) =>
+              exercise.id === exerciseId
+                ? { ...exercise, restSeconds }
                 : exercise,
             ),
           }));

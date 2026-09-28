@@ -1,11 +1,13 @@
 "use client";
 
-import { useRoutineStore, PlannedExercise, TrackingType, WeightUnit } from "@/store/useRoutineStore";
-import { ChevronLeft, ChevronDown, ChevronUp, Plus, X, Search, Settings, Save } from "lucide-react";
+import { useRoutineStore } from "@/store/useRoutineStore";
+import type { ResolvedExercise } from "@/types/exercise-catalog";
+import type { TrackingType, Weekday, WeightUnit } from "@/types/routine";
+import { mainOccurrences, shortWeekday, weekdayLabel } from "@/lib/routine-model";
+import { ChevronLeft, ChevronDown, ChevronUp, Plus, X, Settings, Save } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useMemo } from "react";
-import exerciseLibrary from "@/data/exerciseLibrary.json";
+import { useEffect, useState } from "react";
 import { ExerciseSelectionModal } from "@/components/ExerciseSelectionModal";
 import { Select } from "@/components/ui/Select";
 
@@ -25,20 +27,27 @@ const WEIGHT_UNIT_OPTIONS = [
 ];
 
 export default function RoutineEditorPage() {
-  const { weeklyPlan, updateDayPlan, saveRoutineToDb } = useRoutineStore();
+  const {
+    routine,
+    loadStatus,
+    isLoading,
+    isSaving,
+    error,
+    fetchRoutine,
+    addOccurrence,
+    removeOccurrence,
+    saveRoutineToDb,
+  } = useRoutineStore();
   const router = useRouter();
 
-  const [expandedDay, setExpandedDay] = useState<string | null>("Monday");
-  const [isSaving, setIsSaving] = useState(false);
-  const [localPlan, setLocalPlan] = useState(weeklyPlan);
+  const [expandedDay, setExpandedDay] = useState<Weekday | null>("monday");
 
   // Modal States
   const [showSearchModal, setShowSearchModal] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [targetDayForAdd, setTargetDayForAdd] = useState<string | null>(null);
+  const [targetDayForAdd, setTargetDayForAdd] = useState<Weekday | null>(null);
 
   const [showConfigDrawer, setShowConfigDrawer] = useState(false);
-  const [selectedExercise, setSelectedExercise] = useState<any>(null); // from library
+  const [selectedExercise, setSelectedExercise] = useState<ResolvedExercise | null>(null);
 
   // Config Drawer State
   const [cfgTrackingType, setCfgTrackingType] = useState<TrackingType>("reps_weight");
@@ -46,45 +55,29 @@ export default function RoutineEditorPage() {
   const [cfgSets, setCfgSets] = useState(3);
   const [cfgValue, setCfgValue] = useState("10");
 
-  const filteredLibrary = useMemo(() => {
-    if (!searchQuery) return exerciseLibrary.slice(0, 50); // don't freeze UI
-    return exerciseLibrary.filter((ex: any) => 
-      ex.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      ex.target.toLowerCase().includes(searchQuery.toLowerCase())
-    ).slice(0, 50);
-  }, [searchQuery]);
+  useEffect(() => {
+    if (loadStatus === 'idle') void fetchRoutine();
+  }, [fetchRoutine, loadStatus]);
 
   const handleSaveAll = async () => {
-    setIsSaving(true);
     try {
-      localPlan.forEach(day => {
-        updateDayPlan(day.day, day.mainLifts);
-      });
       await saveRoutineToDb();
       router.push("/routines");
     } catch (e) {
       console.error("Error saving routine edits:", e);
-    } finally {
-      setIsSaving(false);
     }
   };
 
-  const handleRemoveExercise = (dayName: string, exId: string) => {
-    const newPlan = localPlan.map(d => {
-      if (d.day === dayName) {
-        return { ...d, mainLifts: d.mainLifts.filter(ex => ex.id !== exId) };
-      }
-      return d;
-    });
-    setLocalPlan(newPlan);
+  const handleRemoveExercise = (exId: string) => {
+    removeOccurrence(exId);
   };
 
-  const openSearchForDay = (dayName: string) => {
-    setTargetDayForAdd(dayName);
+  const openSearchForDay = (weekday: Weekday) => {
+    setTargetDayForAdd(weekday);
     setShowSearchModal(true);
   };
 
-  const openConfigForExercise = (ex: any) => {
+  const openConfigForExercise = (ex: ResolvedExercise) => {
     setSelectedExercise(ex);
     
     // Auto-detect defaults based on equipment or name
@@ -108,28 +101,39 @@ export default function RoutineEditorPage() {
   const confirmAddExercise = () => {
     if (!targetDayForAdd || !selectedExercise) return;
 
-    const newEx: PlannedExercise = {
-      id: `ex_${Date.now()}`,
+    addOccurrence(targetDayForAdd, {
       exerciseId: selectedExercise.id,
       name: selectedExercise.name,
       targetMuscle: selectedExercise.target,
+      section: "main",
       trackingType: cfgTrackingType,
       weightUnit: cfgWeightUnit,
       targetSets: cfgSets,
-      targetValue: cfgValue
-    };
-
-    const newPlan = localPlan.map(d => {
-      if (d.day === targetDayForAdd) {
-        return { ...d, mainLifts: [...d.mainLifts, newEx] };
-      }
-      return d;
+      targetValue: cfgValue,
+      restSeconds: null,
     });
-
-    setLocalPlan(newPlan);
     setShowConfigDrawer(false);
-    setSearchQuery("");
   };
+
+  if (!routine) {
+    const loadFailed = loadStatus === 'error';
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#050505] px-6 text-center text-sm text-text-muted">
+        <p role={loadFailed ? "alert" : undefined}>
+          {isLoading ? "Loading routine…" : (error ?? "No routine is available.")}
+        </p>
+        {loadFailed && (
+          <button
+            type="button"
+            onClick={() => void fetchRoutine()}
+            className="rounded-lg border border-accent-green/30 bg-accent-green/20 px-4 py-2 text-xs font-bold uppercase tracking-wider text-accent-green"
+          >
+            Retry
+          </button>
+        )}
+      </main>
+    );
+  }
 
   return (
     <main className="flex min-h-screen flex-col pb-28 px-4 bg-[#050505] relative overflow-x-hidden">
@@ -141,12 +145,12 @@ export default function RoutineEditorPage() {
           </Link>
           <div className="flex flex-col">
             <h1 className="text-xl font-extrabold tracking-tight text-white">Routine Editor</h1>
-            <span className="text-[10px] text-accent-green uppercase font-bold tracking-widest">Master Planner</span>
+            <span className="text-[10px] text-accent-green uppercase font-bold tracking-widest">{routine.name}</span>
           </div>
         </div>
         <button 
           onClick={handleSaveAll} 
-          disabled={isSaving}
+          disabled={isSaving || loadStatus !== 'ready'}
           className="flex items-center gap-1 bg-accent-green/20 text-accent-green px-3 py-1.5 rounded-lg border border-accent-green/30 active:scale-95 transition-transform disabled:opacity-50"
         >
           <Save className="w-4 h-4" />
@@ -156,38 +160,46 @@ export default function RoutineEditorPage() {
         </button>
       </header>
 
+      {error && (
+        <div role="alert" className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs text-red-200">
+          {error}
+        </div>
+      )}
+
       <section className="flex flex-col gap-3 animate-fade-in-up">
-        {localPlan.map((dayPlan) => (
-          <div key={dayPlan.day} className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
+        {routine.days.map((dayPlan) => {
+          const lifts = mainOccurrences(dayPlan);
+          return (
+          <div key={dayPlan.id} className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
             <button 
-              onClick={() => setExpandedDay(expandedDay === dayPlan.day ? null : dayPlan.day)}
+              onClick={() => setExpandedDay(expandedDay === dayPlan.weekday ? null : dayPlan.weekday)}
               className="w-full p-4 flex items-center justify-between hover:bg-white/5 transition-colors"
             >
               <div className="flex items-center gap-4">
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm
-                  ${dayPlan.type === 'Rest' ? 'bg-black/50 text-text-muted border border-white/5' : 'bg-white/10 text-white'}
+                  ${dayPlan.kind !== 'training' ? 'bg-black/50 text-text-muted border border-white/5' : 'bg-white/10 text-white'}
                 `}>
-                  {dayPlan.shortDay}
+                  {shortWeekday(dayPlan.weekday)}
                 </div>
                 <div className="flex flex-col items-start">
-                  <span className="font-bold text-white text-sm">{dayPlan.day}</span>
-                  <span className="text-[10px] text-text-muted uppercase tracking-widest">{dayPlan.mainLifts.length} Exercises</span>
+                  <span className="font-bold text-white text-sm">{weekdayLabel(dayPlan.weekday)}</span>
+                  <span className="text-[10px] text-text-muted uppercase tracking-widest">{lifts.length} Exercises</span>
                 </div>
               </div>
-              {expandedDay === dayPlan.day ? <ChevronUp className="w-5 h-5 text-text-muted" /> : <ChevronDown className="w-5 h-5 text-text-muted" />}
+              {expandedDay === dayPlan.weekday ? <ChevronUp className="w-5 h-5 text-text-muted" /> : <ChevronDown className="w-5 h-5 text-text-muted" />}
             </button>
 
-            {expandedDay === dayPlan.day && (
+            {expandedDay === dayPlan.weekday && (
               <div className="p-4 border-t border-white/5 bg-black/30 flex flex-col gap-3">
                 
-                {dayPlan.mainLifts.map((ex, i) => (
+                {lifts.map((ex) => (
                   <div key={ex.id} className="bg-white/5 border border-white/5 rounded-xl p-3 flex flex-col gap-2">
                     <div className="flex justify-between items-start">
                       <div className="flex flex-col">
                         <span className="text-sm font-bold text-white capitalize">{ex.name}</span>
                         <span className="text-[10px] text-text-muted uppercase tracking-wider">{ex.targetMuscle}</span>
                       </div>
-                      <button onClick={() => handleRemoveExercise(dayPlan.day, ex.id)} className="p-1 text-red-500/50 hover:text-red-500 transition-colors">
+                      <button onClick={() => handleRemoveExercise(ex.id)} className="p-1 text-red-500/50 hover:text-red-500 transition-colors">
                         <X className="w-4 h-4" />
                       </button>
                     </div>
@@ -212,7 +224,7 @@ export default function RoutineEditorPage() {
                 ))}
 
                 <button 
-                  onClick={() => openSearchForDay(dayPlan.day)}
+                  onClick={() => openSearchForDay(dayPlan.weekday)}
                   className="w-full py-3 mt-2 rounded-xl border border-dashed border-white/20 text-white/50 text-xs font-bold tracking-widest uppercase hover:bg-white/5 hover:text-white transition-colors flex items-center justify-center gap-2"
                 >
                   <Plus className="w-4 h-4" /> Add Exercise
@@ -220,7 +232,7 @@ export default function RoutineEditorPage() {
               </div>
             )}
           </div>
-        ))}
+        )})}
       </section>
 
       {/* EXERCISE SEARCH MODAL */}
