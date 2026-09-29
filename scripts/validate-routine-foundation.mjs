@@ -10,7 +10,7 @@ const modelSource = await readFile(
 const migrationSource = await readFile(
   path.join(
     root,
-    "supabase/migrations/20260928090000_routine_data_model_foundation.sql",
+    "supabase/migrations/20260929052108_routine_data_model_foundation.sql",
   ),
   "utf8",
 );
