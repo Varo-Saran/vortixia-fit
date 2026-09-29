@@ -120,12 +120,12 @@ const discoverableCatalog = resolvedCatalog.filter(
 );
 const index = searchModule.createExerciseSearchIndex(discoverableCatalog);
 
-if (resolvedCatalog.length !== 1_358) {
-  fail(`Expected 1,358 source records; found ${resolvedCatalog.length}`);
+if (resolvedCatalog.length !== 1_360) {
+  fail(`Expected 1,360 source records; found ${resolvedCatalog.length}`);
 }
-if (discoverableCatalog.length !== 1_349 || index.documents.length !== 1_349) {
+if (discoverableCatalog.length !== 1_351 || index.documents.length !== 1_351) {
   fail(
-    `Expected 1,349 discoverable/indexed records; found ${discoverableCatalog.length}/${index.documents.length}`,
+    `Expected 1,351 discoverable/indexed records; found ${discoverableCatalog.length}/${index.documents.length}`,
   );
 }
 
@@ -581,6 +581,8 @@ const expectedVortixiaIds = [
   "vx_ex_bird_dog",
   "vx_ex_standing_torso_twist",
   "vx_ex_machine_leg_press",
+  "vx_ex_arm_swing",
+  "vx_ex_dumbbell_hip_thrust",
 ];
 for (const id of expectedVortixiaIds) {
   if (!index.documentsById.has(id)) {
@@ -604,6 +606,8 @@ const vortixiaSearchCases = [
   ["bird dog", "vx_ex_bird_dog"],
   ["standing torso twist", "vx_ex_standing_torso_twist"],
   ["machine leg press", "vx_ex_machine_leg_press"],
+  ["arm swing", "vx_ex_arm_swing"],
+  ["dumbbell hip thrust", "vx_ex_dumbbell_hip_thrust"],
 ];
 for (const [query, expectedId] of vortixiaSearchCases) {
   if (!resultIds(query, 10).includes(expectedId)) {
@@ -616,6 +620,8 @@ const categoryCases = [
   ["shoulders", "face pull", "vx_ex_face_pull"],
   ["waist", "side plank", "vx_ex_bodyweight_side_plank"],
   ["upper legs", "bodyweight squat", "vx_ex_bodyweight_squat"],
+  ["shoulders", "arm swing", "vx_ex_arm_swing"],
+  ["upper legs", "db hip thrust", "vx_ex_dumbbell_hip_thrust"],
 ];
 for (const [category, query, expectedId] of categoryCases) {
   const categoryIds = searchModule

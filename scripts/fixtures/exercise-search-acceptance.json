@@ -177,6 +177,62 @@
       "forbiddenWithinTopN": [{ "ids": ["0596", "0602", "0188"], "topN": 3 }]
     },
     {
+      "query": "arm swing",
+      "expectedTopIds": ["vx_ex_arm_swing"],
+      "forbiddenTopIds": ["vx_ex_arm_circle", "0235", "0863", "0864", "0216"]
+    },
+    {
+      "query": "arm swings",
+      "expectedTopIds": ["vx_ex_arm_swing"],
+      "forbiddenTopIds": ["vx_ex_arm_circle"]
+    },
+    {
+      "query": "standing arm swings",
+      "expectedTopIds": ["vx_ex_arm_swing"]
+    },
+    {
+      "query": "arm circle",
+      "expectedTopIds": ["vx_ex_arm_circle"],
+      "forbiddenTopIds": ["vx_ex_arm_swing"]
+    },
+    {
+      "query": "standing shoulder external rotation",
+      "expectedTopIds": ["0235"],
+      "forbiddenTopIds": ["vx_ex_arm_swing", "vx_ex_arm_circle"]
+    },
+    {
+      "query": "dumbbell lying external shoulder rotation",
+      "expectedTopIds": ["0863"],
+      "forbiddenTopIds": ["vx_ex_arm_swing", "vx_ex_arm_circle"]
+    },
+    {
+      "query": "dumbbell hip thrust",
+      "normalizationVariantGroup": "dumbbell-hip-thrust-language",
+      "expectedTopIds": ["vx_ex_dumbbell_hip_thrust"],
+      "forbiddenTopIds": ["9004", "9012", "9005"]
+    },
+    {
+      "query": "db hip thrust",
+      "normalizationVariantGroup": "dumbbell-hip-thrust-language",
+      "expectedTopIds": ["vx_ex_dumbbell_hip_thrust"],
+      "forbiddenTopIds": ["9004", "9012", "9005"]
+    },
+    {
+      "query": "barbell hip thrust",
+      "expectedTopIds": ["9004"],
+      "forbiddenTopIds": ["vx_ex_dumbbell_hip_thrust", "9012", "9005"]
+    },
+    {
+      "query": "bodyweight hip thrust",
+      "expectedTopIds": ["9012"],
+      "forbiddenTopIds": ["vx_ex_dumbbell_hip_thrust", "9004", "9005"]
+    },
+    {
+      "query": "dumbbell glute bridge",
+      "expectedTopIds": ["9005"],
+      "forbiddenTopIds": ["vx_ex_dumbbell_hip_thrust", "9004", "9012"]
+    },
+    {
       "query": "rope rear delt row",
       "expectedTopIds": ["0203"],
       "forbiddenWithinTopN": [{ "ids": ["vx_ex_face_pull"], "topN": 3 }]

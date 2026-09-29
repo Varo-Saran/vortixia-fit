@@ -4332,6 +4332,41 @@
       "approval": "green",
       "discoveryTier": "priority",
       "curationSet": "catalog_gaps_2026_09_27"
+    },
+    {
+      "id": "vx_ex_arm_swing",
+      "displayName": "Arm Swing",
+      "aliases": [
+        "arm swings",
+        "standing arm swings"
+      ],
+      "normalizedEquipment": "bodyweight",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "delts",
+      "secondaryMuscles": [],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "template_catalog_gaps_2026_09_30",
+      "movementType": "mobility",
+      "usageContexts": [
+        "warmup"
+      ]
+    },
+    {
+      "id": "vx_ex_dumbbell_hip_thrust",
+      "displayName": "Dumbbell Hip Thrust",
+      "aliases": [
+        "DB hip thrust"
+      ],
+      "normalizedEquipment": "dumbbell",
+      "equipmentConfidence": "local",
+      "primaryMuscle": "glutes",
+      "secondaryMuscles": [],
+      "approval": "green",
+      "discoveryTier": "priority",
+      "curationSet": "template_catalog_gaps_2026_09_30",
+      "movementType": "strength",
+      "usageContexts": []
     }
   ]
 }

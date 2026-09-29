@@ -107,6 +107,8 @@ const EXPECTED_VORTIXIA_IDS = new Set([
   "vx_ex_bird_dog",
   "vx_ex_standing_torso_twist",
   "vx_ex_machine_leg_press",
+  "vx_ex_arm_swing",
+  "vx_ex_dumbbell_hip_thrust",
 ]);
 
 const EXPECTED_SUPPLEMENTAL_IMPORTED_IDS = new Set([
@@ -287,6 +289,28 @@ const EXPECTED_VORTIXIA_RECORDS = new Map([
     primaryMuscle: "quads",
     secondaryMuscles: ["glutes", "hamstrings"],
   }],
+  ["vx_ex_arm_swing", {
+    name: "bodyweight arm swing",
+    bodyPart: "shoulders",
+    target: "delts",
+    equipment: "body weight",
+    muscleGroup: "delts",
+    defaultTrackingType: "reps_only",
+    supportedWeightUnits: ["unitless"],
+    primaryMuscle: "delts",
+    secondaryMuscles: [],
+  }],
+  ["vx_ex_dumbbell_hip_thrust", {
+    name: "dumbbell hip thrust",
+    bodyPart: "upper legs",
+    target: "glutes",
+    equipment: "dumbbell",
+    muscleGroup: "glutes",
+    defaultTrackingType: "reps_weight",
+    supportedWeightUnits: ["kg", "lb"],
+    primaryMuscle: "glutes",
+    secondaryMuscles: [],
+  }],
 ]);
 
 const EXPECTED_C2_METADATA = new Map([
@@ -337,6 +361,23 @@ const EXPECTED_C2_METADATA = new Map([
     usageContexts: [],
     approval: "green",
     discoveryTier: "priority",
+  }],
+]);
+
+const EXPECTED_TEMPLATE_GAP_METADATA = new Map([
+  ["vx_ex_arm_swing", {
+    displayName: "Arm Swing",
+    aliases: ["arm swings", "standing arm swings"],
+    normalizedEquipment: "bodyweight",
+    movementType: "mobility",
+    usageContexts: ["warmup"],
+  }],
+  ["vx_ex_dumbbell_hip_thrust", {
+    displayName: "Dumbbell Hip Thrust",
+    aliases: ["DB hip thrust"],
+    normalizedEquipment: "dumbbell",
+    movementType: "strength",
+    usageContexts: [],
   }],
 ]);
 
@@ -547,7 +588,7 @@ check(
   sourceRecords.every((record) => !record.id.startsWith("usr_ex_")),
   "Built-in catalog must not use the reserved usr_ex_ prefix",
 );
-check(vortixiaExercises.length === 15, "Expected exactly 15 Vortixia additions");
+check(vortixiaExercises.length === 17, "Expected exactly 17 Vortixia additions");
 check(
   vortixiaIds.length === EXPECTED_VORTIXIA_IDS.size
     && vortixiaIds.every((id) => EXPECTED_VORTIXIA_IDS.has(id)),
@@ -738,6 +779,10 @@ check(setCounts.priority_2026_09_25 === 221, "Priority curation set must contain
 check(setCounts.supplemental_2026_09_25 === 9, "Supplemental curation set must contain 9 entries");
 check(setCounts.vortixia_addition_2026_09_25 === 9, "Addition curation set must contain 9 entries");
 check(setCounts.catalog_gaps_2026_09_27 === 7, "Catalog-gap curation set must contain 7 entries");
+check(
+  setCounts.template_catalog_gaps_2026_09_30 === 2,
+  "Template catalog-gap curation set must contain exactly 2 entries",
+);
 
 const supplementalImportedIds = entries
   .filter((entry) => entry.curationSet === "supplemental_2026_09_25")
@@ -758,9 +803,9 @@ const importedOverlayCount = entries.filter((entry) => importedIds.includes(entr
 const additionOverlayCount = entries.filter((entry) => EXPECTED_VORTIXIA_IDS.has(entry.id)).length;
 const aggregateCounts = countBy(entries, "approval");
 check(importedOverlayCount === 231, "Imported overlay count must be 231");
-check(additionOverlayCount === 15, "Vortixia overlay count must be 15");
-check(entries.length === 246, "Curated overlay total must be 246");
-check(aggregateCounts.green === 195, "Aggregate GREEN count must be 195");
+check(additionOverlayCount === 17, "Vortixia overlay count must be 17");
+check(entries.length === 248, "Curated overlay total must be 248");
+check(aggregateCounts.green === 197, "Aggregate GREEN count must be 197");
 check(aggregateCounts.yellow === 42, "Aggregate YELLOW count must be 42");
 check(aggregateCounts.red === 9, "Aggregate RED count must be 9");
 
@@ -875,6 +920,65 @@ for (const [id, expected] of EXPECTED_C2_METADATA) {
     entry.curationSet === "catalog_gaps_2026_09_27",
     `${id} must belong to the C2 catalog-gap curation set`,
   );
+}
+
+for (const [id, expected] of EXPECTED_TEMPLATE_GAP_METADATA) {
+  const entry = entryById.get(id);
+  check(Boolean(entry), `${id} template-gap metadata must resolve`);
+  if (!entry) continue;
+
+  for (const field of ["displayName", "normalizedEquipment", "movementType"]) {
+    check(entry[field] === expected[field], `${id} ${field} differs from the approved template-gap specification`);
+  }
+  for (const field of ["aliases", "usageContexts"]) {
+    check(
+      JSON.stringify(entry[field]) === JSON.stringify(expected[field]),
+      `${id} ${field} differs from the approved template-gap specification`,
+    );
+  }
+  check(entry.approval === "green", `${id} must be GREEN`);
+  check(entry.discoveryTier === "priority", `${id} must be discoverable at priority tier`);
+  check(entry.equipmentConfidence === "local", `${id} equipment must be explicitly known`);
+  check(!entry.deprecatedForDiscovery, `${id} must not be deprecated`);
+  check(!entry.preferredExerciseId, `${id} must remain its own canonical identity`);
+  check(
+    entry.curationSet === "template_catalog_gaps_2026_09_30",
+    `${id} must belong to the reviewed template-gap curation set`,
+  );
+}
+
+const templateGapIdentityFixtures = new Map([
+  ["vx_ex_arm_swing", "Arm Swing"],
+  ["vx_ex_arm_circle", "Arm Circle"],
+  ["0235", "Standing Cable Shoulder External Rotation"],
+  ["vx_ex_dumbbell_hip_thrust", "Dumbbell Hip Thrust"],
+  ["9004", "Barbell Hip Thrust"],
+  ["9012", "Bodyweight Hip Thrust"],
+  ["9005", "Dumbbell Glute Bridge"],
+]);
+for (const [id, displayName] of templateGapIdentityFixtures) {
+  check(sourceById.has(id), `${id} distinct template identity must resolve`);
+  check(entryById.get(id)?.displayName === displayName, `${id} distinct identity display mismatch`);
+  check(!entryById.get(id)?.preferredExerciseId, `${id} must not redirect to a different movement`);
+}
+for (const [newId, distinctIds] of [
+  ["vx_ex_arm_swing", ["vx_ex_arm_circle", "0235", "0863", "0864", "0216"]],
+  ["vx_ex_dumbbell_hip_thrust", ["9004", "9012", "9005"]],
+]) {
+  const newEntry = entryById.get(newId);
+  const newAliases = new Set((newEntry?.aliases ?? []).map(normalize));
+  for (const distinctId of distinctIds) {
+    const source = sourceById.get(distinctId);
+    const entry = entryById.get(distinctId);
+    check(Boolean(source), `${distinctId} distinct movement must exist`);
+    for (const name of [source?.name, entry?.displayName, ...(entry?.aliases ?? [])]) {
+      if (name) check(!newAliases.has(normalize(name)), `${newId} must not alias ${distinctId}: ${name}`);
+    }
+  }
+}
+const armSwingAliases = new Set((entryById.get("vx_ex_arm_swing")?.aliases ?? []).map(normalize));
+for (const banned of ["arm circle", "arm circles", "shoulder rotation", "shoulder rotations"]) {
+  check(!armSwingAliases.has(normalize(banned)), `Arm Swing must not alias ${banned}`);
 }
 
 for (const id of [

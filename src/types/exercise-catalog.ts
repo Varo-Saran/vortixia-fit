@@ -64,7 +64,8 @@ export type ExerciseCurationSet =
   | "priority_2026_09_25"
   | "supplemental_2026_09_25"
   | "vortixia_addition_2026_09_25"
-  | "catalog_gaps_2026_09_27";
+  | "catalog_gaps_2026_09_27"
+  | "template_catalog_gaps_2026_09_30";
 
 export interface ImportedExerciseRecord {
   id: string;
