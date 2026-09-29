@@ -1,5 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { BUILT_IN_ROUTINE_TEMPLATES } from '@/data/built-in-routine-templates';
+import { materializeRoutineTemplate } from '@/lib/routine-templates';
+import type { BuiltInRoutineTemplate } from '@/types/routine-template';
 import {
   createOccurrence,
   createRoutineUuid,
@@ -34,204 +37,6 @@ export type {
   WeightUnit,
 } from '@/types/routine';
 
-// --- Predefined Templates using new schema ---
-const PREDEFINED_TEMPLATES: RoutineTemplate[] = [
-  {
-    id: "tpl_ppl_6",
-    name: "Push Pull Legs (6-Day)",
-    description: "High frequency hypertrophy split for advanced lifters.",
-    frequency: "6 days/week",
-    plan: [
-      { day: "Monday", shortDay: "M", type: "Push", title: "Push 1", warmups: [], mainLifts: [
-        { id: "e1", name: "Bench Press", targetMuscle: "chest", trackingType: "reps_weight", weightUnit: "kg", targetSets: 4, targetValue: "8-10" },
-        { id: "e2", name: "Overhead Press", targetMuscle: "shoulders", trackingType: "reps_weight", weightUnit: "kg", targetSets: 3, targetValue: "10-12" },
-        { id: "e2a", name: "Lateral Raises", targetMuscle: "shoulders", trackingType: "reps_weight", weightUnit: "unitless", targetSets: 3, targetValue: "15" },
-        { id: "e2b", name: "Tricep Pushdown", targetMuscle: "triceps", trackingType: "reps_weight", weightUnit: "plates", targetSets: 3, targetValue: "12-15" }
-      ]},
-      { day: "Tuesday", shortDay: "T", type: "Pull", title: "Pull 1", warmups: [], mainLifts: [
-        { id: "e3", name: "Barbell Row", targetMuscle: "lats", trackingType: "reps_weight", weightUnit: "kg", targetSets: 4, targetValue: "8-10" },
-        { id: "e4", name: "Pull-ups", targetMuscle: "lats", trackingType: "reps_only", weightUnit: "unitless", targetSets: 3, targetValue: "10-12" },
-        { id: "e4a", name: "Bicep Curls", targetMuscle: "biceps", trackingType: "reps_weight", weightUnit: "unitless", targetSets: 3, targetValue: "12" }
-      ]},
-      { day: "Wednesday", shortDay: "W", type: "Legs", title: "Legs 1", warmups: [], mainLifts: [
-        { id: "e5", name: "Squat", targetMuscle: "quads", trackingType: "reps_weight", weightUnit: "kg", targetSets: 4, targetValue: "8" },
-        { id: "e6", name: "Romanian Deadlift", targetMuscle: "hamstrings", trackingType: "reps_weight", weightUnit: "kg", targetSets: 3, targetValue: "10" },
-        { id: "e6a", name: "Calf Raises", targetMuscle: "calves", trackingType: "reps_weight", weightUnit: "plates", targetSets: 4, targetValue: "15-20" }
-      ]},
-      { day: "Thursday", shortDay: "T", type: "Push", title: "Push 2", warmups: [], mainLifts: [
-        { id: "e7", name: "Incline DB Press", targetMuscle: "chest", trackingType: "reps_weight", weightUnit: "unitless", targetSets: 4, targetValue: "10" },
-        { id: "e7a", name: "Dips", targetMuscle: "chest", trackingType: "reps_only", weightUnit: "unitless", targetSets: 3, targetValue: "10-12" }
-      ]},
-      { day: "Friday", shortDay: "F", type: "Pull", title: "Pull 2", warmups: [], mainLifts: [
-        { id: "e8", name: "Deadlift", targetMuscle: "lower back", trackingType: "reps_weight", weightUnit: "kg", targetSets: 3, targetValue: "5" },
-        { id: "e8a", name: "Lat Pulldown", targetMuscle: "lats", trackingType: "reps_weight", weightUnit: "plates", targetSets: 3, targetValue: "10-12" }
-      ]},
-      { day: "Saturday", shortDay: "S", type: "Legs", title: "Legs 2", warmups: [], mainLifts: [
-        { id: "e9", name: "Leg Press", targetMuscle: "quads", trackingType: "reps_weight", weightUnit: "plates", targetSets: 4, targetValue: "12-15" },
-        { id: "e9a", name: "Leg Extensions", targetMuscle: "quads", trackingType: "reps_weight", weightUnit: "plates", targetSets: 3, targetValue: "15" },
-        { id: "e9b", name: "Plank", targetMuscle: "abs", trackingType: "time_only", weightUnit: "unitless", targetSets: 3, targetValue: "60 secs" }
-      ]},
-      { day: "Sunday", shortDay: "S", type: "Rest", title: "Active Recovery", warmups: [], mainLifts: []}
-    ]
-  },
-  {
-    id: "tpl_bro_5",
-    name: "Classic Bro Split (5-Day)",
-    description: "One muscle group per day. High volume per session.",
-    frequency: "5 days/week",
-    plan: [
-      { day: "Monday", shortDay: "M", type: "Chest", title: "Chest Day", warmups: [], mainLifts: [
-        { id: "e1", name: "Bench Press", targetMuscle: "chest", trackingType: "reps_weight", weightUnit: "kg", targetSets: 4, targetValue: "8-10" }
-      ]},
-      { day: "Tuesday", shortDay: "T", type: "Back", title: "Back Day", warmups: [], mainLifts: [
-        { id: "e4", name: "Barbell Row", targetMuscle: "lats", trackingType: "reps_weight", weightUnit: "kg", targetSets: 4, targetValue: "8-10" }
-      ]},
-      { day: "Wednesday", shortDay: "W", type: "Legs", title: "Leg Day", warmups: [], mainLifts: [
-        { id: "e7", name: "Squat", targetMuscle: "quads", trackingType: "reps_weight", weightUnit: "kg", targetSets: 4, targetValue: "8" }
-      ]},
-      { day: "Thursday", shortDay: "T", type: "Shoulders", title: "Shoulder Day", warmups: [], mainLifts: [
-        { id: "e10", name: "Overhead Press", targetMuscle: "shoulders", trackingType: "reps_weight", weightUnit: "kg", targetSets: 4, targetValue: "10" }
-      ]},
-      { day: "Friday", shortDay: "F", type: "Arms", title: "Arm Day", warmups: [], mainLifts: [
-        { id: "e13", name: "Barbell Curl", targetMuscle: "biceps", trackingType: "reps_weight", weightUnit: "kg", targetSets: 3, targetValue: "12" }
-      ]},
-      { day: "Saturday", shortDay: "S", type: "Rest", title: "Rest", warmups: [], mainLifts: []},
-      { day: "Sunday", shortDay: "S", type: "Rest", title: "Rest", warmups: [], mainLifts: []}
-    ]
-  },
-  {
-    id: "tpl_int_ppl_5",
-    name: "Intermediate Split (5-Day)",
-    description: "Vathsaran's signature 5-day PPL protocol featuring glute emphasis, cramp-safe core, and post-workout Zone 2 cardio.",
-    frequency: "5 days/week",
-    plan: [
-      {
-        day: "Monday",
-        shortDay: "M",
-        type: "Push",
-        title: "Chest & Triceps",
-        warmups: [
-          { id: "int_mon_w1", name: "Treadmill Incline Walk", targetMuscle: "legs", trackingType: "time_only", weightUnit: "unitless", targetSets: 1, targetValue: "5 min", note: "Warm-up incline walk", isWarmup: true },
-          { id: "int_mon_w2", name: "Arm Swings + Shoulder Rotations", targetMuscle: "shoulders", trackingType: "reps_only", weightUnit: "unitless", targetSets: 2, targetValue: "15", note: "Rotations and swings", isWarmup: true }
-        ],
-        mainLifts: [
-          { id: "int_mon_m1", name: "Flat Barbell Bench Press", targetMuscle: "chest", trackingType: "reps_weight", weightUnit: "kg", targetSets: 4, targetValue: "6-8", note: "Primary compound - add weight when you hit top reps" },
-          { id: "int_mon_m2", name: "Incline Dumbbell Press", targetMuscle: "chest", trackingType: "reps_weight", weightUnit: "kg", targetSets: 3, targetValue: "10-12", note: "Upper chest emphasis" },
-          { id: "int_mon_m3", name: "Machine Chest Fly / Pec Deck", targetMuscle: "chest", trackingType: "reps_weight", weightUnit: "kg", targetSets: 3, targetValue: "12-15", note: "Constant tension, peak squeeze" },
-          { id: "int_mon_m4", name: "Cable Crossover (high to low)", targetMuscle: "chest", trackingType: "reps_weight", weightUnit: "kg", targetSets: 3, targetValue: "15" },
-          { id: "int_mon_m5", name: "Tricep Rope Pushdown", targetMuscle: "triceps", trackingType: "reps_weight", weightUnit: "plates", targetSets: 3, targetValue: "12-15" },
-          { id: "int_mon_m6", name: "Overhead EZ-Bar Tricep Extension", targetMuscle: "triceps", trackingType: "reps_weight", weightUnit: "kg", targetSets: 3, targetValue: "10-12", note: "Long head emphasis" },
-          { id: "int_mon_m7", name: "Zone 2 Cardio", targetMuscle: "heart", trackingType: "time_only", weightUnit: "unitless", targetSets: 1, targetValue: "30 mins", note: "Aerobic base building" }
-        ]
-      },
-      {
-        day: "Tuesday",
-        shortDay: "T",
-        type: "Pull",
-        title: "Back & Biceps",
-        warmups: [
-          { id: "int_tue_w1", name: "Stationary Bike / Treadmill Walk", targetMuscle: "legs", trackingType: "time_only", weightUnit: "unitless", targetSets: 1, targetValue: "5 min", note: "Zone 1 (50-60% max HR)", isWarmup: true }
-        ],
-        mainLifts: [
-          { id: "int_tue_m1", name: "Lat Pulldown (wide grip)", targetMuscle: "lats", trackingType: "reps_weight", weightUnit: "plates", targetSets: 4, targetValue: "8-10", note: "Primary vertical pull" },
-          { id: "int_tue_m2", name: "Seated Cable Row / Back Extension", targetMuscle: "lats", trackingType: "reps_weight", weightUnit: "kg", targetSets: 4, targetValue: "10-12", note: "Alternate depending on station availability" },
-          { id: "int_tue_m3", name: "Dumbbell Single-Arm Row", targetMuscle: "lats", trackingType: "reps_weight", weightUnit: "kg", targetSets: 3, targetValue: "10 each", note: "Unilateral row" },
-          { id: "int_tue_m4", name: "Machine Low Row (neutral grip)", targetMuscle: "lats", trackingType: "reps_weight", weightUnit: "kg", targetSets: 3, targetValue: "12", note: "Full ROM retraction" },
-          { id: "int_tue_m5", name: "Face Pulls", targetMuscle: "shoulders", trackingType: "reps_weight", weightUnit: "plates", targetSets: 3, targetValue: "15-20", note: "Rear delts + external rotation" },
-          { id: "int_tue_m6", name: "EZ-Bar or Dumbbell Curl", targetMuscle: "biceps", trackingType: "reps_weight", weightUnit: "kg", targetSets: 3, targetValue: "10-12" },
-          { id: "int_tue_m7", name: "Cable Hammer Curl", targetMuscle: "biceps", trackingType: "reps_weight", weightUnit: "plates", targetSets: 3, targetValue: "12-15", note: "Brachialis + brachioradialis" },
-          { id: "int_tue_m8", name: "Zone 2 Cardio", targetMuscle: "heart", trackingType: "time_only", weightUnit: "unitless", targetSets: 1, targetValue: "30 mins", note: "Aerobic base building" }
-        ]
-      },
-      {
-        day: "Wednesday",
-        shortDay: "W",
-        type: "Cardio",
-        title: "Cardio, Core & Glute Activation",
-        warmups: [],
-        mainLifts: [
-          { id: "int_wed_m1", name: "Treadmill Incline Walk", targetMuscle: "legs", trackingType: "time_only", weightUnit: "unitless", targetSets: 1, targetValue: "30-35 mins", note: "12-15% incline, 5.5-6.5 km/h. Zone 2." },
-          { id: "int_wed_m2", name: "Cable Crunch", targetMuscle: "abs", trackingType: "reps_weight", weightUnit: "plates", targetSets: 3, targetValue: "20-25", note: "Slow 3-second descent on every rep" },
-          { id: "int_wed_m3", name: "Dead Bug", targetMuscle: "abs", trackingType: "reps_only", weightUnit: "unitless", targetSets: 3, targetValue: "10 each side", note: "Work deep TVA" },
-          { id: "int_wed_m4", name: "Dumbbell Side Bend", targetMuscle: "abs", trackingType: "reps_weight", weightUnit: "kg", targetSets: 3, targetValue: "20 each side", note: "Obliques" },
-          { id: "int_wed_m5", name: "Standing Cable Oblique Crunch", targetMuscle: "abs", trackingType: "reps_weight", weightUnit: "plates", targetSets: 3, targetValue: "20 each side", note: "Obliques" },
-          { id: "int_wed_m6", name: "Side Plank", targetMuscle: "abs", trackingType: "time_only", weightUnit: "unitless", targetSets: 3, targetValue: "20-25s each side", note: "Static hold" },
-          { id: "int_wed_m7", name: "Plank", targetMuscle: "abs", trackingType: "time_only", weightUnit: "unitless", targetSets: 2, targetValue: "25-30s", note: "Standard plank" },
-          { id: "int_wed_m8", name: "Glute Bridge", targetMuscle: "glutes", trackingType: "reps_only", weightUnit: "unitless", targetSets: 3, targetValue: "20", note: "1 second squeeze at top" },
-          { id: "int_wed_m9", name: "Donkey Kick", targetMuscle: "glutes", trackingType: "reps_only", weightUnit: "unitless", targetSets: 3, targetValue: "20 each side", note: "Controlled squeeze" }
-        ]
-      },
-      {
-        day: "Thursday",
-        shortDay: "T",
-        type: "Legs",
-        title: "Legs, Hamstrings & Glutes",
-        warmups: [
-          { id: "int_thu_w1", name: "Stationary Bike", targetMuscle: "legs", trackingType: "time_only", weightUnit: "unitless", targetSets: 1, targetValue: "5-8 min", note: "Zone 1 easy pace", isWarmup: true },
-          { id: "int_thu_w2", name: "Bodyweight Glute Bridge", targetMuscle: "glutes", trackingType: "reps_only", weightUnit: "unitless", targetSets: 2, targetValue: "15", note: "Glute activation before squats", isWarmup: true },
-          { id: "int_thu_w3", name: "Hip Flexor Stretch + Bodyweight Squat", targetMuscle: "legs", trackingType: "reps_only", weightUnit: "unitless", targetSets: 2, targetValue: "10", isWarmup: true }
-        ],
-        mainLifts: [
-          { id: "int_thu_m1", name: "Barbell Squat / Smith Machine Squat", targetMuscle: "quads", trackingType: "reps_weight", weightUnit: "kg", targetSets: 4, targetValue: "6-8", note: "Primary compound" },
-          { id: "int_thu_m2", name: "Leg Press", targetMuscle: "quads", trackingType: "reps_weight", weightUnit: "plates", targetSets: 3, targetValue: "12", note: "High quad + glute volume" },
-          { id: "int_thu_m3", name: "Romanian Deadlift", targetMuscle: "hamstrings", trackingType: "reps_weight", weightUnit: "kg", targetSets: 3, targetValue: "10", note: "Hamstring + glute primary" },
-          { id: "int_thu_m4", name: "Seated Leg Curl / Lying Leg Curl", targetMuscle: "hamstrings", trackingType: "reps_weight", weightUnit: "plates", targetSets: 3, targetValue: "12-15" },
-          { id: "int_thu_m5", name: "Leg Extension", targetMuscle: "quads", trackingType: "reps_weight", weightUnit: "plates", targetSets: 3, targetValue: "15" },
-          { id: "int_thu_m6", name: "Dumbbell Walking Lunges", targetMuscle: "quads", trackingType: "reps_weight", weightUnit: "kg", targetSets: 3, targetValue: "12 each leg" },
-          { id: "int_thu_m7", name: "Calf Raises", targetMuscle: "calves", trackingType: "reps_weight", weightUnit: "plates", targetSets: 4, targetValue: "20-25" },
-          { id: "int_thu_m8", name: "Dumbbell/Barbell Hip Thrust", targetMuscle: "glutes", trackingType: "reps_weight", weightUnit: "kg", targetSets: 4, targetValue: "12-15", note: "Best single glute exercise" },
-          { id: "int_thu_m9", name: "Single-Leg Glute Bridge", targetMuscle: "glutes", trackingType: "reps_only", weightUnit: "unitless", targetSets: 3, targetValue: "15 each side" },
-          { id: "int_thu_m10", name: "Cable Kickback / Donkey Kick", targetMuscle: "glutes", trackingType: "reps_weight", weightUnit: "plates", targetSets: 3, targetValue: "20 each side" },
-          { id: "int_thu_m11", name: "Curtsy Lunge", targetMuscle: "glutes", trackingType: "reps_only", weightUnit: "unitless", targetSets: 3, targetValue: "12 each side", note: "Step back diagonally" },
-          { id: "int_thu_m12", name: "Zone 2 Cardio", targetMuscle: "heart", trackingType: "time_only", weightUnit: "unitless", targetSets: 1, targetValue: "30 mins", note: "Aerobic base building" }
-        ]
-      },
-      {
-        day: "Friday",
-        shortDay: "F",
-        type: "Arms",
-        title: "Shoulders, Biceps & Triceps",
-        warmups: [
-          { id: "int_fri_w1", name: "Elliptical / Stationary Bike", targetMuscle: "legs", trackingType: "time_only", weightUnit: "unitless", targetSets: 1, targetValue: "5 min", note: "Zone 1 easy pace", isWarmup: true },
-          { id: "int_fri_w2", name: "Wall Slides / Band Pull-Aparts", targetMuscle: "shoulders", trackingType: "reps_only", weightUnit: "unitless", targetSets: 2, targetValue: "12", note: "Scapular warm-up", isWarmup: true },
-          { id: "int_fri_w3", name: "Light Dumbbell YTW Raises", targetMuscle: "shoulders", trackingType: "reps_only", weightUnit: "unitless", targetSets: 2, targetValue: "10 each shape", note: "Rear delts and cuff", isWarmup: true }
-        ],
-        mainLifts: [
-          { id: "int_fri_m1", name: "Dumbbell Overhead Press (seated)", targetMuscle: "shoulders", trackingType: "reps_weight", weightUnit: "kg", targetSets: 4, targetValue: "8-10" },
-          { id: "int_fri_m2", name: "Machine Shoulder Press", targetMuscle: "shoulders", trackingType: "reps_weight", weightUnit: "plates", targetSets: 3, targetValue: "10-12" },
-          { id: "int_fri_m3", name: "Lateral Raise", targetMuscle: "shoulders", trackingType: "reps_weight", weightUnit: "kg", targetSets: 4, targetValue: "15-20" },
-          { id: "int_fri_m4", name: "Cable Rear Delt Fly", targetMuscle: "shoulders", trackingType: "reps_weight", weightUnit: "plates", targetSets: 3, targetValue: "15" },
-          { id: "int_fri_m5", name: "Barbell or EZ-Bar Curl", targetMuscle: "biceps", trackingType: "reps_weight", weightUnit: "kg", targetSets: 3, targetValue: "10", note: "Superset A" },
-          { id: "int_fri_m6", name: "Cable Tricep Pushdown", targetMuscle: "triceps", trackingType: "reps_weight", weightUnit: "plates", targetSets: 3, targetValue: "10", note: "Superset B" },
-          { id: "int_fri_m7", name: "Incline Dumbbell Curl", targetMuscle: "biceps", trackingType: "reps_weight", weightUnit: "kg", targetSets: 3, targetValue: "12", note: "Superset A" },
-          { id: "int_fri_m8", name: "Overhead Cable Tricep Extension", targetMuscle: "triceps", trackingType: "reps_weight", weightUnit: "plates", targetSets: 3, targetValue: "12", note: "Superset B" },
-          { id: "int_fri_m9", name: "Zone 2 Cardio", targetMuscle: "heart", trackingType: "time_only", weightUnit: "unitless", targetSets: 1, targetValue: "30 mins", note: "Aerobic base building" }
-        ]
-      },
-      {
-        day: "Saturday",
-        shortDay: "S",
-        type: "Rest",
-        title: "Active Recovery",
-        warmups: [],
-        mainLifts: [
-          { id: "int_sat_m1", name: "Treadmill Walk (flat, easy)", targetMuscle: "legs", trackingType: "time_only", weightUnit: "unitless", targetSets: 1, targetValue: "20-25 mins", note: "Zone 1 easy walk" },
-          { id: "int_sat_m2", name: "Stationary Bike (easy spin)", targetMuscle: "legs", trackingType: "time_only", weightUnit: "unitless", targetSets: 1, targetValue: "20 mins", note: "Zone 1 easy spin" },
-          { id: "int_sat_m3", name: "Full-Body Stretching + Foam Rolling", targetMuscle: "flexibility", trackingType: "time_only", weightUnit: "unitless", targetSets: 1, targetValue: "15-20 mins" }
-        ]
-      },
-      {
-        day: "Sunday",
-        shortDay: "S",
-        type: "Rest",
-        title: "Full Rest",
-        warmups: [],
-        mainLifts: []
-      }
-    ]
-  }
-];
-
 let routineLoadFlight: Promise<void> | null = null;
 
 export interface RoutineStore {
@@ -241,7 +46,7 @@ export interface RoutineStore {
   isSaving: boolean;
   isDirty: boolean;
   error: string | null;
-  templates: RoutineTemplate[];
+  templates: readonly BuiltInRoutineTemplate[];
   customTemplates: RoutineTemplate[];
   fetchRoutine: () => Promise<void>;
   setRoutine: (routine: RoutinePlan) => void;
@@ -262,7 +67,7 @@ export interface RoutineStore {
   reorderDayOccurrences: (weekday: Weekday, orderedIds: string[]) => void;
   saveRoutineToDb: () => Promise<void>;
   replaceAndSaveRoutine: (
-    plan: LegacyDayPlan[],
+    plan: LegacyDayPlan[] | BuiltInRoutineTemplate,
     name?: string,
   ) => Promise<void>;
   applyTemplate: (templateId: string) => Promise<void>;
@@ -288,7 +93,7 @@ export const useRoutineStore = create<RoutineStore>()(
       isSaving: false,
       isDirty: false,
       error: null,
-      templates: PREDEFINED_TEMPLATES,
+      templates: BUILT_IN_ROUTINE_TEMPLATES,
       customTemplates: [],
       
       fetchRoutine: async () => {
@@ -317,10 +122,7 @@ export const useRoutineStore = create<RoutineStore>()(
               return {
                 routine:
                   loadedRoutine
-                  ?? legacyPlanToRoutinePlan(
-                    PREDEFINED_TEMPLATES[0].name,
-                    PREDEFINED_TEMPLATES[0].plan,
-                  ),
+                  ?? materializeRoutineTemplate(BUILT_IN_ROUTINE_TEMPLATES[0]),
                 loadStatus: 'ready',
                 isLoading: false,
                 isDirty: false,
@@ -521,11 +323,13 @@ export const useRoutineStore = create<RoutineStore>()(
 
         let replacement: RoutinePlan;
         try {
-          replacement = legacyPlanToRoutinePlan(
-            name ?? currentState.routine.name,
-            plan,
-            currentState.routine.id,
-          );
+          replacement = Array.isArray(plan)
+            ? legacyPlanToRoutinePlan(
+                name ?? currentState.routine.name,
+                plan,
+                currentState.routine.id,
+              )
+            : materializeRoutineTemplate(plan, currentState.routine.id);
         } catch (error) {
           const message = error instanceof Error
             ? error.message
@@ -545,9 +349,14 @@ export const useRoutineStore = create<RoutineStore>()(
 
       applyTemplate: async (templateId: string) => {
         const currentState = get();
-        const template = currentState.templates.find(
+        const builtIn = currentState.templates.find(
           (candidate) => candidate.id === templateId,
-        ) ?? currentState.customTemplates.find(
+        );
+        if (builtIn) {
+          await get().replaceAndSaveRoutine(builtIn);
+          return;
+        }
+        const template = currentState.customTemplates.find(
           (candidate) => candidate.id === templateId,
         );
         if (!template) {
@@ -626,8 +435,7 @@ export const useRoutineStore = create<RoutineStore>()(
 
       resetActiveSplit: async () => {
         await get().replaceAndSaveRoutine(
-          PREDEFINED_TEMPLATES[0].plan,
-          PREDEFINED_TEMPLATES[0].name,
+          BUILT_IN_ROUTINE_TEMPLATES[0],
         );
       },
 

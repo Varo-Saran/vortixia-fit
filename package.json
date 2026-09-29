@@ -4,12 +4,14 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "prebuild": "npm run validate:templates",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "validate:exercise-catalog": "node scripts/validate-exercise-catalog.mjs",
     "validate:exercise-search": "node scripts/validate-exercise-search.mjs",
-    "validate:routine-foundation": "node scripts/validate-routine-foundation.mjs"
+    "validate:routine-foundation": "node scripts/validate-routine-foundation.mjs",
+    "validate:templates": "node scripts/validate-templates.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",
