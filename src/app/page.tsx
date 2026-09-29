@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { Plus, UserCircle, Settings, Bell, Swords, HeartPulse, Flame, Moon, Utensils, CloudRain, Sun, Cloud, Snowflake, CloudLightning, MapPin, Users, Activity, Trash2, Calculator, Sparkles, Calendar, X } from "lucide-react";
+import { useEffect, useState, useCallback, useMemo, useSyncExternalStore } from "react";
+import { Plus, UserCircle, Bell, Swords, HeartPulse, Flame, Moon, Utensils, CloudRain, Sun, Cloud, Snowflake, CloudLightning, MapPin, Users, Activity, Trash2, Calculator, Sparkles, X } from "lucide-react";
 import Link from "next/link";
 import { useRoutineStore } from "@/store/useRoutineStore";
 import { useProfileStore } from "@/store/useProfileStore";
@@ -21,18 +21,59 @@ import {
 } from "@/lib/workout-reversal-client";
 import { durationSecondsBetween, formatDuration } from "@/lib/duration";
 import { getLocalCalendarWeek, localDayTimestamp } from "@/lib/calendar-week";
+import { isDayStartable, mainOccurrences } from "@/lib/routine-model";
+
+interface RecommendedAthlete {
+  id: string;
+  avatar_url?: string | null;
+}
+
+interface ActiveDuelData {
+  opponent: string;
+  myScore: number;
+  oppScore: number;
+  status: "winning" | "losing" | "tied";
+  wager: number;
+}
+
+interface StreakSession {
+  id?: unknown;
+  session_id?: unknown;
+  start_time: string;
+  total_volume_kg?: number | null;
+  workout_sets?: Array<{
+    id: string;
+    weight: number;
+    reps: number;
+    exercise_name: string;
+  }>;
+}
+
+const subscribeToClient = () => () => undefined;
+
+function WeatherIcon({ icon }: { icon: string }) {
+  if (icon === 'sun') return <Sun className="w-4 h-4 text-yellow-400" />;
+  if (icon === 'cloud') return <Cloud className="w-4 h-4 text-gray-300" />;
+  if (icon === 'rain') return <CloudRain className="w-4 h-4 text-blue-400" />;
+  if (icon === 'snow') return <Snowflake className="w-4 h-4 text-blue-200" />;
+  if (icon === 'storm') return <CloudLightning className="w-4 h-4 text-purple-400" />;
+  return <MapPin className="w-4 h-4 text-text-muted" />;
+}
 
 export default function Dashboard() {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useSyncExternalStore(subscribeToClient, () => true, () => false);
 
   const router = useRouter();
-  const [greeting, setGreeting] = useState("Hello");
+  const greeting = mounted
+    ? new Date().getHours() < 12
+      ? "Good morning"
+      : new Date().getHours() < 18
+        ? "Good afternoon"
+        : "Good evening"
+    : "Hello";
   const [streakDays, setStreakDays] = useState<{ day: string; date: string; active: boolean; today: boolean; timestamp: number }[]>([]);
   
-  const { weeklyPlan, fetchRoutine } = useRoutineStore();
+  const { routine, loadStatus, fetchRoutine } = useRoutineStore();
   const { profile, fetchProfile } = useProfileStore();
   const { friends, fetchFriends } = useFriendsStore();
   const { readinessScore, cnsStatus, muscles } = useRecoveryStore();
@@ -48,24 +89,32 @@ export default function Dashboard() {
     initRealtime();
   }, [fetchFriends, fetchNotifications, initRealtime]);
   
-  const [recommendedAthletes, setRecommendedAthletes] = useState<any[]>([]);
+  const [recommendedAthletes, setRecommendedAthletes] = useState<RecommendedAthlete[]>([]);
   
   // Hydration-safe Today Plan Name and Recovery Recommendations
-  const [todayPlanName, setTodayPlanName] = useState("Loading plan...");
-  const [fatiguedMuscleRecommendation, setFatiguedMuscleRecommendation] = useState("");
+  const todayPlanName = useMemo(() => {
+    if (!routine) return "Loading plan...";
+    const daysOfWeek = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"] as const;
+    const todayPlan = routine.days.find(
+      (day) => day.weekday === daysOfWeek[new Date().getDay()],
+    );
+    return todayPlan?.kind !== "training"
+      ? "Rest Day"
+      : (todayPlan?.title ?? "Start Workout");
+  }, [routine]);
 
   // Active workout timer state
   const [elapsed, setElapsed] = useState("00:00");
 
   // Dynamic active duel & friend completions count
-  const [activeDuelData, setActiveDuelData] = useState<any>(null);
+  const [activeDuelData, setActiveDuelData] = useState<ActiveDuelData | null>(null);
   const [friendWorkoutsCount, setFriendWorkoutsCount] = useState(0);
 
   // New states for Interactive Streak History & Plate Calculator
   const [isStreakModalOpen, setIsStreakModalOpen] = useState(false);
   const [isPlateCalcOpen, setIsPlateCalcOpen] = useState(false);
-  const [plateCalcWeight, setPlateCalcWeight] = useState(135);
-  const [streakSessions, setStreakSessions] = useState<any[]>([]);
+  const [plateCalcWeight] = useState(135);
+  const [streakSessions, setStreakSessions] = useState<StreakSession[]>([]);
   const [isStreakLoading, setIsStreakLoading] = useState(false);
   const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
 
@@ -267,24 +316,12 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    if (weeklyPlan.length === 0) fetchRoutine();
-    if (!profile) fetchProfile();
-
-    const hour = new Date().getHours();
-    if (hour < 12) setGreeting("Good morning");
-    else if (hour < 18) setGreeting("Good afternoon");
-    else setGreeting("Good evening");
-  }, [weeklyPlan, profile, fetchRoutine, fetchProfile]);
-
-  // Today's plan name (Hydration-safe)
-  useEffect(() => {
-    if (weeklyPlan.length > 0) {
-      const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-      const todayName = daysOfWeek[new Date().getDay()];
-      const todayPlan = weeklyPlan.find(p => p.day === todayName);
-      setTodayPlanName(todayPlan?.type === 'Rest' ? 'Rest Day' : (todayPlan?.title || 'Start Workout'));
-    }
-  }, [weeklyPlan]);
+    const timeoutId = window.setTimeout(() => {
+      if (loadStatus === 'idle') void fetchRoutine();
+      if (!profile) void fetchProfile();
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [loadStatus, profile, fetchRoutine, fetchProfile]);
 
   // Fetch Streak & Social Info
   useEffect(() => {
@@ -295,12 +332,15 @@ export default function Dashboard() {
       if (document.visibilityState === 'visible') refreshActivityWeek();
     };
 
-    refreshActivityWeek();
-    void fetchSocialInfo();
+    const timeoutId = window.setTimeout(() => {
+      refreshActivityWeek();
+      void fetchSocialInfo();
+    }, 0);
     window.addEventListener('focus', refreshActivityWeek);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
+      window.clearTimeout(timeoutId);
       window.removeEventListener('focus', refreshActivityWeek);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
@@ -330,39 +370,30 @@ export default function Dashboard() {
     };
   }, [isActive, startTime]);
 
-  // Fetch Recovery Recommendations
-  useEffect(() => {
-    if (muscles && muscles.length > 0) {
-      const tiredMuscles = [...muscles]
-        .filter(m => m.recoveryPercentage < 50)
-        .sort((a, b) => a.recoveryPercentage - b.recoveryPercentage);
-      if (tiredMuscles.length > 0) {
-        setFatiguedMuscleRecommendation(`${tiredMuscles[0].name} is fatigued (${Math.round(tiredMuscles[0].recoveryPercentage)}%). Avoid training it today.`);
-      } else if (readinessScore < 80) {
-        setFatiguedMuscleRecommendation(`CNS is recovering (${Math.round(readinessScore)}%). Focus on light active recovery or rest.`);
-      } else {
-        setFatiguedMuscleRecommendation("All muscles recovered. Ready to crush your targets!");
-      }
+  const fatiguedMuscleRecommendation = useMemo(() => {
+    if (!muscles || muscles.length === 0) return "";
+    const tiredMuscles = [...muscles]
+      .filter((muscle) => muscle.recoveryPercentage < 50)
+      .sort((left, right) => left.recoveryPercentage - right.recoveryPercentage);
+    if (tiredMuscles.length > 0) {
+      return `${tiredMuscles[0].name} is fatigued (${Math.round(tiredMuscles[0].recoveryPercentage)}%). Avoid training it today.`;
     }
+    if (readinessScore < 80) {
+      return `CNS is recovering (${Math.round(readinessScore)}%). Focus on light active recovery or rest.`;
+    }
+    return "All muscles recovered. Ready to crush your targets!";
   }, [muscles, readinessScore]);
 
   // Fetch streak sessions when modal opens
   useEffect(() => {
-    if (isStreakModalOpen) {
-      fetchStreakSessions();
-    }
+    if (!isStreakModalOpen) return;
+    const timeoutId = window.setTimeout(() => {
+      void fetchStreakSessions();
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
   }, [isStreakModalOpen, fetchStreakSessions]);
 
   const onlineFriends = friends.filter(f => f.isOnline && f.status === 'friends');
-
-  const WeatherIcon = () => {
-    if (weather.icon === 'sun') return <Sun className="w-4 h-4 text-yellow-400" />;
-    if (weather.icon === 'cloud') return <Cloud className="w-4 h-4 text-gray-300" />;
-    if (weather.icon === 'rain') return <CloudRain className="w-4 h-4 text-blue-400" />;
-    if (weather.icon === 'snow') return <Snowflake className="w-4 h-4 text-blue-200" />;
-    if (weather.icon === 'storm') return <CloudLightning className="w-4 h-4 text-purple-400" />;
-    return <MapPin className="w-4 h-4 text-text-muted" />;
-  };
 
   const handleWorkoutTileClick = () => {
     if (isActive) {
@@ -370,12 +401,12 @@ export default function Dashboard() {
       return;
     }
 
-    const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    const daysOfWeek = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"] as const;
     const todayName = daysOfWeek[new Date().getDay()];
-    const todayPlan = weeklyPlan.find(p => p.day === todayName);
+    const todayPlan = routine?.days.find((day) => day.weekday === todayName);
 
-    if (todayPlan && todayPlan.type !== 'Rest' && todayPlan.mainLifts && todayPlan.mainLifts.length > 0) {
-      startWorkout(todayPlan.title, todayPlan.mainLifts);
+    if (todayPlan && isDayStartable(todayPlan)) {
+      startWorkout(todayPlan.title, mainOccurrences(todayPlan));
       toast.success(`Started workout: ${todayPlan.title}`);
       router.push("/workout");
     } else {
@@ -444,7 +475,7 @@ export default function Dashboard() {
           </h1>
           <div className="group relative w-max mt-3">
             <div className="flex items-center gap-2 bg-black/40 backdrop-blur-md rounded-full px-3 py-1.5 border border-white/10 shadow-lg cursor-pointer hover:bg-black/60 transition-colors">
-              <WeatherIcon />
+              <WeatherIcon icon={weather.icon} />
               <span className="text-xs text-white font-bold">
                 {weather.status === "loading" || weather.status === "idle" ? "Loading..." : 
                  weather.status === "denied" || weather.status === "error" ? "--" :
@@ -569,7 +600,7 @@ export default function Dashboard() {
           
           <div className="z-10 flex flex-col justify-center">
              <span className="text-text-muted text-[10px] font-bold uppercase tracking-widest">
-               Today's Plan
+               Today&apos;s Plan
              </span>
              <h2 className="text-white font-black text-xl leading-tight mt-1">
                {mounted && isActive ? "Workout Active" : todayPlanName}
@@ -856,7 +887,7 @@ export default function Dashboard() {
                       minute: '2-digit'
                     });
                     
-                    const uniqueExercises = Array.from(new Set(session.workout_sets?.map((s: any) => s.exercise_name) || []));
+                    const uniqueExercises = Array.from(new Set(session.workout_sets?.map((workoutSet) => workoutSet.exercise_name) || []));
                     const exerciseSummary = uniqueExercises.length > 0 
                       ? uniqueExercises.slice(0, 3).join(', ') + (uniqueExercises.length > 3 ? '...' : '')
                       : 'Workout Session';

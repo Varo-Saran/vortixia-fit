@@ -2,7 +2,14 @@
 
 import { useRoutineStore } from "@/store/useRoutineStore";
 import { useWorkoutStore } from "@/store/useWorkoutStore";
-import { ChevronRight, Settings2, Play, Library, Share, Download, X, Copy, Check, Edit3, RotateCcw, Trash2 } from "lucide-react";
+import {
+  isDayStartable,
+  mainOccurrences,
+  shortWeekday,
+  weekdayLabel,
+} from "@/lib/routine-model";
+import type { PlannedExerciseOccurrence } from "@/types/routine";
+import { Settings2, Play, Library, Share, Download, X, Copy, Check, Edit3, RotateCcw, Trash2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -10,7 +17,11 @@ import { toast } from "react-hot-toast";
 
 export default function RoutinesPage() {
   const { 
-    weeklyPlan, 
+    routine,
+    loadStatus,
+    isLoading,
+    isSaving,
+    error,
     fetchRoutine, 
     exportRoutine, 
     importRoutine,
@@ -24,7 +35,9 @@ export default function RoutinesPage() {
   // Modals state
   const [showImportModal, setShowImportModal] = useState(false);
   const [importCode, setImportCode] = useState("");
-  const [importError, setImportError] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
   
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportCode, setExportCode] = useState("");
@@ -37,10 +50,8 @@ export default function RoutinesPage() {
   const [showDaySelectModal, setShowDaySelectModal] = useState(false);
 
   useEffect(() => {
-    if (weeklyPlan.length === 0) {
-      fetchRoutine();
-    }
-  }, [weeklyPlan.length, fetchRoutine]);
+    if (loadStatus === 'idle') void fetchRoutine();
+  }, [loadStatus, fetchRoutine]);
 
   const handleExport = () => {
     const code = exportRoutine();
@@ -56,25 +67,44 @@ export default function RoutinesPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleImport = () => {
-    const success = importRoutine(importCode);
-    if (success) {
+  const handleImport = async () => {
+    if (isImporting || isSaving || loadStatus !== 'ready') return;
+
+    setIsImporting(true);
+    setImportError(null);
+    try {
+      await importRoutine(importCode);
       setShowImportModal(false);
       setImportCode("");
-      setImportError(false);
-      toast.success("Split imported successfully!");
-    } else {
-      setImportError(true);
-      toast.error("Failed to import. Invalid code.");
+      toast.success("Split imported and saved successfully!");
+    } catch (error) {
+      const message = error instanceof Error
+        ? error.message
+        : "Unable to import and save this routine.";
+      setImportError(message);
+      toast.error(message);
+    } finally {
+      setIsImporting(false);
     }
   };
 
   // Resets active split to defaults
-  const handleResetActive = () => {
+  const handleResetActive = async () => {
+    if (isResetting || isSaving || loadStatus !== 'ready') return;
     if (confirm("Are you sure you want to reset your active split to the default Push/Pull/Legs (6-Day) program? This will overwrite your current schedule.")) {
-      resetActiveSplit();
-      toast.success("Active routine reset to defaults!");
-      setShowSettingsModal(false);
+      setIsResetting(true);
+      try {
+        await resetActiveSplit();
+        toast.success("Active routine reset and saved!");
+        setShowSettingsModal(false);
+      } catch (error) {
+        const message = error instanceof Error
+          ? error.message
+          : "Unable to reset and save the active routine.";
+        toast.error(message);
+      } finally {
+        setIsResetting(false);
+      }
     }
   };
 
@@ -105,7 +135,10 @@ export default function RoutinesPage() {
   };
 
   // Workout launching helper
-  const handleLaunchWorkout = (title: string, lifts: any[]) => {
+  const handleLaunchWorkout = (
+    title: string,
+    lifts: PlannedExerciseOccurrence[],
+  ) => {
     if (lifts.length === 0) {
       toast.error("Cannot start a workout with 0 exercises.");
       return;
@@ -115,8 +148,9 @@ export default function RoutinesPage() {
     router.push("/workout");
   };
 
-  const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const daysOfWeek = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"] as const;
   const todayName = daysOfWeek[new Date().getDay()];
+  const weeklyPlan = routine?.days ?? [];
 
   return (
     <main className="flex min-h-screen flex-col pt-[calc(var(--notch-top)+1rem)] pb-28 px-6 bg-[#050505] relative overflow-x-hidden">
@@ -134,6 +168,24 @@ export default function RoutinesPage() {
         </button>
       </header>
 
+      {loadStatus !== 'ready' && (
+        <div
+          role={loadStatus === 'error' ? "alert" : "status"}
+          className="mb-4 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-text-muted"
+        >
+          <p>{isLoading ? "Loading your saved routine…" : (error ?? "Your saved routine is unavailable.")}</p>
+          {loadStatus === 'error' && (
+            <button
+              type="button"
+              onClick={() => void fetchRoutine()}
+              className="mt-3 rounded-lg border border-accent-green/30 bg-accent-green/20 px-3 py-2 font-bold uppercase tracking-wider text-accent-green"
+            >
+              Retry
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Action Bar */}
       <section className="flex gap-2 mb-6 animate-fade-in-up">
          <Link href="/routines/templates" className="flex-1 bg-white/5 border border-white/10 rounded-xl p-3 flex flex-col items-center justify-center gap-1 active:scale-95 transition-transform">
@@ -144,7 +196,11 @@ export default function RoutinesPage() {
             <Share className="w-5 h-5 text-blue-400" />
             <span className="text-[10px] uppercase font-bold text-white tracking-widest">Share</span>
          </button>
-         <button onClick={() => setShowImportModal(true)} className="flex-1 bg-white/5 border border-white/10 rounded-xl p-3 flex flex-col items-center justify-center gap-1 active:scale-95 transition-transform">
+          <button
+            onClick={() => setShowImportModal(true)}
+            disabled={loadStatus !== 'ready' || isSaving}
+            className="flex-1 bg-white/5 border border-white/10 rounded-xl p-3 flex flex-col items-center justify-center gap-1 active:scale-95 transition-transform disabled:opacity-50"
+          >
             <Download className="w-5 h-5 text-orange-400" />
             <span className="text-[10px] uppercase font-bold text-white tracking-widest">Import</span>
          </button>
@@ -154,7 +210,7 @@ export default function RoutinesPage() {
         <div className="glass-card p-5 flex flex-col relative overflow-hidden group border-accent-green/30">
            <div className="absolute top-0 right-0 w-32 h-32 bg-accent-green/10 blur-3xl rounded-full" />
            <span className="text-[10px] text-accent-green font-bold tracking-widest uppercase mb-1 z-10">Active Split</span>
-           <h2 className="text-2xl font-black text-white z-10">Custom Plan</h2>
+           <h2 className="text-2xl font-black text-white z-10">{routine?.name ?? "Routine"}</h2>
            <p className="text-xs text-text-muted mt-1 z-10 mb-4">View your weekly split below.</p>
            
            <div className="flex gap-2 w-full z-10">
@@ -177,20 +233,22 @@ export default function RoutinesPage() {
       </section>
 
       <section className="flex flex-col gap-3 pb-8">
-        {weeklyPlan.map((plan, index) => (
-          <div key={plan.day} className="glass-card p-4 flex flex-col gap-2 animate-fade-in-up border border-white/5" style={{ animationDelay: `${index * 0.05}s` }}>
+        {weeklyPlan.map((plan, index) => {
+          const lifts = mainOccurrences(plan);
+          return (
+          <div key={plan.id} className="glass-card p-4 flex flex-col gap-2 animate-fade-in-up border border-white/5" style={{ animationDelay: `${index * 0.05}s` }}>
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-4">
                 <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black text-sm
-                  ${plan.type === 'Rest' ? 'bg-black/50 text-text-muted border border-white/5' : 'bg-white/10 text-white'}
-                  ${plan.day === todayName ? 'border-2 border-accent-green' : ''}
+                  ${plan.kind !== 'training' ? 'bg-black/50 text-text-muted border border-white/5' : 'bg-white/10 text-white'}
+                  ${plan.weekday === todayName ? 'border-2 border-accent-green' : ''}
                 `}>
-                  {plan.shortDay}
+                  {shortWeekday(plan.weekday)}
                 </div>
                 <div className="flex flex-col">
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] uppercase font-bold text-text-muted tracking-widest">{plan.type}</span>
-                    {plan.day === todayName && (
+                    <span className="text-[10px] uppercase font-bold text-text-muted tracking-widest">{plan.kind}</span>
+                    {plan.weekday === todayName && (
                       <span className="text-[8px] bg-accent-green/20 text-accent-green font-black uppercase tracking-widest px-1.5 py-0.5 rounded">TODAY</span>
                     )}
                   </div>
@@ -199,10 +257,10 @@ export default function RoutinesPage() {
               </div>
 
               {/* Direct Play button on card */}
-              {plan.type !== 'Rest' && plan.mainLifts.length > 0 && (
+              {isDayStartable(plan) && (
                 <button
-                  onClick={() => handleLaunchWorkout(plan.title, plan.mainLifts)}
-                  aria-label={`Start ${plan.day} Workout`}
+                  onClick={() => handleLaunchWorkout(plan.title, lifts)}
+                  aria-label={`Start ${weekdayLabel(plan.weekday)} Workout`}
                   className="w-10 h-10 rounded-full bg-accent-green/10 border border-accent-green/30 hover:bg-accent-green hover:text-black flex items-center justify-center text-accent-green transition-all active:scale-95"
                 >
                   <Play className="w-4 h-4 fill-current" />
@@ -212,8 +270,8 @@ export default function RoutinesPage() {
 
             {/* Exercises List preview */}
             <div className="mt-2 pl-[4.5rem] flex flex-col gap-1">
-              {plan.mainLifts.map((ex, i) => (
-                <div key={i} className="flex flex-col">
+              {lifts.map((ex) => (
+                <div key={ex.id} className="flex flex-col">
                   <span className="text-sm font-medium text-white truncate">
                     <span className="font-bold text-accent-green/80 mr-2">{ex.targetSets}x</span>
                     {ex.name}
@@ -223,10 +281,10 @@ export default function RoutinesPage() {
                   </span>
                 </div>
               ))}
-              {plan.mainLifts.length === 0 && <span className="text-xs text-text-muted italic">No exercises planned.</span>}
+              {lifts.length === 0 && <span className="text-xs text-text-muted italic">No exercises planned.</span>}
             </div>
           </div>
-        ))}
+        )})}
       </section>
 
       {/* WORKOUT DAY SELECTOR MODAL */}
@@ -240,20 +298,21 @@ export default function RoutinesPage() {
               <X className="w-5 h-5" />
             </button>
             <h3 className="text-xl font-black text-white mb-2">Select Workout Day</h3>
-            <p className="text-xs text-text-muted mb-4">Choose which day's workout from your split you would like to perform today.</p>
+            <p className="text-xs text-text-muted mb-4">Choose which day&apos;s workout from your split you would like to perform today.</p>
             
             <div className="flex flex-col gap-2 max-h-[50vh] overflow-y-auto pr-1">
               {weeklyPlan.map((plan) => {
-                const isToday = plan.day === todayName;
-                const isRest = plan.type === "Rest" || plan.mainLifts.length === 0;
+                const lifts = mainOccurrences(plan);
+                const isToday = plan.weekday === todayName;
+                const isRest = !isDayStartable(plan);
 
                 return (
                   <button
-                    key={plan.day}
+                    key={plan.id}
                     disabled={isRest}
                     onClick={() => {
                       setShowDaySelectModal(false);
-                      handleLaunchWorkout(plan.title, plan.mainLifts);
+                      handleLaunchWorkout(plan.title, lifts);
                     }}
                     className={`p-3 rounded-xl flex items-center justify-between border transition-all text-left ${
                       isRest 
@@ -265,8 +324,8 @@ export default function RoutinesPage() {
                   >
                     <div className="flex flex-col">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-black text-white">{plan.day}</span>
-                        <span className="text-[9px] uppercase text-text-muted font-semibold">({plan.type})</span>
+                        <span className="text-xs font-black text-white">{weekdayLabel(plan.weekday)}</span>
+                        <span className="text-[9px] uppercase text-text-muted font-semibold">({plan.kind})</span>
                         {isToday && <span className="text-[8px] bg-accent-green/20 text-accent-green px-1.5 py-0.5 rounded font-black tracking-widest">TODAY</span>}
                       </div>
                       <span className="text-xs text-text-muted truncate mt-0.5 max-w-[200px]">{plan.title}</span>
@@ -293,17 +352,17 @@ export default function RoutinesPage() {
             <p className="text-xs text-text-muted mb-4">Paste a routine code shared by a friend to instantly apply their split to your planner.</p>
             <textarea 
               value={importCode}
-              onChange={(e) => { setImportCode(e.target.value); setImportError(false); }}
+              onChange={(e) => { setImportCode(e.target.value); setImportError(null); }}
               placeholder="Paste code here..."
               className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-xs font-mono outline-none h-24 mb-2 resize-none"
             />
-            {importError && <p className="text-red-500 text-xs font-bold mb-4">Invalid routine code. Please try again.</p>}
+            {importError && <p className="text-red-500 text-xs font-bold mb-4">{importError}</p>}
             <button 
-              onClick={handleImport}
-              disabled={importCode.length === 0}
+              onClick={() => void handleImport()}
+              disabled={importCode.length === 0 || isImporting || isSaving || loadStatus !== 'ready'}
               className="w-full py-3 bg-accent-green text-black font-black rounded-xl active:scale-95 transition-transform disabled:opacity-50"
             >
-              IMPORT
+              {isImporting ? "IMPORTING..." : "IMPORT"}
             </button>
           </div>
         </div>
@@ -344,12 +403,13 @@ export default function RoutinesPage() {
             
             <div className="flex flex-col gap-3">
               <button 
-                onClick={handleResetActive}
-                className="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold p-4 rounded-xl flex items-center gap-3 transition-colors text-left"
+                onClick={() => void handleResetActive()}
+                disabled={isResetting || isSaving || loadStatus !== 'ready'}
+                className="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold p-4 rounded-xl flex items-center gap-3 transition-colors text-left disabled:opacity-50"
               >
                 <RotateCcw className="w-5 h-5 text-accent-green" />
                 <div className="flex flex-col">
-                  <span className="text-sm font-black">Reset Active Split</span>
+                  <span className="text-sm font-black">{isResetting ? "Resetting..." : "Reset Active Split"}</span>
                   <span className="text-[10px] text-text-muted">Revert your active program to the default 6-day PPL</span>
                 </div>
               </button>

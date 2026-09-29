@@ -1,7 +1,7 @@
 "use client";
 
 import { type WorkoutSet, useWorkoutStore } from "@/store/useWorkoutStore";
-import type { TrackingType, WeightUnit } from "@/store/useRoutineStore";
+import type { TrackingType, WeightUnit } from "@/types/routine";
 import { Check, X, Settings2, Calculator } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
