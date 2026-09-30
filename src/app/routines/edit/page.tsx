@@ -6,9 +6,11 @@ import { useRoutineStore } from '@/store/useRoutineStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { canSaveEditor, createPendingAdd } from '@/lib/routine-editor-controls';
 import type { ResolvedExercise } from '@/types/exercise-catalog';
+import type { ExerciseSection } from '@/types/routine';
+import { editorErrorInputId, INITIAL_EDITOR_DISCLOSURE, revealEditorError, transitionDisclosure, type DisclosureAction } from '@/lib/routine-editor-presentation';
 import { RoutineGuardedLink } from '@/components/RoutineDraftGuard';
 import { ExerciseSelectionModal } from '@/components/ExerciseSelectionModal';
-import { BufferedRoutineInput } from '@/components/routine-editor/BufferedRoutineInput';
+import { RoutineInformation } from '@/components/routine-editor/RoutineInformation';
 import { RoutineDayEditor } from '@/components/routine-editor/RoutineDayEditor';
 import { AddExerciseDrawer } from '@/components/routine-editor/AddExerciseDrawer';
 
@@ -16,15 +18,20 @@ export default function RoutineEditorPage() {
   const state = useRoutineStore();
   const { routine, loadStatus, isLoading, isSaving, draftStatus, error, fetchRoutine } = state;
   const defaultRest = useSettingsStore(settings => settings.defaultRestTimer);
-  const [expandedDay, setExpandedDay] = useState<string | null>('monday');
+  const [disclosure, setDisclosure] = useState(INITIAL_EDITOR_DISCLOSURE);
   const [searchDay, setSearchDay] = useState<string | null>(null);
+  const [searchSection, setSearchSection] = useState<ExerciseSection>('main');
   const [feedback, setFeedback] = useState('');
   const [saveFailed, setSaveFailed] = useState(false);
-  const [focusTarget, setFocusTarget] = useState<{ id: string } | null>(null);
+  const [focusTarget, setFocusTarget] = useState<{ id: string; firstInput?: boolean } | null>(null);
   useEffect(() => { if (loadStatus === 'idle') void fetchRoutine(); }, [fetchRoutine, loadStatus]);
   useEffect(() => {
     if (!focusTarget) return;
-    const frame = requestAnimationFrame(() => document.getElementById(focusTarget.id)?.focus());
+    const frame = requestAnimationFrame(() => {
+      const root = document.getElementById(focusTarget.id);
+      const input = focusTarget.firstInput ? root?.querySelector<HTMLElement>('input:not([disabled]),button[aria-haspopup="listbox"]') : null;
+      (input ?? root)?.focus();
+    });
     return () => cancelAnimationFrame(frame);
   }, [focusTarget]);
   const save = async () => {
@@ -38,7 +45,7 @@ export default function RoutineEditorPage() {
   const selectExercise = (exercise: ResolvedExercise) => {
     const day = routine?.days.find(value => value.id === searchDay);
     if (!day || day.kind === 'rest') return;
-    state.setPendingAdd(createPendingAdd(exercise, day.id));
+    state.setPendingAdd(createPendingAdd(exercise, day.id, searchSection));
     setSearchDay(null);
   };
   if (!routine) return <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#050505] px-6 text-center text-text-muted">
@@ -48,7 +55,23 @@ export default function RoutineEditorPage() {
   </main>;
   const status = isSaving ? 'Saving…' : saveFailed && error ? 'Save failed' : draftStatus;
   const count = routine.days.reduce((total, day) => total + day.exercises.length, 0);
-  return <main className="mx-auto min-h-screen w-full max-w-2xl space-y-5 bg-[#050505] px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] text-white">
+  const view = revealEditorError(disclosure, routine, state.editorBuffers);
+  const changeDisclosure = (action: DisclosureAction, target?: { id: string; firstInput?: boolean }) => {
+    const result = transitionDisclosure(view, action, useRoutineStore.getState().editorBuffers);
+    if (result.blockedField) {
+      setFocusTarget({ id: editorErrorInputId(result.blockedField) });
+      setFeedback('Check the highlighted field before closing or switching editors.');
+      return false;
+    }
+    setDisclosure(result.state);
+    if (target) setFocusTarget(target);
+    return true;
+  };
+  const done = () => {
+    const id = view.occurrenceId ? `occurrence-edit-${view.occurrenceId}` : view.daySettingsId ? `day-settings-${view.daySettingsId}` : view.routineSettings ? 'routine-settings-toggle' : undefined;
+    changeDisclosure({ kind: 'done' }, id ? { id } : undefined);
+  };
+  return <main className="mx-auto min-h-screen w-full max-w-2xl space-y-4 bg-[#050505] px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] text-white sm:space-y-5">
     <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-white/10 bg-[#050505]/95 py-3 pt-[calc(var(--notch-top)+0.75rem)] backdrop-blur-lg">
       <div className="flex min-w-0 items-center gap-3">
         <RoutineGuardedLink href="/routines" aria-label="Go back" className="flex min-h-11 min-w-11 items-center justify-center rounded-full border border-white/10 focus-visible:ring-2 focus-visible:ring-accent-green"><ChevronLeft aria-hidden="true" className="h-5 w-5" /></RoutineGuardedLink>
@@ -63,23 +86,24 @@ export default function RoutineEditorPage() {
       </button>
     </header>
     {error && <p role="alert" className="rounded-xl border border-red-400/30 bg-red-500/10 p-4 text-sm text-red-200">{error}</p>}
-    <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.025] p-4">
-      <BufferedRoutineInput field={{ kind: 'routine-name' }} value={routine.name} label="Routine name" />
-      <p className="text-xs text-text-muted">7 days · {count} exercises · Editing your routine, not its source template.</p>
-    </div>
+    <RoutineInformation name={routine.name} count={count} expanded={view.routineSettings} onEdit={() => changeDisclosure({ kind: 'routine-settings' }, { id: 'routine-settings-panel', firstInput: true })} onDone={done} />
     <p className="sr-only" aria-live="polite" aria-atomic="true">{feedback}</p>
-    {routine.days.map(day => <RoutineDayEditor key={day.id} day={day} expanded={expandedDay === day.weekday}
-      onToggle={() => setExpandedDay(current => current === day.weekday ? null : day.weekday)} onAdd={() => setSearchDay(day.id)} defaultRest={defaultRest} announce={setFeedback} focus={id => setFocusTarget({ id })} />)}
+    {routine.days.map(day => <RoutineDayEditor key={day.id} day={day} expanded={view.dayId === day.id}
+      settingsOpen={view.daySettingsId === day.id} activeOccurrenceId={view.occurrenceId} reorderSection={view.reorder?.dayId === day.id ? view.reorder.section : null}
+      onToggle={() => changeDisclosure({ kind: 'day', dayId: day.id })} onSettings={() => changeDisclosure({ kind: 'day-settings', dayId: day.id }, { id: `day-settings-panel-${day.id}`, firstInput: true })}
+      onOccurrence={occurrenceId => changeDisclosure({ kind: 'occurrence', dayId: day.id, occurrenceId }, { id: `occurrence-editor-${occurrenceId}`, firstInput: true })}
+      onReorder={section => changeDisclosure({ kind: 'reorder', dayId: day.id, section })} onDone={done}
+      onAdd={section => { if (changeDisclosure({ kind: 'done' })) { setSearchSection(section); setSearchDay(day.id); } }} defaultRest={defaultRest} announce={setFeedback} focus={id => setFocusTarget({ id })} />)}
     <ExerciseSelectionModal isOpen={searchDay !== null} onClose={() => {
       const dayId = searchDay;
       setSearchDay(null);
       // A selection hands focus to configuration, not the background Add button.
-      if (dayId && !useRoutineStore.getState().pendingAdd) setFocusTarget({ id: `routine-add-${dayId}` });
+      if (dayId && !useRoutineStore.getState().pendingAdd) setFocusTarget({ id: `routine-add-${dayId}-${searchSection}` });
     }} onSelect={selectExercise} />
-    <AddExerciseDrawer defaultRest={defaultRest} onChooseAnother={setSearchDay} onCancel={dayId => setFocusTarget({ id: `routine-add-${dayId}` })} onAdded={(dayId, occurrenceId) => {
+    <AddExerciseDrawer defaultRest={defaultRest} onChooseAnother={setSearchDay} onCancel={dayId => setFocusTarget({ id: `routine-add-${dayId}-${searchSection}` })} onAdded={(dayId, occurrenceId) => {
       const day = useRoutineStore.getState().routine?.days.find(value => value.id === dayId);
-      if (day) setExpandedDay(day.weekday);
-      setFocusTarget({ id: `routine-occurrence-${occurrenceId}` }); setFeedback('Exercise added to your unsaved routine.');
+      if (day) setDisclosure({ ...INITIAL_EDITOR_DISCLOSURE, dayId, occurrenceId });
+      setFocusTarget({ id: `occurrence-editor-${occurrenceId}`, firstInput: true }); setFeedback('Exercise added to your unsaved routine.');
     }} />
   </main>;
 }

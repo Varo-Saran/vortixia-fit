@@ -340,7 +340,11 @@ const controls = loader('src/lib/routine-editor-controls.ts');
 const uiState = makeStore(); await uiState.get().fetchRoutine();
 const hook = selector => selector ? selector(uiState.get()) : uiState.get();
 hook.getState = uiState.get;
+const SharedSelect = loader('src/components/ui/Select.tsx').Select;
+const selectInvocations = [];
+const lastSelect = label => selectInvocations.findLast(props => props.label === label);
 const uiLoader = localTypeScriptLoader({
+  '@/components/ui/Select': { Select: props => { selectInvocations.push(props); return React.createElement(SharedSelect, props); } },
   '@/store/useRoutineStore': { useRoutineStore: hook },
   '@/store/useSettingsStore': { useSettingsStore: selector => selector({ defaultRestTimer: 90 }) },
   '@/components/RoutineDraftGuard': { RoutineGuardedLink: ({ children, ...props }) => React.createElement('a', props, children) },
@@ -351,6 +355,7 @@ const DayEditor = uiLoader('src/components/routine-editor/RoutineDayEditor.tsx')
 const OccurrenceEditor = uiLoader('src/components/routine-editor/RoutineOccurrenceEditor.tsx').RoutineOccurrenceEditor;
 const RestControl = uiLoader('src/components/routine-editor/OccurrenceRestControl.tsx').RestControl;
 const Drawer = uiLoader('src/components/routine-editor/AddExerciseDrawer.tsx').AddExerciseDrawer;
+const Information = uiLoader('src/components/routine-editor/RoutineInformation.tsx').RoutineInformation;
 const uiIds = ids(uiState.get().routine);
 const commit = (field, raw) => {
   uiState.get().setEditorBuffer(field, raw);
@@ -406,24 +411,28 @@ commit({ kind: 'rest', occurrenceId: first.id }, '120'); commit({ kind: 'rest', 
 check('UI rest revert Saved', () => assert.equal(uiState.get().draftStatus, 'Saved'));
 check('UI edits stable identities', () => assert.deepEqual(ids(uiState.get().routine), uiIds));
 const wholePage = render(Page);
+const dayProps = { day: uiState.get().routine.days[0], expanded: true, defaultRest: 90, onToggle() {}, onAdd() {}, announce() {}, focus() {} };
+const settingsMarkup = render(DayEditor, { ...dayProps, settingsOpen: true, activeOccurrenceId: first.id });
+const reorderMarkup = render(DayEditor, { ...dayProps, reorderSection: 'warmup' });
+const editingMarkup = wholePage + settingsMarkup + render(Information, { name: seed.name, count: 64, expanded: true, onEdit() {}, onDone() {} });
 check('UI all 64 occurrence cards rendered', () => assert.equal((wholePage.match(/<article /g) ?? []).length, 64));
 check('UI all 11 warmups rendered', () => assert.equal((wholePage.match(/· Warm-up<\/p>/g) ?? []).length, 11));
 for (const phrase of ['Routine name', 'Day title', 'Day kind', 'Warm-up', 'Main exercises', 'Recovery activities', 'Rest day — no exercises planned', 'Remove all exercises before changing this day to Rest.']) {
-  check(`UI visible control ${phrase}`, () => assert(wholePage.includes(phrase)));
+  check(`UI visible control ${phrase}`, () => assert(editingMarkup.includes(phrase)));
 }
-check('UI rest has no Add control', () => assert(!render(DayEditor, { day: uiState.get().routine.days[6], expanded: true, defaultRest: 90, onToggle() {}, onAdd() {}, announce() {}, focus() {} }).includes('Add Exercise')));
+check('UI rest has no Add control', () => assert(!render(DayEditor, { day: uiState.get().routine.days[6], expanded: true, defaultRest: 90, onToggle() {}, onAdd() {}, announce() {}, focus() {} }).includes('id="routine-add-')));
 for (const mode of model.TRACKING_TYPES) {
-  const markup = render(OccurrenceEditor, { occurrence: { ...first, trackingType: mode }, canMoveUp: false, canMoveDown: true, defaultRest: 90, isSaving: false, onMove() {}, onRemove() {} });
+  const markup = render(OccurrenceEditor, { occurrence: { ...first, trackingType: mode }, expanded: true, canMoveUp: false, canMoveDown: true, defaultRest: 90, isSaving: false, onMove() {}, onRemove() {} });
   check(`UI five-mode label ${mode}`, () => assert(markup.includes(controls.TRACKING_LABELS[mode].replace('&', '&amp;'))));
   check(`UI tracking read-only ${mode}`, () => assert(markup.includes('Tracking (read-only)') && !markup.includes('Logging mode')));
 }
-for (const unit of model.WEIGHT_UNITS) check(`UI unit ${unit}`, () => assert(render(OccurrenceEditor, { occurrence: { ...first, weightUnit: unit }, canMoveUp: false, canMoveDown: false, defaultRest: 90, onMove() {}, onRemove() {} }).includes(controls.UNIT_LABELS[unit])));
-check('UI notes verbatim escaped markup', () => assert(wholePage.includes('Aerobic base building')));
-check('UI accordion hooks', () => assert.equal((wholePage.match(/aria-expanded=/g) ?? []).length, 7));
+for (const unit of model.WEIGHT_UNITS) check(`UI unit ${unit}`, () => assert(render(OccurrenceEditor, { occurrence: { ...first, weightUnit: unit }, expanded: true, canMoveUp: false, canMoveDown: false, defaultRest: 90, onMove() {}, onRemove() {} }).includes(controls.UNIT_LABELS[unit])));
+check('UI notes verbatim escaped markup', () => assert(render(OccurrenceEditor, { occurrence: seed.days[0].exercises.at(-1), expanded: true, defaultRest: 90, onMove() {}, onRemove() {} }).includes('Aerobic base building')));
+check('UI accordion hooks', () => assert.equal((wholePage.match(/id="day-heading-[^"]+"[^>]*aria-expanded=/g) ?? []).length, 7));
 check('UI region relationships', () => assert.equal((wholePage.match(/role="region"/g) ?? []).length, 7));
-check('UI input labels and errors', () => assert(wholePage.includes('for="editor-sets:') && wholePage.includes('aria-invalid="false"')));
-check('UI Move accessible names', () => assert(wholePage.includes('aria-label="Move ') && wholePage.includes(' down"')));
-check('UI boundary Up disabled', () => assert.match(wholePage, /disabled="" aria-label="Move [^"]+ up"/));
+check('UI input labels and errors', () => assert(settingsMarkup.includes('for="editor-sets:') && settingsMarkup.includes('aria-invalid="false"')));
+check('UI Move accessible names', () => assert(reorderMarkup.includes('aria-label="Move ') && reorderMarkup.includes(' down"')));
+check('UI boundary Up disabled', () => assert.match(reorderMarkup, /disabled="" aria-label="Move [^"]+ up"/));
 check('UI notes/IDs survive move adapter', () => {
   const before = uiState.get().routine; uiState.get().moveOccurrence(day.id, first.id, 'down');
   assert.deepEqual(programming(before), programming(uiState.get().routine)); assert.deepEqual(ids(before), ids(uiState.get().routine));
@@ -469,7 +478,7 @@ const cardioProjection = editor.persistedRoutineProjection(cardioState.get().rou
 const cardioPayload = model.routinePlanToRpcPayload(cardioState.get().routine);
 const cardioDraftState = structuredClone([cardioState.get().draftStatus, cardioState.get().editorBuffers, cardioState.get().draftRevision]);
 const bike = cardioRoutine.days[0].exercises.find(value => value.exerciseId === '9003');
-const occurrenceMarkup = occurrence => render(OccurrenceEditor, { occurrence, canMoveUp: false, canMoveDown: false, isSaving: false, defaultRest: 90, onMove() {}, onRemove() {} });
+const occurrenceMarkup = occurrence => render(OccurrenceEditor, { occurrence, expanded: true, canMoveUp: false, canMoveDown: false, isSaving: false, defaultRest: 90, onMove() {}, onRemove() {} });
 for (const id of ['9003', '3666', '9001', '2141']) {
   const exercise = catalog.getExerciseById(id);
   check(`cardio canonical category ${id}`, () => assert.equal(cardioPresentation.isCatalogCardio(exercise), true));
@@ -492,7 +501,7 @@ for (const mode of ['time_only', 'time_weight', 'cardio_hr']) check(`continuous 
 for (const mode of ['reps_only', 'reps_weight']) check(`repetition mode not continuous ${mode}`, () => assert.equal(cardioPresentation.occurrenceProgrammingPresentation({ ...bike, trackingType: mode }).continuous, false));
 const continuousCardio = occurrenceMarkup(bike);
 check('continuous Duration full field', () => assert(continuousCardio.includes('>Duration / prescription</label>') && continuousCardio.includes('value="30 mins"')));
-check('continuous count de-emphasized in disclosure', () => assert.match(continuousCardio, /<details[\s\S]*Continuous cardio · Adjust rounds[\s\S]*>Rounds<\/label>/));
+check('continuous count de-emphasized in disclosure', () => assert.match(continuousCardio, /aria-expanded="false" aria-controls="rounds-[\s\S]*Continuous cardio · Adjust rounds[\s\S]*>Rounds<\/label>/));
 check('continuous never strength Sets label', () => assert(!continuousCardio.includes('>Sets</label>')));
 const multiRoundCardio = occurrenceMarkup({ ...bike, targetSets: 3 });
 check('multiround editable Rounds', () => assert(multiRoundCardio.includes('>Rounds</label>') && multiRoundCardio.includes('value="3"') && !multiRoundCardio.includes('<details')));
@@ -510,7 +519,7 @@ for (const text of ['', 'easy aerobic hard', 'Zone 0', 'Zone 6', 'Zone 12', 'Zon
 check('conflicting target/note zones suppressed', () => assert.equal(cardioPresentation.occurrenceProgrammingPresentation({ ...bike, targetValue: '30 mins Zone 1', note: 'Zone 2' }).zone, null));
 check('strength Sets label unchanged', () => assert(occurrenceMarkup({ ...bike, exerciseId: '0025', targetSets: 4 }).includes('>Sets</label>')));
 check('cardio notes remain verbatim', () => assert(continuousCardio.includes(bike.note)));
-check('cardio rest control retained', () => assert(continuousCardio.includes('>Rest</label>') && continuousCardio.includes('Use Default') && continuousCardio.includes('Custom')));
+check('cardio rest control retained', () => { occurrenceMarkup(bike); assert(continuousCardio.includes('>Rest</label>') && continuousCardio.includes('Use Default') && lastSelect('Rest').options.some(value => value.value === 'custom')); });
 check('cardio custom rest display 75', () => assert(occurrenceMarkup({ ...bike, restSeconds: 75 }).includes('Rest: 1 min 15 sec')));
 for (const occurrence of cardioState.get().routine.days.flatMap(value => value.exercises)) {
   cardioPresentation.occurrenceProgrammingPresentation(occurrence);
@@ -556,7 +565,7 @@ for (const rest of [null, 75]) {
   for (const label of ['Rest', 'Rest between rounds', 'Rest between sets']) {
     const markup = render(RestControl, { id: 'label-rest', label, raw: rest === null ? 'default' : String(rest), error: null, defaultRest: 90, onChange() {} });
     check(`label ${label} preserves rest display ${rest}`, () => assert(markup.includes(`Rest: ${controls.formatRest(rest)}`)));
-    check(`label ${label} preserves presets/custom ${rest}`, () => assert(controls.REST_PRESETS.every(value => markup.includes(`value="${value}"`)) && markup.includes('Use Default') && markup.includes('Custom')));
+    check(`label ${label} preserves presets/custom ${rest}`, () => assert.deepEqual(lastSelect(label).options.map(option => option.value), ['default', ...controls.REST_PRESETS.map(String), 'custom']));
   }
 }
 for (const [exerciseId, rawSets, label] of [['9003', '1', 'Rest'], ['9003', '3', 'Rest between rounds'], ['0025', '1', 'Rest between sets']]) {
@@ -565,6 +574,95 @@ for (const [exerciseId, rawSets, label] of [['9003', '1', 'Rest'], ['9003', '3',
   check('Add label leaves default null', () => assert.equal(uiState.get().pendingAdd.restSeconds, null));
 }
 uiState.get().setPendingAdd(null);
+
+// Progressive disclosure is pure view state, not a second draft system.
+const disclosure = loader('src/lib/routine-editor-presentation.ts');
+const viewState = makeStore({ loaded: cardioRoutine }); await viewState.get().fetchRoutine();
+const viewBefore = [editor.routineFingerprint(viewState.get().routine), viewState.get().draftRevision, viewState.get().draftStatus];
+const viewPayload = model.routinePlanToRpcPayload(viewState.get().routine);
+let view = disclosure.INITIAL_EDITOR_DISCLOSURE;
+check('overview initially collapsed', () => assert.equal(view.dayId, null));
+check('no occurrence initially editing', () => assert.equal(view.occurrenceId, null));
+const viewDay = viewState.get().routine.days[0];
+const viewFirst = viewDay.exercises[0], viewSecond = viewDay.exercises[1];
+for (const action of [
+  { kind: 'day', dayId: viewDay.id },
+  { kind: 'occurrence', dayId: viewDay.id, occurrenceId: viewFirst.id },
+  { kind: 'occurrence', dayId: viewDay.id, occurrenceId: viewSecond.id },
+  { kind: 'done' }, { kind: 'day-settings', dayId: viewDay.id }, { kind: 'done' },
+  { kind: 'reorder', dayId: viewDay.id, section: 'warmup' }, { kind: 'done' },
+  { kind: 'routine-settings' }, { kind: 'done' }, { kind: 'day', dayId: viewDay.id },
+]) {
+  const old = structuredClone(view);
+  const result = disclosure.transitionDisclosure(view, action, {});
+  check(`disclosure ${action.kind} input state immutable`, () => assert.deepEqual(view, old));
+  view = result.state;
+  check(`disclosure ${action.kind} projection/revision/dirty untouched`, () => assert.deepEqual([editor.routineFingerprint(viewState.get().routine), viewState.get().draftRevision, viewState.get().draftStatus], viewBefore));
+  check(`disclosure ${action.kind} no persistence`, () => assert.equal(viewState.writes(), 0));
+  if (action.kind === 'occurrence') check(`single active occurrence ${action.occurrenceId}`, () => assert.deepEqual([view.occurrenceId, view.daySettingsId, view.reorder, view.routineSettings], [action.occurrenceId, null, null, false]));
+}
+check('disclosure leaves RPC payload unchanged', () => assert.deepEqual(model.routinePlanToRpcPayload(viewState.get().routine), viewPayload));
+for (const field of [
+  { kind: 'sets', occurrenceId: viewFirst.id }, { kind: 'target', occurrenceId: viewFirst.id },
+  { kind: 'rest', occurrenceId: viewFirst.id }, { kind: 'day-title', dayId: viewDay.id }, { kind: 'routine-name' },
+]) {
+  viewState.get().setEditorBuffer(field, '');
+  const buffers = viewState.get().editorBuffers;
+  const opened = disclosure.revealEditorError(disclosure.INITIAL_EDITOR_DISCLOSURE, viewState.get().routine, buffers);
+  check(`invalid ${field.kind} remount reveals correct editor`, () => assert(field.kind === 'routine-name' ? opened.routineSettings : field.kind === 'day-title' ? opened.daySettingsId === viewDay.id : opened.occurrenceId === viewFirst.id));
+  for (const action of [{ kind: 'done' }, { kind: 'day', dayId: viewDay.id }, { kind: 'occurrence', dayId: viewDay.id, occurrenceId: viewSecond.id }, { kind: 'reorder', dayId: viewDay.id, section: 'main' }]) {
+    const result = disclosure.transitionDisclosure(opened, action, buffers);
+    check(`invalid ${field.kind} blocks ${action.kind}`, () => assert.strictEqual(result.state, opened));
+    check(`invalid ${field.kind} identifies field to focus`, () => assert.deepEqual(result.blockedField, field));
+  }
+  check(`invalid ${field.kind} buffer preserved`, () => assert.equal(Object.values(viewState.get().editorBuffers)[0].raw, ''));
+  viewState.get().discardDraft();
+}
+check('invalid rest focus maps custom input', () => assert.equal(disclosure.editorErrorInputId({ kind: 'rest', occurrenceId: 'test' }), 'rest-test-custom'));
+check('valid buffer permits Done without discard', () => {
+  viewState.get().setEditorBuffer({ kind: 'target', occurrenceId: viewFirst.id }, '25 mins');
+  assert.equal(disclosure.transitionDisclosure({ ...view, occurrenceId: viewFirst.id }, { kind: 'done' }, viewState.get().editorBuffers).blockedField, null);
+  assert.equal(Object.values(viewState.get().editorBuffers)[0].raw, '25 mins');
+});
+viewState.get().discardDraft();
+const compactProps = { occurrence: bike, canMoveUp: false, canMoveDown: true, defaultRest: 90, isSaving: false, onMove() {}, onRemove() {}, onEdit() {}, onDone() {} };
+const compactCard = render(OccurrenceEditor, compactProps);
+check('compact card has no programming input', () => assert(!compactCard.includes('<input')));
+check('compact card has no Remove or Move controls', () => assert(!compactCard.includes('aria-label="Remove ') && !compactCard.includes('aria-label="Move ')));
+check('compact cardio duration no set emphasis', () => assert(compactCard.includes('30 mins') && !compactCard.includes('1 ×')));
+check('compact cardio explicit intensity accessible', () => assert(compactCard.includes('aria-label="Intensity Zone 2"')));
+check('compact notes indicator not full content', () => assert(compactCard.includes('>Note<') && !compactCard.includes('Aerobic base building')));
+check('compact rest Default inheritance clear', () => assert(compactCard.includes('Rest: Default')));
+check('compact Edit accessible and touch target', () => assert(compactCard.includes(`aria-label="Edit ${bike.name}"`) && compactCard.includes('min-h-11')));
+const expandedCard = render(OccurrenceEditor, { ...compactProps, expanded: true });
+check('expanded note verbatim retained', () => assert(expandedCard.includes(bike.note)));
+check('expanded Remove accessible', () => assert(expandedCard.includes(`aria-label="Remove ${bike.name}"`)));
+check('expanded Done communicates local-only', () => assert(expandedCard.includes('Done closes this card') && expandedCard.includes('Save Changes')));
+check('expanded has no permanent move clutter', () => assert(!expandedCard.includes('aria-label="Move ')));
+const reorderCard = render(OccurrenceEditor, { ...compactProps, reordering: true });
+check('reorder compact controls without forms', () => assert(!reorderCard.includes('<input') && reorderCard.includes('aria-label="Move ')));
+check('reorder boundary disabled', () => assert.match(reorderCard, /disabled=""[^>]*aria-label="Move /));
+const compactDay = render(DayEditor, { ...dayProps, settingsOpen: false, activeOccurrenceId: null });
+check('expanded day defaults to compact cards', () => assert(!compactDay.includes('<input')));
+check('expanded day settings hidden until request', () => assert(compactDay.includes('Edit day') && !compactDay.includes('>Day title</label>')));
+check('single active occurrence renders one visible form panel', () => assert.equal((render(DayEditor, { ...dayProps, activeOccurrenceId: first.id }).match(/<div id="occurrence-editor-[^"]+">/g) ?? []).length, 1));
+check('day Reorder accessible pressed state', () => assert(compactDay.includes('aria-pressed="false"') && compactDay.includes('Reorder Warm-up')));
+check('chevron inset and aligned target', () => assert(compactDay.includes('p-4') && compactDay.includes('h-11 w-11')));
+check('compact routine has no name field', () => assert(!render(Information, { name: seed.name, count: 64, expanded: false, onEdit() {}, onDone() {} }).includes('<input')));
+check('editor uses no native selects', () => assert(![expandedCard, settingsMarkup, cardioDrawer].some(markup => markup.includes('<select'))));
+check('shared Select exposes labelled combobox semantics', () => assert(expandedCard.includes('role="combobox"') && expandedCard.includes('aria-haspopup="listbox"')));
+const invalidRoundsBike = uiState.get().routine.days[0].exercises.find(item => item.exerciseId === '9003');
+uiState.get().setEditorBuffer({ kind: 'sets', occurrenceId: invalidRoundsBike.id }, '0');
+const invalidRoundsMarkup = occurrenceMarkup(invalidRoundsBike);
+check('invalid continuous rounds disclosure cannot hide error', () => assert(invalidRoundsMarkup.includes(`aria-expanded="true" aria-controls="rounds-${invalidRoundsBike.id}"`)));
+check('invalid continuous rounds field stays visible', () => assert(!invalidRoundsMarkup.includes(`id="rounds-${invalidRoundsBike.id}" hidden`)));
+uiState.get().discardDraft();
+check('custom selects preserve exact rest values', () => { render(RestControl, { id: 'disclosure-rest', label: 'Rest', raw: '75', onChange() {}, defaultRest: 90 }); assert.deepEqual(lastSelect('Rest').options.map(option => option.value), ['default', '30', '45', '60', '90', '120', '180', 'custom']); });
+for (const [occurrence, expected] of [[{ ...bike, exerciseId: '0025', targetSets: 4, targetValue: '6–8', weightUnit: 'kg' }, '4 × 6–8'], [bike, '30 mins'], [{ ...bike, targetSets: 3 }, '3 Rounds · 30 mins'], [{ ...bike, exerciseId: '1564', targetValue: '3 mins total' }, '1 × 3 mins total']]) {
+  const before = structuredClone(occurrence);
+  check(`compact summary ${expected}`, () => assert.equal(disclosure.compactOccurrenceSummary(occurrence).prescription, expected));
+  check('summary never mutates programming', () => assert.deepEqual(occurrence, before));
+}
 console.log(`Routine editor validation passed: ${positive} positive assertions, ${negative} negative fixtures.`);
 console.log('Actual domain operations, Zustand actions, guard bridge, D1 serialization and active workout snapshot exercised.');
 console.log('Deterministic single-flight / subscriber reentry / stale domain+buffer / failure+retry / cancellation+stale approval fixtures passed.');

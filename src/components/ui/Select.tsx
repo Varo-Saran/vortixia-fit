@@ -11,6 +11,9 @@ export interface SelectOption {
 }
 
 interface SelectProps {
+  id?: string;
+  invalid?: boolean;
+  describedBy?: string;
   options: readonly SelectOption[];
   value: string;
   onValueChange: (value: string) => void;
@@ -36,6 +39,9 @@ const LISTBOX_MIN_PREFERRED_SPACE = 192;
 const VIEWPORT_PADDING = 8;
 
 export function Select({
+  id,
+  invalid,
+  describedBy,
   options,
   value,
   onValueChange,
@@ -187,7 +193,13 @@ export function Select({
         break;
       case "Escape":
         event.preventDefault();
+        event.stopPropagation();
         close();
+        break;
+      case "Tab":
+        // Resume normal tab order from the trigger, including modal focus traps.
+        setIsOpen(false);
+        triggerRef.current?.focus();
         break;
       case "Enter":
       case " ":
@@ -227,7 +239,7 @@ export function Select({
             top: listboxPosition.top,
             width: listboxPosition.width,
           }}
-          className={`fixed z-[120] overflow-y-auto rounded-2xl border border-white/10 bg-[#111] p-1.5 shadow-2xl shadow-black/60 ${listboxPosition.direction === "up" ? "-translate-y-full" : ""}`}
+          className={`fixed z-[120] overflow-y-auto rounded-2xl border border-white/15 bg-[#141818]/95 p-1.5 shadow-2xl shadow-black/60 backdrop-blur-xl ${listboxPosition.direction === "up" ? "-translate-y-full" : ""}`}
         >
           {options.map((option, index) => {
             const isSelected = option.value === value;
@@ -243,7 +255,7 @@ export function Select({
                 onFocus={() => setActiveIndex(index)}
                 onKeyDown={(event) => handleOptionKeyDown(event, index)}
                 onClick={() => selectOption(index)}
-                className={`flex w-full items-start gap-3 rounded-xl px-3 py-2.5 text-left leading-5 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent-green/50 disabled:cursor-not-allowed disabled:opacity-40 ${size === "compact" ? "text-xs" : "text-sm"} ${
+                className={`flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left leading-5 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent-green/50 disabled:cursor-not-allowed disabled:opacity-40 ${size === "compact" ? "text-xs" : "text-sm"} ${
                   isSelected
                     ? "bg-accent-green/15 text-accent-green"
                     : "text-white/80 hover:bg-white/10 hover:text-white"
@@ -270,12 +282,16 @@ export function Select({
         onBlur={handleBlur}
       >
         <button
+          id={id}
           ref={triggerRef}
           type="button"
+          role="combobox"
           aria-label={`${label}: ${selectedOption?.label ?? placeholder}`}
           aria-haspopup="listbox"
           aria-expanded={isOpen}
           aria-controls={listboxId}
+          aria-invalid={invalid}
+          aria-describedby={describedBy}
           disabled={isUnavailable}
           title={selectedOption?.label ?? placeholder}
           onClick={() => (isOpen ? close() : open())}
