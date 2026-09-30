@@ -21,6 +21,8 @@ export interface PendingAdd {
   trackingType: TrackingType | null;
   weightUnit: WeightUnit | null;
   restSeconds: number | null;
+  // Raw custom input survives route remounts without entering the graph.
+  rawRest?: string;
 }
 export interface DraftState {
   routine: RoutinePlan | null;

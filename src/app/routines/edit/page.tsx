@@ -1,309 +1,109 @@
-"use client";
+'use client';
 
-import { useRoutineStore } from "@/store/useRoutineStore";
-import type { ResolvedExercise } from "@/types/exercise-catalog";
-import type { TrackingType, Weekday, WeightUnit } from "@/types/routine";
-import { getExerciseById } from '@/lib/exercise-catalog';
-import { mainOccurrences, shortWeekday, weekdayLabel } from "@/lib/routine-model";
-import { ChevronLeft, ChevronDown, ChevronUp, Plus, X, Settings, Save } from "lucide-react";
-import { RoutineGuardedLink as Link } from '@/components/RoutineDraftGuard';
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { ExerciseSelectionModal } from "@/components/ExerciseSelectionModal";
-import { Select } from "@/components/ui/Select";
-
-const TRACKING_TYPE_OPTIONS = [
-  { value: "reps_weight", label: "Standard (Reps + Weight)" },
-  { value: "reps_only", label: "Bodyweight (Reps Only)" },
-  { value: "time_only", label: "Time Only (e.g. Planks)" },
-  { value: "time_weight", label: "Time + Weight (e.g. Carries)" },
-  { value: "cardio_hr", label: "Cardio (Time + HR Zone)" },
-];
-
-const WEIGHT_UNIT_OPTIONS = [
-  { value: "kg", label: "Kilograms (kg)" },
-  { value: "lbs", label: "Pounds (lbs)" },
-  { value: "plates", label: "Plates (Machine Stack count)" },
-  { value: "unitless", label: "Unitless (Worn dumbell number)" },
-];
+import { useEffect, useState } from 'react';
+import { CheckCircle2, ChevronLeft, CircleAlert, LoaderCircle, Save } from 'lucide-react';
+import { useRoutineStore } from '@/store/useRoutineStore';
+import { useSettingsStore } from '@/store/useSettingsStore';
+import { canSaveEditor, createPendingAdd } from '@/lib/routine-editor-controls';
+import type { ResolvedExercise } from '@/types/exercise-catalog';
+import type { ExerciseSection } from '@/types/routine';
+import { editorErrorInputId, INITIAL_EDITOR_DISCLOSURE, revealEditorError, transitionDisclosure, type DisclosureAction } from '@/lib/routine-editor-presentation';
+import { RoutineGuardedLink } from '@/components/RoutineDraftGuard';
+import { ExerciseSelectionModal } from '@/components/ExerciseSelectionModal';
+import { RoutineInformation } from '@/components/routine-editor/RoutineInformation';
+import { RoutineDayEditor } from '@/components/routine-editor/RoutineDayEditor';
+import { AddExerciseDrawer } from '@/components/routine-editor/AddExerciseDrawer';
 
 export default function RoutineEditorPage() {
-  const {
-    routine,
-    loadStatus,
-    isLoading,
-    isSaving,
-    draftStatus,
-    pendingAdd,
-    setPendingAdd,
-    commitPendingAdd,
-    error,
-    fetchRoutine,
-    removeOccurrence,
-    saveRoutineToDb,
-  } = useRoutineStore();
-  const router = useRouter();
-
-  const [expandedDay, setExpandedDay] = useState<Weekday | null>("monday");
-
-  // Modal States
-  const [showSearchModal, setShowSearchModal] = useState(false);
-  const [targetDayForAdd, setTargetDayForAdd] = useState<Weekday | null>(null);
-
-  // Configuration survives native Back / route remount; no UUID until Add.
-  const selectedExercise = pendingAdd ? getExerciseById(pendingAdd.exerciseId) : undefined;
-  const showConfigDrawer = !!pendingAdd;
-
+  const state = useRoutineStore();
+  const { routine, loadStatus, isLoading, isSaving, draftStatus, error, fetchRoutine } = state;
+  const defaultRest = useSettingsStore(settings => settings.defaultRestTimer);
+  const [disclosure, setDisclosure] = useState(INITIAL_EDITOR_DISCLOSURE);
+  const [searchDay, setSearchDay] = useState<string | null>(null);
+  const [searchSection, setSearchSection] = useState<ExerciseSection>('main');
+  const [feedback, setFeedback] = useState('');
+  const [saveFailed, setSaveFailed] = useState(false);
+  const [focusTarget, setFocusTarget] = useState<{ id: string; firstInput?: boolean } | null>(null);
+  useEffect(() => { if (loadStatus === 'idle') void fetchRoutine(); }, [fetchRoutine, loadStatus]);
   useEffect(() => {
-    if (loadStatus === 'idle') void fetchRoutine();
-  }, [fetchRoutine, loadStatus]);
-
-  const handleSaveAll = async () => {
+    if (!focusTarget) return;
+    const frame = requestAnimationFrame(() => {
+      const root = document.getElementById(focusTarget.id);
+      const input = focusTarget.firstInput ? root?.querySelector<HTMLElement>('input:not([disabled]),button[aria-haspopup="listbox"]') : null;
+      (input ?? root)?.focus();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [focusTarget]);
+  const save = async () => {
+    if (!canSaveEditor(useRoutineStore.getState())) return;
+    setSaveFailed(false);
     try {
-      const outcome = await saveRoutineToDb();
-      if (outcome.status !== 'saved-with-newer-edits' && !useRoutineStore.getState().hasUnsavedChanges) router.push("/routines");
-    } catch (e) {
-      console.error("Error saving routine edits:", e);
-    }
+      const outcome = await state.saveRoutineToDb();
+      setFeedback(outcome.status === 'saved-with-newer-edits' ? 'Submitted changes saved. Newer edits are still unsaved.' : 'Routine saved.');
+    } catch { setSaveFailed(true); }
   };
-
-  const handleRemoveExercise = (exId: string) => {
-    try { removeOccurrence(exId); } catch { /* Store exposes the controlled error. */ }
-  };
-
-  const openSearchForDay = (weekday: Weekday) => {
-    setTargetDayForAdd(weekday);
-    setShowSearchModal(true);
-  };
-
-  const openConfigForExercise = (ex: ResolvedExercise) => {
-    const day = routine?.days.find(value => value.weekday === targetDayForAdd);
+  const selectExercise = (exercise: ResolvedExercise) => {
+    const day = routine?.days.find(value => value.id === searchDay);
     if (!day || day.kind === 'rest') return;
-    const trackingType = ex.defaultTrackingType ?? null;
-    const weighted = trackingType === 'reps_weight' || trackingType === 'time_weight';
-    const unit = ex.supportedWeightUnits?.[0];
-    setPendingAdd({ dayId: day.id, section: 'main', exerciseId: ex.id, rawSets: '3', rawTarget: '',
-      trackingType, weightUnit: trackingType && !weighted ? 'unitless' : unit === 'lb' ? 'lbs' : unit ?? null, restSeconds: null });
-    setShowSearchModal(false);
+    state.setPendingAdd(createPendingAdd(exercise, day.id, searchSection));
+    setSearchDay(null);
   };
-
-  const confirmAddExercise = () => {
-    try { commitPendingAdd(); } catch { /* Invalid Add remains buffered with a visible store error. */ }
+  if (!routine) return <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#050505] px-6 text-center text-text-muted">
+    <p role={loadStatus === 'error' ? 'alert' : 'status'}>{isLoading ? 'Loading routine…' : error ?? 'No routine is available.'}</p>
+    {loadStatus === 'error' && <button type="button" className="min-h-11 rounded-xl border border-accent-green/40 px-5 text-accent-green" onClick={() => void fetchRoutine()}>Retry</button>}
+    <RoutineGuardedLink href="/routines" className="min-h-11 px-4 py-3">Back to Routines</RoutineGuardedLink>
+  </main>;
+  const status = isSaving ? 'Saving…' : saveFailed && error ? 'Save failed' : draftStatus;
+  const count = routine.days.reduce((total, day) => total + day.exercises.length, 0);
+  const view = revealEditorError(disclosure, routine, state.editorBuffers);
+  const changeDisclosure = (action: DisclosureAction, target?: { id: string; firstInput?: boolean }) => {
+    const result = transitionDisclosure(view, action, useRoutineStore.getState().editorBuffers);
+    if (result.blockedField) {
+      setFocusTarget({ id: editorErrorInputId(result.blockedField) });
+      setFeedback('Check the highlighted field before closing or switching editors.');
+      return false;
+    }
+    setDisclosure(result.state);
+    if (target) setFocusTarget(target);
+    return true;
   };
-
-  if (!routine) {
-    const loadFailed = loadStatus === 'error';
-    return (
-      <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#050505] px-6 text-center text-sm text-text-muted">
-        <p role={loadFailed ? "alert" : undefined}>
-          {isLoading ? "Loading routine…" : (error ?? "No routine is available.")}
-        </p>
-        {loadFailed && (
-          <button
-            type="button"
-            onClick={() => void fetchRoutine()}
-            className="rounded-lg border border-accent-green/30 bg-accent-green/20 px-4 py-2 text-xs font-bold uppercase tracking-wider text-accent-green"
-          >
-            Retry
-          </button>
-        )}
-      </main>
-    );
-  }
-
-  return (
-    <main className="flex min-h-screen flex-col pb-28 px-4 bg-[#050505] relative overflow-x-hidden">
-      
-      <header className="w-full flex items-center justify-between pt-[calc(var(--notch-top)+1rem)] pb-4 mb-4 sticky top-0 z-20 bg-[#050505]/80 backdrop-blur-lg">
-        <div className="flex items-center gap-4">
-          <Link href="/routines" className="p-2 bg-white/5 rounded-full border border-white/10 hover:bg-white/10 transition-colors" aria-label="Go back">
-            <ChevronLeft className="w-5 h-5 text-white" />
-          </Link>
-          <div className="flex flex-col">
-            <h1 className="text-xl font-extrabold tracking-tight text-white">Routine Editor</h1>
-            <span className="text-[10px] text-accent-green uppercase font-bold tracking-widest">{routine.name}</span>
-            <span role="status" className="text-xs text-text-muted">{isSaving ? 'Saving…' : draftStatus}</span>
-          </div>
+  const done = () => {
+    const id = view.occurrenceId ? `occurrence-edit-${view.occurrenceId}` : view.daySettingsId ? `day-settings-${view.daySettingsId}` : view.routineSettings ? 'routine-settings-toggle' : undefined;
+    changeDisclosure({ kind: 'done' }, id ? { id } : undefined);
+  };
+  return <main className="mx-auto min-h-screen w-full max-w-2xl space-y-4 bg-[#050505] px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] text-white sm:space-y-5">
+    <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-white/10 bg-[#050505]/95 py-3 pt-[calc(var(--notch-top)+0.75rem)] backdrop-blur-lg">
+      <div className="flex min-w-0 items-center gap-3">
+        <RoutineGuardedLink href="/routines" aria-label="Go back" className="flex min-h-11 min-w-11 items-center justify-center rounded-full border border-white/10 focus-visible:ring-2 focus-visible:ring-accent-green"><ChevronLeft aria-hidden="true" className="h-5 w-5" /></RoutineGuardedLink>
+        <div className="min-w-0"><h1 className="text-lg font-extrabold sm:text-xl">Routine Editor</h1>
+          <p role="status" aria-live="polite" className={`mt-1 flex items-center gap-1.5 text-xs ${status === 'Save failed' ? 'text-red-300' : draftStatus === 'Saved' ? 'text-accent-green' : 'text-text-muted'}`}>
+            {isSaving ? <LoaderCircle aria-hidden="true" className="h-3.5 w-3.5 animate-spin" /> : draftStatus === 'Saved' ? <CheckCircle2 aria-hidden="true" className="h-3.5 w-3.5" /> : <CircleAlert aria-hidden="true" className="h-3.5 w-3.5" />}{status}
+          </p>
         </div>
-        <button 
-          onClick={handleSaveAll} 
-          disabled={isSaving || loadStatus !== 'ready'}
-          className="flex items-center gap-1 bg-accent-green/20 text-accent-green px-3 py-1.5 rounded-lg border border-accent-green/30 active:scale-95 transition-transform disabled:opacity-50"
-        >
-          <Save className="w-4 h-4" />
-          <span className="text-xs font-bold uppercase tracking-wider">
-            {isSaving ? "Saving..." : "Save"}
-          </span>
-        </button>
-      </header>
-
-      {error && (
-        <div role="alert" className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs text-red-200">
-          {error}
-        </div>
-      )}
-
-      <section className="flex flex-col gap-3 animate-fade-in-up">
-        {routine.days.map((dayPlan) => {
-          const lifts = mainOccurrences(dayPlan);
-          return (
-          <div key={dayPlan.id} className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
-            <button 
-              onClick={() => setExpandedDay(expandedDay === dayPlan.weekday ? null : dayPlan.weekday)}
-              className="w-full p-4 flex items-center justify-between hover:bg-white/5 transition-colors"
-            >
-              <div className="flex items-center gap-4">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm
-                  ${dayPlan.kind !== 'training' ? 'bg-black/50 text-text-muted border border-white/5' : 'bg-white/10 text-white'}
-                `}>
-                  {shortWeekday(dayPlan.weekday)}
-                </div>
-                <div className="flex flex-col items-start">
-                  <span className="font-bold text-white text-sm">{weekdayLabel(dayPlan.weekday)}</span>
-                  <span className="text-[10px] text-text-muted uppercase tracking-widest">{lifts.length} Exercises</span>
-                </div>
-              </div>
-              {expandedDay === dayPlan.weekday ? <ChevronUp className="w-5 h-5 text-text-muted" /> : <ChevronDown className="w-5 h-5 text-text-muted" />}
-            </button>
-
-            {expandedDay === dayPlan.weekday && (
-              <div className="p-4 border-t border-white/5 bg-black/30 flex flex-col gap-3">
-                
-                {lifts.map((ex) => (
-                  <div key={ex.id} className="bg-white/5 border border-white/5 rounded-xl p-3 flex flex-col gap-2">
-                    <div className="flex justify-between items-start">
-                      <div className="flex flex-col">
-                        <span className="text-sm font-bold text-white capitalize">{ex.name}</span>
-                        <span className="text-[10px] text-text-muted uppercase tracking-wider">{ex.targetMuscle}</span>
-                      </div>
-                      <button aria-label={`Remove ${ex.name}`} onClick={() => handleRemoveExercise(ex.id)} className="p-1 text-red-500/50 hover:text-red-500 transition-colors">
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                    
-                    <div className="flex flex-wrap gap-2 mt-1">
-                      <span className="text-[10px] bg-black/50 border border-white/10 rounded-md px-2 py-1 text-accent-green font-mono">
-                        {ex.targetSets} sets
-                      </span>
-                      <span className="text-[10px] bg-black/50 border border-white/10 rounded-md px-2 py-1 text-white font-mono">
-                        {ex.targetValue}
-                      </span>
-                      <span className="text-[10px] bg-black/50 border border-white/10 rounded-md px-2 py-1 text-text-muted font-mono">
-                        {ex.trackingType.replace('_', ' ')}
-                      </span>
-                      {ex.weightUnit !== 'unitless' && (
-                        <span className="text-[10px] bg-black/50 border border-white/10 rounded-md px-2 py-1 text-blue-400 font-mono">
-                          {ex.weightUnit}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-
-                <button 
-                  onClick={() => openSearchForDay(dayPlan.weekday)}
-                  disabled={dayPlan.kind === 'rest'}
-                  className="w-full py-3 mt-2 rounded-xl border border-dashed border-white/20 text-white/50 text-xs font-bold tracking-widest uppercase hover:bg-white/5 hover:text-white transition-colors flex items-center justify-center gap-2"
-                >
-                  <Plus className="w-4 h-4" /> Add Exercise
-                </button>
-                {dayPlan.kind === 'rest' && <p className="text-xs text-text-muted">Exercises cannot be added to a Rest day.</p>}
-              </div>
-            )}
-          </div>
-        )})}
-      </section>
-
-      {/* EXERCISE SEARCH MODAL */}
-      <ExerciseSelectionModal
-        isOpen={showSearchModal}
-        onClose={() => setShowSearchModal(false)}
-        onSelect={(exercise) => openConfigForExercise(exercise)}
-      />
-
-      {/* EXERCISE CONFIG DRAWER */}
-      {showConfigDrawer && selectedExercise && (
-        <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex flex-col justify-end">
-          <div className="bg-[#111] border-t border-white/10 rounded-t-3xl p-6 pb-safe-bottom max-h-[90vh] overflow-y-auto animate-fade-in-up">
-            <div className="flex justify-between items-start mb-6">
-              <div className="flex flex-col">
-                <h3 className="text-xl font-black text-white capitalize">{selectedExercise.displayName}</h3>
-                <span className="text-xs text-accent-green uppercase tracking-widest">{selectedExercise.primaryMuscle}</span>
-              </div>
-              <button aria-label="Cancel Add Exercise" onClick={() => setPendingAdd(null)} className="p-2 bg-white/5 rounded-full text-text-muted">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="flex flex-col gap-4 mb-8">
-              {error && <p role="alert" className="text-sm text-red-300">{error}</p>}
-              {!selectedExercise.defaultTrackingType && <p className="text-xs text-text-muted">This exercise needs an explicit logging mode and unit. No defaults are inferred.</p>}
-              {/* Sets & Value */}
-              <div className="flex gap-4">
-                <div className="flex-1 flex flex-col gap-1">
-                  <label className="text-[10px] uppercase tracking-widest text-text-muted font-bold">Target Sets</label>
-                  <input 
-                    type="number" 
-                    value={pendingAdd!.rawSets}
-                    min={1} max={100} step={1}
-                    aria-label="Target sets"
-                    onChange={e => setPendingAdd({ ...pendingAdd!, rawSets: e.target.value })}
-                    className="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-3 text-white text-sm outline-none focus:border-accent-green"
-                  />
-                </div>
-                <div className="flex-1 flex flex-col gap-1">
-                  <label className="text-[10px] uppercase tracking-widest text-text-muted font-bold">Target Value (Reps/Secs)</label>
-                  <input 
-                    type="text" 
-                    value={pendingAdd!.rawTarget}
-                    aria-label="Target value"
-                    onChange={e => setPendingAdd({ ...pendingAdd!, rawTarget: e.target.value })}
-                    placeholder="e.g. 10-12, 60s"
-                    className="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-3 text-white text-sm outline-none focus:border-accent-green"
-                  />
-                </div>
-              </div>
-
-              {/* Tracking Style */}
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] uppercase tracking-widest text-text-muted font-bold flex items-center gap-1">
-                  <Settings className="w-3 h-3" /> Tracking Style
-                </label>
-                <Select
-                  options={TRACKING_TYPE_OPTIONS}
-                  value={pendingAdd!.trackingType ?? ''}
-                  onValueChange={(nextValue) => {
-                    const trackingType = nextValue as TrackingType;
-                    const weighted = trackingType === 'reps_weight' || trackingType === 'time_weight';
-                    setPendingAdd({ ...pendingAdd!, trackingType, weightUnit: weighted ? null : 'unitless' });
-                  }}
-                  label="Tracking style"
-                />
-              </div>
-
-              {/* Weight Unit */}
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] uppercase tracking-widest text-text-muted font-bold">Weight Unit (For Logging)</label>
-                <Select
-                  options={WEIGHT_UNIT_OPTIONS}
-                  value={pendingAdd!.weightUnit ?? ''}
-                  onValueChange={(nextValue) => setPendingAdd({ ...pendingAdd!, weightUnit: nextValue as WeightUnit })}
-                  label="Weight unit for logging"
-                  disabled={pendingAdd!.trackingType === null || pendingAdd!.trackingType === 'reps_only' || pendingAdd!.trackingType === 'time_only' || pendingAdd!.trackingType === 'cardio_hr'}
-                />
-              </div>
-            </div>
-
-            <button 
-              onClick={confirmAddExercise}
-              className="w-full py-4 bg-accent-green text-black font-black rounded-xl active:scale-95 transition-transform"
-            >
-              ADD TO PLAN
-            </button>
-          </div>
-        </div>
-      )}
-
-    </main>
-  );
+      </div>
+      <button type="button" onClick={() => void save()} disabled={!canSaveEditor(state)} aria-busy={isSaving} className="flex min-h-11 shrink-0 items-center gap-2 rounded-xl bg-accent-green/20 px-4 text-sm font-bold text-accent-green focus-visible:ring-2 focus-visible:ring-accent-green disabled:opacity-40">
+        <Save aria-hidden="true" className="h-4 w-4" />{isSaving ? 'Saving…' : 'Save Changes'}
+      </button>
+    </header>
+    {error && <p role="alert" className="rounded-xl border border-red-400/30 bg-red-500/10 p-4 text-sm text-red-200">{error}</p>}
+    <RoutineInformation name={routine.name} count={count} expanded={view.routineSettings} onEdit={() => changeDisclosure({ kind: 'routine-settings' }, { id: 'routine-settings-panel', firstInput: true })} onDone={done} />
+    <p className="sr-only" aria-live="polite" aria-atomic="true">{feedback}</p>
+    {routine.days.map(day => <RoutineDayEditor key={day.id} day={day} expanded={view.dayId === day.id}
+      settingsOpen={view.daySettingsId === day.id} activeOccurrenceId={view.occurrenceId} reorderSection={view.reorder?.dayId === day.id ? view.reorder.section : null}
+      onToggle={() => changeDisclosure({ kind: 'day', dayId: day.id })} onSettings={() => changeDisclosure({ kind: 'day-settings', dayId: day.id }, { id: `day-settings-panel-${day.id}`, firstInput: true })}
+      onOccurrence={occurrenceId => changeDisclosure({ kind: 'occurrence', dayId: day.id, occurrenceId }, { id: `occurrence-editor-${occurrenceId}`, firstInput: true })}
+      onReorder={section => changeDisclosure({ kind: 'reorder', dayId: day.id, section })} onDone={done}
+      onAdd={section => { if (changeDisclosure({ kind: 'done' })) { setSearchSection(section); setSearchDay(day.id); } }} defaultRest={defaultRest} announce={setFeedback} focus={id => setFocusTarget({ id })} />)}
+    <ExerciseSelectionModal isOpen={searchDay !== null} onClose={() => {
+      const dayId = searchDay;
+      setSearchDay(null);
+      // A selection hands focus to configuration, not the background Add button.
+      if (dayId && !useRoutineStore.getState().pendingAdd) setFocusTarget({ id: `routine-add-${dayId}-${searchSection}` });
+    }} onSelect={selectExercise} />
+    <AddExerciseDrawer defaultRest={defaultRest} onChooseAnother={setSearchDay} onCancel={dayId => setFocusTarget({ id: `routine-add-${dayId}-${searchSection}` })} onAdded={(dayId, occurrenceId) => {
+      const day = useRoutineStore.getState().routine?.days.find(value => value.id === dayId);
+      if (day) setDisclosure({ ...INITIAL_EDITOR_DISCLOSURE, dayId, occurrenceId });
+      setFocusTarget({ id: `occurrence-editor-${occurrenceId}`, firstInput: true }); setFeedback('Exercise added to your unsaved routine.');
+    }} />
+  </main>;
 }

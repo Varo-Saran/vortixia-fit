@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
+import { useRoutineDialog } from '@/components/routine-editor/useRoutineDialog';
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, X, Dumbbell, Activity, Info } from "lucide-react";
 import {
@@ -28,17 +29,8 @@ export function ExerciseSelectionModal({ isOpen, onClose, onSelect }: ExerciseSe
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        onClose();
-      }
-    };
-    if (isOpen) {
-      window.addEventListener("keydown", handleKeyDown);
-    }
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose]);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useRoutineDialog(isOpen, dialogRef, onClose);
   const [exerciseData, setExerciseData] = useState<readonly ResolvedExercise[]>([]);
 
   useEffect(() => {
@@ -69,6 +61,7 @@ export function ExerciseSelectionModal({ isOpen, onClose, onSelect }: ExerciseSe
   return (
     <AnimatePresence>
       <motion.div 
+        ref={dialogRef} role="dialog" aria-modal="true" aria-label="Exercise Library"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -81,7 +74,7 @@ export function ExerciseSelectionModal({ isOpen, onClose, onSelect }: ExerciseSe
               <Dumbbell className="w-5 h-5 text-accent-green" />
               Exercise Library
             </h2>
-            <button onClick={onClose} className="p-2 bg-white/5 rounded-full hover:bg-white/10 transition-colors" aria-label="Close">
+            <button onClick={onClose} className="min-h-11 min-w-11 p-2 bg-white/5 rounded-full hover:bg-white/10 transition-colors" aria-label="Close">
               <X className="w-5 h-5 text-white" />
             </button>
           </div>
@@ -91,6 +84,7 @@ export function ExerciseSelectionModal({ isOpen, onClose, onSelect }: ExerciseSe
             <Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
             <input 
               type="text"
+              aria-label="Search exercises"
               placeholder="Search exercises (e.g., Bench, RDL...)"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
