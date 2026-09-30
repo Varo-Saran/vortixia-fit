@@ -12,7 +12,8 @@ import type { PlannedExerciseOccurrence } from "@/types/routine";
 import { Settings2, Play, Library, Share, Download, X, Copy, Check, Edit3, RotateCcw, Trash2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
+import { RoutineGuardedLink as Link } from '@/components/RoutineDraftGuard';
+import { RoutineGuardCancelledError } from '@/lib/routine-draft-guard';
 import { toast } from "react-hot-toast";
 
 export default function RoutinesPage() {
@@ -21,6 +22,7 @@ export default function RoutinesPage() {
     loadStatus,
     isLoading,
     isSaving,
+    draftStatus,
     error,
     fetchRoutine, 
     exportRoutine, 
@@ -73,11 +75,13 @@ export default function RoutinesPage() {
     setIsImporting(true);
     setImportError(null);
     try {
-      await importRoutine(importCode);
+      const outcome = await importRoutine(importCode);
+      if (outcome.status === 'saved-with-newer-edits' || useRoutineStore.getState().hasUnsavedChanges) return;
       setShowImportModal(false);
       setImportCode("");
       toast.success("Split imported and saved successfully!");
     } catch (error) {
+      if (error instanceof RoutineGuardCancelledError) return;
       const message = error instanceof Error
         ? error.message
         : "Unable to import and save this routine.";
@@ -94,10 +98,12 @@ export default function RoutinesPage() {
     if (confirm("Are you sure you want to reset your active split to the default Push/Pull/Legs (6-Day) program? This will overwrite your current schedule.")) {
       setIsResetting(true);
       try {
-        await resetActiveSplit();
+        const outcome = await resetActiveSplit();
+        if (outcome.status === 'saved-with-newer-edits' || useRoutineStore.getState().hasUnsavedChanges) return;
         toast.success("Active routine reset and saved!");
         setShowSettingsModal(false);
       } catch (error) {
+        if (error instanceof RoutineGuardCancelledError) return;
         const message = error instanceof Error
           ? error.message
           : "Unable to reset and save the active routine.";
@@ -187,6 +193,7 @@ export default function RoutinesPage() {
       )}
 
       {/* Action Bar */}
+      {routine && <p role="status" className="mb-3 text-xs text-text-muted">{isSaving ? 'Saving…' : draftStatus}</p>}
       <section className="flex gap-2 mb-6 animate-fade-in-up">
          <Link href="/routines/templates" className="flex-1 bg-white/5 border border-white/10 rounded-xl p-3 flex flex-col items-center justify-center gap-1 active:scale-95 transition-transform">
             <Library className="w-5 h-5 text-accent-green" />

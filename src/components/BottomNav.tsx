@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { RoutineGuardedLink as Link } from '@/components/RoutineDraftGuard';
 import { usePathname } from "next/navigation";
 import { Home, Swords, HeartPulse, UserCircle, ClipboardList } from "lucide-react";
 import { motion } from "framer-motion";

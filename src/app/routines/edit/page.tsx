@@ -3,9 +3,10 @@
 import { useRoutineStore } from "@/store/useRoutineStore";
 import type { ResolvedExercise } from "@/types/exercise-catalog";
 import type { TrackingType, Weekday, WeightUnit } from "@/types/routine";
+import { getExerciseById } from '@/lib/exercise-catalog';
 import { mainOccurrences, shortWeekday, weekdayLabel } from "@/lib/routine-model";
 import { ChevronLeft, ChevronDown, ChevronUp, Plus, X, Settings, Save } from "lucide-react";
-import Link from "next/link";
+import { RoutineGuardedLink as Link } from '@/components/RoutineDraftGuard';
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ExerciseSelectionModal } from "@/components/ExerciseSelectionModal";
@@ -32,9 +33,12 @@ export default function RoutineEditorPage() {
     loadStatus,
     isLoading,
     isSaving,
+    draftStatus,
+    pendingAdd,
+    setPendingAdd,
+    commitPendingAdd,
     error,
     fetchRoutine,
-    addOccurrence,
     removeOccurrence,
     saveRoutineToDb,
   } = useRoutineStore();
@@ -46,14 +50,9 @@ export default function RoutineEditorPage() {
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [targetDayForAdd, setTargetDayForAdd] = useState<Weekday | null>(null);
 
-  const [showConfigDrawer, setShowConfigDrawer] = useState(false);
-  const [selectedExercise, setSelectedExercise] = useState<ResolvedExercise | null>(null);
-
-  // Config Drawer State
-  const [cfgTrackingType, setCfgTrackingType] = useState<TrackingType>("reps_weight");
-  const [cfgWeightUnit, setCfgWeightUnit] = useState<WeightUnit>("kg");
-  const [cfgSets, setCfgSets] = useState(3);
-  const [cfgValue, setCfgValue] = useState("10");
+  // Configuration survives native Back / route remount; no UUID until Add.
+  const selectedExercise = pendingAdd ? getExerciseById(pendingAdd.exerciseId) : undefined;
+  const showConfigDrawer = !!pendingAdd;
 
   useEffect(() => {
     if (loadStatus === 'idle') void fetchRoutine();
@@ -61,15 +60,15 @@ export default function RoutineEditorPage() {
 
   const handleSaveAll = async () => {
     try {
-      await saveRoutineToDb();
-      router.push("/routines");
+      const outcome = await saveRoutineToDb();
+      if (outcome.status !== 'saved-with-newer-edits' && !useRoutineStore.getState().hasUnsavedChanges) router.push("/routines");
     } catch (e) {
       console.error("Error saving routine edits:", e);
     }
   };
 
   const handleRemoveExercise = (exId: string) => {
-    removeOccurrence(exId);
+    try { removeOccurrence(exId); } catch { /* Store exposes the controlled error. */ }
   };
 
   const openSearchForDay = (weekday: Weekday) => {
@@ -78,41 +77,18 @@ export default function RoutineEditorPage() {
   };
 
   const openConfigForExercise = (ex: ResolvedExercise) => {
-    setSelectedExercise(ex);
-    
-    // Auto-detect defaults based on equipment or name
-    if (ex.equipment === "body weight") {
-      setCfgTrackingType("reps_only");
-      setCfgWeightUnit("unitless");
-    } else if (ex.name.toLowerCase().includes("plank")) {
-      setCfgTrackingType("time_only");
-      setCfgWeightUnit("unitless");
-      setCfgValue("60 secs");
-    } else {
-      setCfgTrackingType("reps_weight");
-      setCfgWeightUnit("kg");
-      setCfgValue("10");
-    }
-    
+    const day = routine?.days.find(value => value.weekday === targetDayForAdd);
+    if (!day || day.kind === 'rest') return;
+    const trackingType = ex.defaultTrackingType ?? null;
+    const weighted = trackingType === 'reps_weight' || trackingType === 'time_weight';
+    const unit = ex.supportedWeightUnits?.[0];
+    setPendingAdd({ dayId: day.id, section: 'main', exerciseId: ex.id, rawSets: '3', rawTarget: '',
+      trackingType, weightUnit: trackingType && !weighted ? 'unitless' : unit === 'lb' ? 'lbs' : unit ?? null, restSeconds: null });
     setShowSearchModal(false);
-    setShowConfigDrawer(true);
   };
 
   const confirmAddExercise = () => {
-    if (!targetDayForAdd || !selectedExercise) return;
-
-    addOccurrence(targetDayForAdd, {
-      exerciseId: selectedExercise.id,
-      name: selectedExercise.name,
-      targetMuscle: selectedExercise.target,
-      section: "main",
-      trackingType: cfgTrackingType,
-      weightUnit: cfgWeightUnit,
-      targetSets: cfgSets,
-      targetValue: cfgValue,
-      restSeconds: null,
-    });
-    setShowConfigDrawer(false);
+    try { commitPendingAdd(); } catch { /* Invalid Add remains buffered with a visible store error. */ }
   };
 
   if (!routine) {
@@ -146,6 +122,7 @@ export default function RoutineEditorPage() {
           <div className="flex flex-col">
             <h1 className="text-xl font-extrabold tracking-tight text-white">Routine Editor</h1>
             <span className="text-[10px] text-accent-green uppercase font-bold tracking-widest">{routine.name}</span>
+            <span role="status" className="text-xs text-text-muted">{isSaving ? 'Saving…' : draftStatus}</span>
           </div>
         </div>
         <button 
@@ -199,7 +176,7 @@ export default function RoutineEditorPage() {
                         <span className="text-sm font-bold text-white capitalize">{ex.name}</span>
                         <span className="text-[10px] text-text-muted uppercase tracking-wider">{ex.targetMuscle}</span>
                       </div>
-                      <button onClick={() => handleRemoveExercise(ex.id)} className="p-1 text-red-500/50 hover:text-red-500 transition-colors">
+                      <button aria-label={`Remove ${ex.name}`} onClick={() => handleRemoveExercise(ex.id)} className="p-1 text-red-500/50 hover:text-red-500 transition-colors">
                         <X className="w-4 h-4" />
                       </button>
                     </div>
@@ -225,10 +202,12 @@ export default function RoutineEditorPage() {
 
                 <button 
                   onClick={() => openSearchForDay(dayPlan.weekday)}
+                  disabled={dayPlan.kind === 'rest'}
                   className="w-full py-3 mt-2 rounded-xl border border-dashed border-white/20 text-white/50 text-xs font-bold tracking-widest uppercase hover:bg-white/5 hover:text-white transition-colors flex items-center justify-center gap-2"
                 >
                   <Plus className="w-4 h-4" /> Add Exercise
                 </button>
+                {dayPlan.kind === 'rest' && <p className="text-xs text-text-muted">Exercises cannot be added to a Rest day.</p>}
               </div>
             )}
           </div>
@@ -248,23 +227,27 @@ export default function RoutineEditorPage() {
           <div className="bg-[#111] border-t border-white/10 rounded-t-3xl p-6 pb-safe-bottom max-h-[90vh] overflow-y-auto animate-fade-in-up">
             <div className="flex justify-between items-start mb-6">
               <div className="flex flex-col">
-                <h3 className="text-xl font-black text-white capitalize">{selectedExercise.name}</h3>
-                <span className="text-xs text-accent-green uppercase tracking-widest">{selectedExercise.target}</span>
+                <h3 className="text-xl font-black text-white capitalize">{selectedExercise.displayName}</h3>
+                <span className="text-xs text-accent-green uppercase tracking-widest">{selectedExercise.primaryMuscle}</span>
               </div>
-              <button onClick={() => setShowConfigDrawer(false)} className="p-2 bg-white/5 rounded-full text-text-muted">
+              <button aria-label="Cancel Add Exercise" onClick={() => setPendingAdd(null)} className="p-2 bg-white/5 rounded-full text-text-muted">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <div className="flex flex-col gap-4 mb-8">
+              {error && <p role="alert" className="text-sm text-red-300">{error}</p>}
+              {!selectedExercise.defaultTrackingType && <p className="text-xs text-text-muted">This exercise needs an explicit logging mode and unit. No defaults are inferred.</p>}
               {/* Sets & Value */}
               <div className="flex gap-4">
                 <div className="flex-1 flex flex-col gap-1">
                   <label className="text-[10px] uppercase tracking-widest text-text-muted font-bold">Target Sets</label>
                   <input 
                     type="number" 
-                    value={cfgSets}
-                    onChange={e => setCfgSets(Number(e.target.value))}
+                    value={pendingAdd!.rawSets}
+                    min={1} max={100} step={1}
+                    aria-label="Target sets"
+                    onChange={e => setPendingAdd({ ...pendingAdd!, rawSets: e.target.value })}
                     className="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-3 text-white text-sm outline-none focus:border-accent-green"
                   />
                 </div>
@@ -272,8 +255,9 @@ export default function RoutineEditorPage() {
                   <label className="text-[10px] uppercase tracking-widest text-text-muted font-bold">Target Value (Reps/Secs)</label>
                   <input 
                     type="text" 
-                    value={cfgValue}
-                    onChange={e => setCfgValue(e.target.value)}
+                    value={pendingAdd!.rawTarget}
+                    aria-label="Target value"
+                    onChange={e => setPendingAdd({ ...pendingAdd!, rawTarget: e.target.value })}
                     placeholder="e.g. 10-12, 60s"
                     className="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-3 text-white text-sm outline-none focus:border-accent-green"
                   />
@@ -287,8 +271,12 @@ export default function RoutineEditorPage() {
                 </label>
                 <Select
                   options={TRACKING_TYPE_OPTIONS}
-                  value={cfgTrackingType}
-                  onValueChange={(nextValue) => setCfgTrackingType(nextValue as TrackingType)}
+                  value={pendingAdd!.trackingType ?? ''}
+                  onValueChange={(nextValue) => {
+                    const trackingType = nextValue as TrackingType;
+                    const weighted = trackingType === 'reps_weight' || trackingType === 'time_weight';
+                    setPendingAdd({ ...pendingAdd!, trackingType, weightUnit: weighted ? null : 'unitless' });
+                  }}
                   label="Tracking style"
                 />
               </div>
@@ -298,10 +286,10 @@ export default function RoutineEditorPage() {
                 <label className="text-[10px] uppercase tracking-widest text-text-muted font-bold">Weight Unit (For Logging)</label>
                 <Select
                   options={WEIGHT_UNIT_OPTIONS}
-                  value={cfgWeightUnit}
-                  onValueChange={(nextValue) => setCfgWeightUnit(nextValue as WeightUnit)}
+                  value={pendingAdd!.weightUnit ?? ''}
+                  onValueChange={(nextValue) => setPendingAdd({ ...pendingAdd!, weightUnit: nextValue as WeightUnit })}
                   label="Weight unit for logging"
-                  disabled={cfgTrackingType === 'reps_only' || cfgTrackingType === 'time_only' || cfgTrackingType === 'cardio_hr'}
+                  disabled={pendingAdd!.trackingType === null || pendingAdd!.trackingType === 'reps_only' || pendingAdd!.trackingType === 'time_only' || pendingAdd!.trackingType === 'cardio_hr'}
                 />
               </div>
             </div>
