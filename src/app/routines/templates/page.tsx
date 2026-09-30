@@ -2,6 +2,9 @@
 
 import { useRoutineStore, RoutineTemplate } from "@/store/useRoutineStore";
 import type { LegacyDayPlan } from "@/types/routine";
+import type { BuiltInRoutineTemplate } from "@/types/routine-template";
+import { legacyPlanToRoutinePlan, weekdayLabel } from "@/lib/routine-model";
+import { resolveRoutineTemplate, templateTrainingFrequency, type ResolvedTemplatePreview } from "@/lib/routine-templates";
 import { ChevronLeft, Library, Check, X, Plus, Trash2, Save, Share } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -32,8 +35,23 @@ export default function TemplatesPage() {
   const [activeTab, setActiveTab] = useState<"my-plans" | "explore">("my-plans");
   const [appliedId, setAppliedId] = useState<string | null>(null);
   const [applyingId, setApplyingId] = useState<string | null>(null);
-  const [selectedViewTemplate, setSelectedViewTemplate] = useState<RoutineTemplate | null>(null);
-  const [activeViewDay, setActiveViewDay] = useState<string>("Monday");
+  const [selectedViewTemplate, setSelectedViewTemplate] = useState<ResolvedTemplatePreview | null>(null);
+  const [activeViewDay, setActiveViewDay] = useState<string>("monday");
+
+  const showTemplatePreview = (template: BuiltInRoutineTemplate | RoutineTemplate) => {
+    try {
+      const preview = 'days' in template
+        ? resolveRoutineTemplate(template)
+        : {
+            id: template.id, name: template.name, description: template.description,
+            days: legacyPlanToRoutinePlan(template.name, template.plan).days,
+          };
+      setSelectedViewTemplate(preview);
+      setActiveViewDay(preview.days[0]?.weekday ?? "monday");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to resolve the template preview.");
+    }
+  };
 
   // iXiA AI Modal State
   const [showAiModal, setShowAiModal] = useState(false);
@@ -344,7 +362,7 @@ export default function TemplatesPage() {
               <div className="flex items-start justify-between relative z-10">
                 <div className="flex flex-col">
                   <h2 className="text-lg font-black text-white">{tpl.name}</h2>
-                  <span className="text-[10px] uppercase font-bold text-accent-green tracking-widest mt-1">{tpl.frequency}</span>
+                  <span className="text-[10px] uppercase font-bold text-accent-green tracking-widest mt-1">{templateTrainingFrequency(tpl)}</span>
                 </div>
                 <Library className="w-6 h-6 text-white/20" />
               </div>
@@ -355,10 +373,7 @@ export default function TemplatesPage() {
 
               <div className="flex gap-3 mt-5">
                 <button
-                  onClick={() => {
-                    setSelectedViewTemplate(tpl);
-                    setActiveViewDay(tpl.plan[0]?.day || "Monday");
-                  }}
+                  onClick={() => showTemplatePreview(tpl)}
                   className="flex-1 py-3 rounded-xl font-bold text-xs tracking-wider bg-white/5 hover:bg-white/10 text-white border border-white/5 transition-all"
                 >
                   VIEW WORKOUT
@@ -442,10 +457,7 @@ export default function TemplatesPage() {
 
                 <div className="flex gap-3 mt-5">
                   <button
-                    onClick={() => {
-                      setSelectedViewTemplate(tpl);
-                      setActiveViewDay(tpl.plan[0]?.day || "Monday");
-                    }}
+                    onClick={() => showTemplatePreview(tpl)}
                     className="flex-1 py-3 rounded-xl font-bold text-xs tracking-wider bg-white/5 hover:bg-white/10 text-white border border-white/5 transition-all"
                   >
                     VIEW WORKOUT
@@ -771,23 +783,23 @@ export default function TemplatesPage() {
               </button>
               
               <h3 className="text-lg font-black text-white pr-8">{selectedViewTemplate.name}</h3>
-              <span className="text-[10px] text-accent-green uppercase font-bold tracking-widest mt-1 mb-2">{selectedViewTemplate.frequency}</span>
+              <span className="text-[10px] text-accent-green uppercase font-bold tracking-widest mt-1 mb-2">{templateTrainingFrequency(selectedViewTemplate)}</span>
               <p className="text-xs text-text-muted mb-2 leading-relaxed">{selectedViewTemplate.description}</p>
             </div>
             
             {/* Horizontal Scrollable Day selector tabs - flex-shrink-0 protects layout structure */}
             <div className="flex gap-2 overflow-x-auto pb-3 mb-4 scrollbar-thin border-b border-white/5 flex-shrink-0">
-              {selectedViewTemplate.plan.map((dayPlan) => (
+              {selectedViewTemplate.days.map((dayPlan) => (
                 <button
-                  key={dayPlan.day}
-                  onClick={() => setActiveViewDay(dayPlan.day)}
+                  key={dayPlan.weekday}
+                  onClick={() => setActiveViewDay(dayPlan.weekday)}
                   className={`px-4 py-2 text-xs font-bold rounded-xl whitespace-nowrap transition-all ${
-                    activeViewDay === dayPlan.day
+                    activeViewDay === dayPlan.weekday
                       ? 'bg-accent-green text-black font-black'
                       : 'bg-white/5 text-text-muted hover:text-white border border-white/5'
                   }`}
                 >
-                  {dayPlan.day} ({dayPlan.type})
+                  {weekdayLabel(dayPlan.weekday)} — {dayPlan.title}
                 </button>
               ))}
             </div>
@@ -795,14 +807,16 @@ export default function TemplatesPage() {
             {/* Exercises list - scrollable container */}
             <div className="flex-1 overflow-y-auto pr-1">
               {(() => {
-                const currentDayPlan = selectedViewTemplate.plan.find(p => p.day === activeViewDay);
+                const currentDayPlan = selectedViewTemplate.days.find(p => p.weekday === activeViewDay);
                 if (!currentDayPlan) return null;
+                const warmups = currentDayPlan.exercises.filter(ex => ex.section === 'warmup');
+                const mainLifts = currentDayPlan.exercises.filter(ex => ex.section === 'main');
                 
-                if (currentDayPlan.warmups.length === 0 && currentDayPlan.mainLifts.length === 0) {
+                if (currentDayPlan.exercises.length === 0) {
                   return (
                     <div className="flex flex-col items-center justify-center py-10 text-text-muted">
                       <span className="text-3xl mb-2">😴</span>
-                      <span className="text-xs font-bold">Rest / Recovery Day</span>
+                      <span className="text-xs font-bold">{currentDayPlan.title}</span>
                       <span className="text-[10px] text-text-muted/60 mt-1">Focus on sleep, hydration, and active stretching.</span>
                     </div>
                   );
@@ -811,12 +825,12 @@ export default function TemplatesPage() {
                 return (
                   <div className="flex flex-col gap-4">
                     {/* Warm-ups */}
-                    {currentDayPlan.warmups.length > 0 && (
+                    {warmups.length > 0 && (
                       <div>
                         <span className="text-[9px] uppercase font-bold text-text-muted tracking-widest block mb-2">Warm-Up Protocol</span>
                         <div className="flex flex-col gap-2">
-                          {currentDayPlan.warmups.map((ex) => (
-                            <div key={ex.id} className="bg-white/5 border border-white/5 rounded-xl p-3">
+                          {warmups.map((ex) => (
+                            <div key={ex.order} className="bg-white/5 border border-white/5 rounded-xl p-3">
                               <div className="flex justify-between items-start">
                                 <span className="text-xs font-bold text-white">{ex.name}</span>
                                 <span className="text-[10px] font-bold text-accent-green">{ex.targetSets} × {ex.targetValue}</span>
@@ -829,14 +843,14 @@ export default function TemplatesPage() {
                     )}
                     
                     {/* Main Lifts */}
-                    {currentDayPlan.mainLifts.length > 0 && (
+                    {mainLifts.length > 0 && (
                       <div>
                         <span className="text-[9px] uppercase font-bold text-accent-green tracking-widest block mb-2">
-                          {currentDayPlan.type === 'Rest' ? 'Recovery Activities' : 'Main Lifts'}
+                          {currentDayPlan.kind === 'recovery' ? 'Recovery Activities' : 'Main Lifts'}
                         </span>
                         <div className="flex flex-col gap-2">
-                          {currentDayPlan.mainLifts.map((ex) => (
-                            <div key={ex.id} className="bg-white/5 border border-white/5 rounded-xl p-3">
+                          {mainLifts.map((ex) => (
+                            <div key={ex.order} className="bg-white/5 border border-white/5 rounded-xl p-3">
                               <div className="flex justify-between items-start">
                                 <span className="text-xs font-bold text-white">{ex.name}</span>
                                 <span className="text-[10px] font-bold text-accent-green">{ex.targetSets} × {ex.targetValue} {ex.trackingType === 'time_only' ? '' : 'reps'}</span>

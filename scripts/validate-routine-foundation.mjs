@@ -1,12 +1,8 @@
 import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
-import ts from "typescript";
+import { localTypeScriptLoader } from "./lib/load-local-typescript.mjs";
 
 const root = process.cwd();
-const modelSource = await readFile(
-  path.join(root, "src/lib/routine-model.ts"),
-  "utf8",
-);
 const migrationSource = await readFile(
   path.join(
     root,
@@ -50,65 +46,10 @@ async function readApplicationSources(directory) {
 
 const applicationSources = await readApplicationSources(path.join(root, "src"));
 
-function extractConstInitializer(source, constantName, fileName) {
-  const sourceFile = ts.createSourceFile(
-    fileName,
-    source,
-    ts.ScriptTarget.Latest,
-    true,
-    ts.ScriptKind.TS,
-  );
-  let initializer = null;
-
-  function visit(node) {
-    if (
-      ts.isVariableDeclaration(node)
-      && ts.isIdentifier(node.name)
-      && node.name.text === constantName
-      && node.initializer
-    ) {
-      initializer = node.initializer.getText(sourceFile);
-      return;
-    }
-    ts.forEachChild(node, visit);
-  }
-
-  visit(sourceFile);
-  if (!initializer) {
-    throw new Error(`${constantName} initializer was not found in ${fileName}`);
-  }
-  return initializer;
-}
-
-const transpiledModel = ts.transpileModule(modelSource, {
-  compilerOptions: {
-    module: ts.ModuleKind.ES2022,
-    target: ts.ScriptTarget.ES2022,
-  },
-  fileName: "routine-model.ts",
-});
-const routineModel = await import(
-  `data:text/javascript;base64,${Buffer.from(transpiledModel.outputText).toString("base64")}`
-);
-
-const predefinedTemplatesInitializer = extractConstInitializer(
-  routineStoreSource,
-  "PREDEFINED_TEMPLATES",
-  "useRoutineStore.ts",
-);
-const transpiledTemplates = ts.transpileModule(
-  `export const PREDEFINED_TEMPLATES = ${predefinedTemplatesInitializer};`,
-  {
-    compilerOptions: {
-      module: ts.ModuleKind.ES2022,
-      target: ts.ScriptTarget.ES2022,
-    },
-    fileName: "routine-templates.ts",
-  },
-);
-const { PREDEFINED_TEMPLATES: predefinedTemplates } = await import(
-  `data:text/javascript;base64,${Buffer.from(transpiledTemplates.outputText).toString("base64")}`
-);
+const loadTs = localTypeScriptLoader();
+const routineModel = loadTs("src/lib/routine-model.ts");
+const templateModel = loadTs("src/lib/routine-templates.ts");
+const { BUILT_IN_ROUTINE_TEMPLATES: predefinedTemplates } = loadTs("src/data/built-in-routine-templates.ts");
 
 const failures = [];
 let assertions = 0;
@@ -840,9 +781,8 @@ assert(
   "Repository templates include Intermediate Split (5-Day)",
 );
 
-const intermediateRoutine = routineModel.legacyPlanToRoutinePlan(
-  intermediateTemplate.name,
-  intermediateTemplate.plan,
+const intermediateRoutine = templateModel.materializeRoutineTemplate(
+  intermediateTemplate,
   editedRoutine.id,
 );
 assertEqual(
@@ -869,7 +809,8 @@ assertEqual(
   "Intermediate Split converts to the approved seven-day kind/title structure",
 );
 
-const sourceExerciseNames = intermediateTemplate.plan.flatMap((day) => [
+const intermediateLegacyPlan = routineModel.routinePlanToLegacyPlan(intermediateRoutine);
+const sourceExerciseNames = intermediateLegacyPlan.flatMap((day) => [
   ...day.warmups.map((exercise) => exercise.name),
   ...day.mainLifts.map((exercise) => exercise.name),
 ]);
@@ -887,32 +828,26 @@ const convertedOccurrences = intermediateRoutine.days.flatMap(
   (day) => day.exercises,
 );
 
-const sourceExerciseConfiguration = intermediateTemplate.plan.flatMap((day) => [
-  ...day.warmups.map((exercise, order) => ({
-    name: exercise.name,
-    targetMuscle: exercise.targetMuscle,
-    section: "warmup",
-    order,
-    targetSets: exercise.targetSets,
-    targetValue: exercise.targetValue,
-    trackingType: exercise.trackingType,
-    weightUnit: exercise.weightUnit,
-    restSeconds: null,
-    note: exercise.note ?? null,
-  })),
-  ...day.mainLifts.map((exercise, index) => ({
-    name: exercise.name,
-    targetMuscle: exercise.targetMuscle,
-    section: "main",
-    order: day.warmups.length + index,
-    targetSets: exercise.targetSets,
-    targetValue: exercise.targetValue,
-    trackingType: exercise.trackingType,
-    weightUnit: exercise.weightUnit,
-    restSeconds: null,
-    note: exercise.note ?? null,
-  })),
-]);
+const catalogModel = loadTs("src/lib/exercise-catalog.ts");
+const sourceExerciseConfiguration = intermediateTemplate.days.flatMap((day) =>
+  day.occurrences.map((occurrence) => {
+    const exerciseId = occurrence.exercise.kind === "single"
+      ? occurrence.exercise.exerciseId : occurrence.exercise.defaultExerciseId;
+    const exercise = catalogModel.getExerciseById(exerciseId);
+    return {
+      name: exercise.displayName,
+      targetMuscle: exercise.primaryMuscle,
+      section: occurrence.section,
+      order: occurrence.order,
+      targetSets: occurrence.targetSets,
+      targetValue: occurrence.targetValue,
+      trackingType: occurrence.trackingType ?? exercise.defaultTrackingType,
+      weightUnit: occurrence.weightUnit === "lb" ? "lbs" : occurrence.weightUnit,
+      restSeconds: occurrence.restSeconds ?? null,
+      note: occurrence.note ?? null,
+    };
+  }),
+);
 assertEqual(
   convertedOccurrences.map((exercise) => ({
     name: exercise.name,
@@ -930,15 +865,12 @@ assertEqual(
   "Intermediate conversion preserves section, order, targets, tracking, units, notes, and default rest",
 );
 
-const legacyOccurrenceIds = new Set(
-  intermediateTemplate.plan.flatMap((day) => [
-    ...day.warmups.map((exercise) => exercise.id),
-    ...day.mainLifts.map((exercise) => exercise.id),
-  ]),
-);
+const legacyOccurrenceIds = new Set(intermediateTemplate.days.flatMap((day) =>
+  day.occurrences.flatMap((occurrence) => templateModel.templateReferenceIds(occurrence.exercise)),
+));
 assert(
   convertedOccurrences.every((exercise) => !legacyOccurrenceIds.has(exercise.id)),
-  "Legacy template IDs never become routine occurrence UUIDs",
+  "Catalog reference IDs never become routine occurrence UUIDs",
 );
 assertEqual(
   new Set(convertedOccurrences.map((exercise) => exercise.id)).size,
@@ -946,17 +878,16 @@ assertEqual(
   "Every converted template occurrence receives a unique UUID",
 );
 assert(
-  convertedOccurrences.every((exercise) => exercise.exerciseId === null),
-  "Unresolved legacy template names do not receive guessed catalog IDs",
+  convertedOccurrences.every((exercise) => legacyOccurrenceIds.has(exercise.exerciseId)),
+  "Built-in occurrences use their reviewed stable catalog references, not guessed IDs",
 );
 assert(
   convertedOccurrences.every((exercise) => exercise.restSeconds === null),
   "Legacy template occurrences use the global rest default",
 );
 
-const secondIntermediateRoutine = routineModel.legacyPlanToRoutinePlan(
-  intermediateTemplate.name,
-  intermediateTemplate.plan,
+const secondIntermediateRoutine = templateModel.materializeRoutineTemplate(
+  intermediateTemplate,
   editedRoutine.id,
 );
 const firstOccurrenceIds = new Set(convertedOccurrences.map((exercise) => exercise.id));
@@ -976,21 +907,17 @@ assertEqual(
     kind: saturdayRecovery.kind,
     title: saturdayRecovery.title,
     exerciseCount: saturdayRecovery.exercises.length,
-    names: saturdayRecovery.exercises.map((exercise) => exercise.name),
+    exerciseIds: saturdayRecovery.exercises.map((exercise) => exercise.exerciseId),
     orders: saturdayRecovery.exercises.map((exercise) => exercise.order),
   },
   {
     kind: "recovery",
     title: "Active Recovery",
-    exerciseCount: 3,
-    names: [
-      "Treadmill Walk (flat, easy)",
-      "Stationary Bike (easy spin)",
-      "Full-Body Stretching + Foam Rolling",
-    ],
-    orders: [0, 1, 2],
+    exerciseCount: 8,
+    exerciseIds: ["9001", "9003", "1271", "1511", "1564", "1365", "2208", "2202"],
+    orders: [0, 1, 2, 3, 4, 5, 6, 7],
   },
-  "Legacy Rest-with-exercises Saturday becomes ordered Active Recovery",
+  "Structured Saturday preserves ordered Active Recovery and approved composite expansion",
 );
 assertEqual(
   {
@@ -1033,7 +960,8 @@ const replacementSources = [
   {
     label: "predefined template",
     name: intermediateTemplate.name,
-    plan: intermediateTemplate.plan,
+    plan: intermediateLegacyPlan,
+    blueprint: intermediateTemplate,
   },
   {
     label: "custom template",
@@ -1053,17 +981,22 @@ const replacementSources = [
   {
     label: "reset routine",
     name: predefinedTemplates[0].name,
-    plan: predefinedTemplates[0].plan,
+    plan: routineModel.routinePlanToLegacyPlan(templateModel.materializeRoutineTemplate(predefinedTemplates[0])),
+    blueprint: predefinedTemplates[0],
   },
 ];
 
 for (const replacementSource of replacementSources) {
-  const firstReplacement = routineModel.legacyPlanToRoutinePlan(
+  const firstReplacement = replacementSource.blueprint
+    ? templateModel.materializeRoutineTemplate(replacementSource.blueprint, editedRoutine.id)
+    : routineModel.legacyPlanToRoutinePlan(
     replacementSource.name,
     replacementSource.plan,
     editedRoutine.id,
   );
-  const secondReplacement = routineModel.legacyPlanToRoutinePlan(
+  const secondReplacement = replacementSource.blueprint
+    ? templateModel.materializeRoutineTemplate(replacementSource.blueprint, editedRoutine.id)
+    : routineModel.legacyPlanToRoutinePlan(
     replacementSource.name,
     replacementSource.plan,
     editedRoutine.id,
@@ -1481,7 +1414,7 @@ const replacementReadyIndex = replacementSource.indexOf(
   "currentState.loadStatus !== 'ready'",
 );
 const replacementConvertIndex = replacementSource.indexOf(
-  "replacement = legacyPlanToRoutinePlan",
+  "replacement = Array.isArray(plan)",
 );
 const replacementInstallIndex = replacementSource.indexOf(
   "routine: replacement",
@@ -1542,7 +1475,12 @@ assert(
   /await\s+get\(\)\.replaceAndSaveRoutine\(template\.plan,\s*template\.name\)/i.test(
     applyTemplateSource,
   ),
-  "Predefined and custom template application await the shared durable replacement",
+  "Custom template application awaits the shared durable replacement",
+);
+assert(
+  /await\s+get\(\)\.replaceAndSaveRoutine\(builtIn\)/i.test(applyTemplateSource)
+    && /materializeRoutineTemplate\(plan,\s*currentState\.routine\.id\)/i.test(replacementSource),
+  "Built-in application materializes only within the verified-root durable replacement boundary",
 );
 assert(
   /await\s+get\(\)\.replaceAndSaveRoutine\(plan\)/i.test(applyAiSource),
@@ -1555,7 +1493,7 @@ assert(
   "Import awaits the shared durable replacement",
 );
 assert(
-  /await\s+get\(\)\.replaceAndSaveRoutine\([\s\S]*PREDEFINED_TEMPLATES\[0\]\.plan[\s\S]*PREDEFINED_TEMPLATES\[0\]\.name/i.test(
+  /await\s+get\(\)\.replaceAndSaveRoutine\(\s*BUILT_IN_ROUTINE_TEMPLATES\[0\]/i.test(
     resetSource,
   ),
   "Reset awaits the shared durable replacement",
@@ -1759,10 +1697,10 @@ assert(
   "Routine export serializes the current Zustand working draft",
 );
 assert(
-  /currentDayPlan\.type\s*===\s*'Rest'\s*\?\s*'Recovery Activities'/i.test(
+  /currentDayPlan\.kind\s*===\s*'recovery'\s*\?\s*'Recovery Activities'/i.test(
     templatesPageSource,
   ),
-  "Legacy active-recovery template activities remain visible in preview",
+  "Structured recovery template activities remain visible in preview",
 );
 
 if (failures.length > 0) {
