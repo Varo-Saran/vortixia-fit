@@ -9,6 +9,7 @@ import { InitRecovery } from "@/components/InitRecovery";
 import { PWARegister } from "@/components/PWARegister";
 import { CustomToaster } from "@/components/ui/Toast";
 import { GlobalListeners } from "@/components/GlobalListeners";
+import { RoutineDraftGuard } from '@/components/RoutineDraftGuard';
 
 const outfit = Outfit({
   variable: "--font-outfit",
@@ -62,6 +63,7 @@ export default function RootLayout({
         <InitRecovery />
         <CustomToaster />
         <GlobalListeners />
+        <RoutineDraftGuard />
         {children}
         <BottomNav />
         <RestTimer />

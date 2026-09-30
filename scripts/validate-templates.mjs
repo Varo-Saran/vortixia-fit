@@ -277,6 +277,9 @@ check(() => assert(!calls.some(c => /search|alias|byname/i.test(c))));
 function localStore(loadActiveRoutine, saveActiveRoutine) {
   let persistOptions;
   const storeLoader = localTypeScriptLoader({
+    // Existing replacement fixtures now explicitly approve the new shared UI
+    // guard. They still exercise the real store boundary and persistence.
+    "@/lib/routine-draft-guard": { confirmRoutineDiscard: async () => true, RoutineGuardCancelledError: class extends Error {} },
     "@/lib/routine-persistence": { loadActiveRoutine, saveActiveRoutine },
     "zustand/middleware": { persist: (initializer, options) => { persistOptions = options; return initializer; } },
     "zustand": { create: () => initializer => {

@@ -97,7 +97,7 @@ export function ConfirmationDialog({
     <div className="fixed inset-0 z-[110] flex items-end justify-center p-4 sm:items-center">
       <button
         type="button"
-        aria-label="Keep workout"
+        aria-label={cancelLabel}
         tabIndex={-1}
         onClick={onCancel}
         className="absolute inset-0 cursor-default bg-black/80 backdrop-blur-sm"

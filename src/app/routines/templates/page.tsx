@@ -6,7 +6,8 @@ import type { BuiltInRoutineTemplate } from "@/types/routine-template";
 import { legacyPlanToRoutinePlan, weekdayLabel } from "@/lib/routine-model";
 import { resolveRoutineTemplate, templateTrainingFrequency, type ResolvedTemplatePreview } from "@/lib/routine-templates";
 import { ChevronLeft, Library, Check, X, Plus, Trash2, Save, Share } from "lucide-react";
-import Link from "next/link";
+import { RoutineGuardedLink as Link } from '@/components/RoutineDraftGuard';
+import { RoutineGuardCancelledError } from '@/lib/routine-draft-guard';
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { GoalType, SplitType } from "@/lib/ixia-ai";
@@ -85,12 +86,14 @@ export default function TemplatesPage() {
 
     setApplyingId(id);
     try {
-      await applyTemplate(id);
+      const outcome = await applyTemplate(id);
+      if (outcome.status === 'saved-with-newer-edits' || useRoutineStore.getState().hasUnsavedChanges) return;
       setAppliedId(id);
       setSelectedViewTemplate(null);
       toast.success("Routine applied and saved successfully!");
       router.push("/routines");
     } catch (error) {
+      if (error instanceof RoutineGuardCancelledError) return;
       const message = error instanceof Error
         ? error.message
         : "Unable to apply and save the routine.";
@@ -152,12 +155,14 @@ export default function TemplatesPage() {
     }
 
     try {
-      await applyAiRoutine(generatedPlan);
+      const outcome = await applyAiRoutine(generatedPlan);
+      if (outcome.status === 'saved-with-newer-edits' || useRoutineStore.getState().hasUnsavedChanges) return;
       setShowAiModal(false);
       setIsConfirming(false);
       toast.success("AI Routine applied and saved successfully!");
       router.push("/routines");
     } catch (error) {
+      if (error instanceof RoutineGuardCancelledError) return;
       const message = error instanceof Error
         ? error.message
         : "Unable to apply and save the AI routine.";
@@ -192,7 +197,8 @@ export default function TemplatesPage() {
         triggerBackupDownload();
       }
       try {
-        await applyAiRoutine(generatedPlan);
+        const outcome = await applyAiRoutine(generatedPlan);
+        if (outcome.status === 'saved-with-newer-edits' || useRoutineStore.getState().hasUnsavedChanges) return;
         const saved = saveCustomTemplate(
           ixiaTemplateName,
           ixiaTemplateDesc,
@@ -208,6 +214,7 @@ export default function TemplatesPage() {
         setIsConfirming(false);
         router.push("/routines");
       } catch (error) {
+        if (error instanceof RoutineGuardCancelledError) return;
         const message = error instanceof Error
           ? error.message
           : "Unable to save and apply the AI routine.";

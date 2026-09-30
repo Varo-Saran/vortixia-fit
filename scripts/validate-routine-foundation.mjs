@@ -1380,7 +1380,7 @@ assert(
   "A failed load never manufactures a default routine",
 );
 assert(
-  /state\.isDirty\s*&&\s*state\.routine/i.test(fetchCatchSource),
+  /state\.hasUnsavedChanges\s*&&\s*state\.routine/i.test(fetchCatchSource),
   "A failed load preserves an in-memory dirty draft",
 );
 assert(
@@ -1404,7 +1404,7 @@ function extractStoreAction(startMarker, endMarker) {
 }
 
 const replacementSource = extractStoreAction(
-  "replaceAndSaveRoutine: async (plan, name) => {",
+  "replaceAndSaveRoutine: async (plan, name, approval) => {",
   "applyTemplate:",
 );
 const replacementLoadIndex = replacementSource.indexOf(
@@ -1447,8 +1447,8 @@ assert(
   "Shared replacement validates, installs a dirty draft, then awaits save in order",
 );
 assert(
-  /isDirty:\s*true/i.test(replacementSource),
-  "Shared replacement marks its installed graph dirty before persistence",
+  /editor\.draftFlags\(draft\)/i.test(replacementSource),
+  "Shared replacement derives installed-graph dirty state before persistence (runtime covered by editor validator)",
 );
 assert(
   /currentState\.isSaving/i.test(replacementSource),
