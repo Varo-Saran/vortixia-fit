@@ -15,6 +15,7 @@ import {
   saveActiveRoutine,
 } from '@/lib/routine-persistence';
 import * as editor from '@/lib/routine-editor';
+import { parseRestInput } from '@/lib/routine-editor-controls';
 import { confirmRoutineDiscard, RoutineGuardCancelledError } from '@/lib/routine-draft-guard';
 import type { DraftState, DraftStatus, EditorField, PendingAdd, ReplacementApproval, SaveOutcome } from '@/types/routine-editor';
 import type {
@@ -296,7 +297,8 @@ export const useRoutineStore = create<RoutineStore>()(
           const next = editor.addOccurrence(requireDraft(), pending.dayId, {
             exerciseId: pending.exerciseId, name: '', targetMuscle: '', section: pending.section,
             targetSets: pending.rawSets.trim() ? Number(pending.rawSets) : NaN, targetValue: pending.rawTarget,
-            trackingType: pending.trackingType, weightUnit: pending.weightUnit, restSeconds: pending.restSeconds,
+            trackingType: pending.trackingType, weightUnit: pending.weightUnit,
+            restSeconds: pending.rawRest === undefined ? pending.restSeconds : parseRestInput(pending.rawRest),
           });
           const draft = { ...state, routine: next, pendingAdd: null };
           set({ routine: next, pendingAdd: null, draftRevision: state.draftRevision + 1, ...editor.draftFlags(draft), error: null });

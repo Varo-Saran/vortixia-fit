@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import ts from "typescript";
@@ -18,7 +18,7 @@ export function localTypeScriptLoader(overrides = {}) {
     cache.set(absolute, loadedModule);
     const compiled = ts.transpileModule(source, {
       fileName: absolute,
-      compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true },
+      compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true, jsx: ts.JsxEmit.ReactJSX },
     }).outputText;
     function requireLocal(specifier) {
       if (Object.hasOwn(overrides, specifier)) return overrides[specifier];
@@ -26,7 +26,9 @@ export function localTypeScriptLoader(overrides = {}) {
       const target = specifier.startsWith("@/")
         ? path.join(root, "src", specifier.slice(2))
         : path.resolve(path.dirname(absolute), specifier);
-      return load(path.extname(target) ? target : `${target}.ts`);
+      const filename = path.extname(target) ? target : ['.ts', '.tsx', '.json'].map(extension => `${target}${extension}`).find(existsSync);
+      if (!filename) throw new Error(`Cannot resolve local test module: ${specifier}`);
+      return load(filename);
     }
     new Function("require", "module", "exports", compiled)(requireLocal, loadedModule, loadedModule.exports);
     return loadedModule.exports;

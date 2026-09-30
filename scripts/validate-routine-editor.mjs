@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { localTypeScriptLoader } from './lib/load-local-typescript.mjs';
 
 let positive = 0, negative = 0;
@@ -330,6 +332,239 @@ check('routine rest leaves actual active workout snapshot untouched', () => asse
 workout.getState().setExerciseRestSeconds(first.id, 120);
 check('active session rest leaves routine unchanged', () => assert.equal(saved.get().routine.days[0].exercises[0].restSeconds, 75));
 check('source blueprints unchanged', () => materializer.validateRoutineTemplates(templates));
+
+// D2C: actual controls, buffer -> operation adapters and rendered React markup.
+// Browser QA separately exercises events/focus/responsive styling. SSR imports
+// share the real store actions; only hooks/Next navigation/external IO are stubbed.
+const controls = loader('src/lib/routine-editor-controls.ts');
+const uiState = makeStore(); await uiState.get().fetchRoutine();
+const hook = selector => selector ? selector(uiState.get()) : uiState.get();
+hook.getState = uiState.get;
+const uiLoader = localTypeScriptLoader({
+  '@/store/useRoutineStore': { useRoutineStore: hook },
+  '@/store/useSettingsStore': { useSettingsStore: selector => selector({ defaultRestTimer: 90 }) },
+  '@/components/RoutineDraftGuard': { RoutineGuardedLink: ({ children, ...props }) => React.createElement('a', props, children) },
+});
+const render = (component, props) => renderToStaticMarkup(React.createElement(component, props));
+const Page = uiLoader('src/app/routines/edit/page.tsx').default;
+const DayEditor = uiLoader('src/components/routine-editor/RoutineDayEditor.tsx').RoutineDayEditor;
+const OccurrenceEditor = uiLoader('src/components/routine-editor/RoutineOccurrenceEditor.tsx').RoutineOccurrenceEditor;
+const RestControl = uiLoader('src/components/routine-editor/OccurrenceRestControl.tsx').RestControl;
+const Drawer = uiLoader('src/components/routine-editor/AddExerciseDrawer.tsx').AddExerciseDrawer;
+const uiIds = ids(uiState.get().routine);
+const commit = (field, raw) => {
+  uiState.get().setEditorBuffer(field, raw);
+  controls.commitEditorInput(field, raw, uiState.get(), uiState.get().routine.days);
+};
+for (const name of [' Chest + Back ', 'Tri + Bi', 'Upper / Lower', 'Push A']) {
+  commit(nameField, name);
+  check(`UI routine name commit ${name}`, () => assert.equal(uiState.get().routine.name, name.trim()));
+}
+commit(nameField, seed.name);
+check('UI name exact revert Saved', () => assert.equal(uiState.get().draftStatus, 'Saved'));
+uiState.get().setEditorBuffer(nameField, '');
+check('UI blank name aria invalid', () => assert.match(render(Page), /aria-invalid="true"/));
+check('UI invalid buffer Save disabled', () => assert.equal(controls.canSaveEditor(uiState.get()), false));
+check('UI invalid name does not corrupt domain', () => assert.equal(uiState.get().routine.name, seed.name));
+uiState.get().discardDraft();
+commit({ kind: 'day-title', dayId: day.id }, ' Chest + Triceps ');
+check('UI title committed trim', () => assert.equal(uiState.get().routine.days[0].title, 'Chest + Triceps'));
+check('UI title stable weekday/kind', () => assert.deepEqual([uiState.get().routine.days[0].weekday, uiState.get().routine.days[0].kind], [day.weekday, day.kind]));
+for (const sets of ['1', '4', '100']) { commit({ kind: 'sets', occurrenceId: first.id }, sets); check(`UI sets ${sets}`, () => assert.equal(uiState.get().routine.days[0].exercises[0].targetSets, Number(sets))); }
+for (const raw of ['', '0', '101', '2.5']) {
+  uiState.get().setEditorBuffer({ kind: 'sets', occurrenceId: first.id }, raw);
+  check(`UI invalid raw sets ${raw} blocks Save`, () => assert.equal(controls.canSaveEditor(uiState.get()), false));
+  check('UI raw sets never NaN in graph', () => assert(Number.isInteger(uiState.get().routine.days[0].exercises[0].targetSets)));
+}
+uiState.get().discardDraft();
+for (const target of ['6–8', '30 mins', '30 seconds each side', '10 each side', '10 each shape']) {
+  commit({ kind: 'target', occurrenceId: first.id }, target);
+  check(`UI target text ${target}`, () => assert.equal(uiState.get().routine.days[0].exercises[0].targetValue, target));
+}
+uiState.get().discardDraft();
+for (const rest of [null, ...controls.REST_PRESETS, 75, 1, 3600]) {
+  const raw = rest === null ? 'default' : String(rest);
+  commit({ kind: 'rest', occurrenceId: first.id }, raw);
+  check(`UI rest commit ${raw}`, () => assert.equal(uiState.get().routine.days[0].exercises[0].restSeconds, rest));
+  check(`UI rest D1 roundtrip ${raw}`, () => assert.equal(model.routinePlanToRpcPayload(uiState.get().routine).days[0].exercises[0].rest_seconds, rest));
+  const markup = render(RestControl, { id: 'test-rest', raw, error: null, onChange() {}, defaultRest: 90 });
+  check(`UI rest display ${raw}`, () => assert(markup.includes(`Rest: ${controls.formatRest(rest)}`)));
+}
+for (const raw of ['', '0', '3601', '-1', '1.5', 'NaN']) {
+  rejects(`UI invalid rest parsing ${raw}`, () => controls.parseRestInput(raw));
+  uiState.get().setEditorBuffer({ kind: 'rest', occurrenceId: first.id }, raw);
+  check(`UI invalid rest ${raw} disables Save`, () => assert.equal(controls.canSaveEditor(uiState.get()), false));
+}
+uiState.get().discardDraft();
+const activeSnapshotBeforeUiRest = structuredClone(workout.getState().exercises);
+commit({ kind: 'rest', occurrenceId: first.id }, '75');
+await uiState.get().saveRoutineToDb();
+const reloadedRest = makeStore({ loaded: uiState.get().routine }); await reloadedRest.get().fetchRoutine();
+check('UI rest save/reload exactly 75', () => assert.equal(reloadedRest.get().routine.days[0].exercises[0].restSeconds, 75));
+check('UI rest does not change active snapshot', () => assert.deepEqual(workout.getState().exercises, activeSnapshotBeforeUiRest));
+commit({ kind: 'rest', occurrenceId: first.id }, '120'); commit({ kind: 'rest', occurrenceId: first.id }, '75');
+check('UI rest revert Saved', () => assert.equal(uiState.get().draftStatus, 'Saved'));
+check('UI edits stable identities', () => assert.deepEqual(ids(uiState.get().routine), uiIds));
+const wholePage = render(Page);
+check('UI all 64 occurrence cards rendered', () => assert.equal((wholePage.match(/<article /g) ?? []).length, 64));
+check('UI all 11 warmups rendered', () => assert.equal((wholePage.match(/· Warm-up<\/p>/g) ?? []).length, 11));
+for (const phrase of ['Routine name', 'Day title', 'Day kind', 'Warm-up', 'Main exercises', 'Recovery activities', 'Rest day — no exercises planned', 'Remove all exercises before changing this day to Rest.']) {
+  check(`UI visible control ${phrase}`, () => assert(wholePage.includes(phrase)));
+}
+check('UI rest has no Add control', () => assert(!render(DayEditor, { day: uiState.get().routine.days[6], expanded: true, defaultRest: 90, onToggle() {}, onAdd() {}, announce() {}, focus() {} }).includes('Add Exercise')));
+for (const mode of model.TRACKING_TYPES) {
+  const markup = render(OccurrenceEditor, { occurrence: { ...first, trackingType: mode }, canMoveUp: false, canMoveDown: true, defaultRest: 90, isSaving: false, onMove() {}, onRemove() {} });
+  check(`UI five-mode label ${mode}`, () => assert(markup.includes(controls.TRACKING_LABELS[mode].replace('&', '&amp;'))));
+  check(`UI tracking read-only ${mode}`, () => assert(markup.includes('Tracking (read-only)') && !markup.includes('Logging mode')));
+}
+for (const unit of model.WEIGHT_UNITS) check(`UI unit ${unit}`, () => assert(render(OccurrenceEditor, { occurrence: { ...first, weightUnit: unit }, canMoveUp: false, canMoveDown: false, defaultRest: 90, onMove() {}, onRemove() {} }).includes(controls.UNIT_LABELS[unit])));
+check('UI notes verbatim escaped markup', () => assert(wholePage.includes('Aerobic base building')));
+check('UI accordion hooks', () => assert.equal((wholePage.match(/aria-expanded=/g) ?? []).length, 7));
+check('UI region relationships', () => assert.equal((wholePage.match(/role="region"/g) ?? []).length, 7));
+check('UI input labels and errors', () => assert(wholePage.includes('for="editor-sets:') && wholePage.includes('aria-invalid="false"')));
+check('UI Move accessible names', () => assert(wholePage.includes('aria-label="Move ') && wholePage.includes(' down"')));
+check('UI boundary Up disabled', () => assert.match(wholePage, /disabled="" aria-label="Move [^"]+ up"/));
+check('UI notes/IDs survive move adapter', () => {
+  const before = uiState.get().routine; uiState.get().moveOccurrence(day.id, first.id, 'down');
+  assert.deepEqual(programming(before), programming(uiState.get().routine)); assert.deepEqual(ids(before), ids(uiState.get().routine));
+});
+uiState.get().discardDraft();
+const arm = catalog.getExerciseById('vx_ex_arm_swing');
+const dbHip = catalog.getExerciseById('vx_ex_dumbbell_hip_thrust');
+const imported = catalog.getExerciseById('0025');
+for (const ex of [arm, dbHip, imported]) {
+  const pending = controls.createPendingAdd(ex, day.id);
+  check(`UI Add no identity until commit ${ex.id}`, () => assert(!Object.hasOwn(pending, 'id')));
+  check(`UI Add resets target/rest ${ex.id}`, () => assert.deepEqual([pending.rawSets, pending.rawTarget, pending.restSeconds, pending.rawRest], ['3', '', null, 'default']));
+}
+check('UI imported missing capability needs explicit choice', () => assert.equal(controls.createPendingAdd(imported, day.id).trackingType, null));
+check('UI no heuristic Bike default', () => assert.equal(controls.createPendingAdd(catalog.getExerciseById('9003'), day.id).trackingType, null));
+check('UI lb translated to lbs', () => assert.equal(controls.createPendingAdd({ ...dbHip, supportedWeightUnits: ['lb'] }, day.id).weightUnit, 'lbs'));
+check('UI switching nonweighted clears load', () => assert.equal(controls.changeAddTracking({ ...pendingAdd, weightUnit: 'kg' }, 'time_only').weightUnit, 'unitless'));
+const configured = { ...controls.createPendingAdd(arm, day.id, 'warmup'), rawTarget: '15', rawSets: '2', rawRest: '75', restSeconds: 75 };
+check('UI configured Add valid', () => assert.deepEqual(controls.pendingAddErrors(configured, arm, seed.days[0]), {}));
+uiState.get().setPendingAdd(configured);
+check('UI pending Add blocks Save', () => assert.equal(controls.canSaveEditor(uiState.get()), false));
+const drawer = render(Drawer, { defaultRest: 90, onAdded() {}, onChooseAnother() {}, onCancel() {} });
+for (const phrase of ['role="dialog"', 'aria-modal="true"', 'Section', 'Sets', 'Target / prescription', 'Logging mode', 'Load unit', 'Rest between sets', 'Custom rest (seconds)']) check(`UI Add drawer ${phrase}`, () => assert(drawer.includes(phrase)));
+uiState.get().commitPendingAdd();
+const uiAdded = uiState.get().routine.days[0].exercises.find(value => !uiIds.includes(value.id));
+check('UI Add rest 75 committed', () => assert.equal(uiAdded.restSeconds, 75));
+check('UI Add canonical snapshots', () => assert.deepEqual([uiAdded.name, uiAdded.targetMuscle], [arm.displayName, arm.primaryMuscle]));
+check('UI Add warmup insertion deterministic', () => assert.equal(uiState.get().routine.days[0].exercises.filter(value => value.section === 'warmup').at(-1).id, uiAdded.id));
+uiState.get().removeOccurrence(uiAdded.id);
+check('UI Add/Remove returns baseline', () => assert.equal(uiState.get().draftStatus, 'Saved'));
+uiState.get().setPendingAdd({ ...configured, rawRest: '0' });
+rejects('UI invalid raw Add rest cannot bypass button', () => uiState.get().commitPendingAdd());
+check('UI rejected Add no new identity', () => assert.deepEqual(ids(uiState.get().routine), uiIds));
+uiState.get().discardDraft();
+check('UI built-in descriptions/source untouched', () => assert.deepEqual(templates.map(value => [value.id, value.description]), loader('src/data/built-in-routine-templates.ts').BUILT_IN_ROUTINE_TEMPLATES.map(value => [value.id, value.description])));
+
+// Cardio amendment: canonical identity/category only; Zone remains presentation.
+const cardioPresentation = loader('src/lib/routine-cardio-presentation.ts');
+const cardioRoutine = materializer.materializeRoutineTemplate(templates[2]);
+const cardioState = makeStore({ loaded: cardioRoutine }); await cardioState.get().fetchRoutine();
+const cardioFingerprint = editor.routineFingerprint(cardioState.get().routine);
+const cardioProjection = editor.persistedRoutineProjection(cardioState.get().routine);
+const cardioPayload = model.routinePlanToRpcPayload(cardioState.get().routine);
+const cardioDraftState = structuredClone([cardioState.get().draftStatus, cardioState.get().editorBuffers, cardioState.get().draftRevision]);
+const bike = cardioRoutine.days[0].exercises.find(value => value.exerciseId === '9003');
+const occurrenceMarkup = occurrence => render(OccurrenceEditor, { occurrence, canMoveUp: false, canMoveDown: false, isSaving: false, defaultRest: 90, onMove() {}, onRemove() {} });
+for (const id of ['9003', '3666', '9001', '2141']) {
+  const exercise = catalog.getExerciseById(id);
+  check(`cardio canonical category ${id}`, () => assert.equal(cardioPresentation.isCatalogCardio(exercise), true));
+  check(`cardio no display/equipment heuristic ${id}`, () => assert.equal(cardioPresentation.isCatalogCardio({ ...exercise, name: 'unrelated', displayName: 'unrelated', equipment: 'barbell', normalizedEquipment: 'barbell' }), true));
+  const presentation = cardioPresentation.occurrenceProgrammingPresentation({ ...bike, exerciseId: id });
+  check(`cardio resolves stable exerciseId ${id}`, () => assert.equal(presentation.continuous, true));
+}
+check('declared movementType cardio authoritative', () => assert.equal(cardioPresentation.isCatalogCardio({ movementType: 'cardio', bodyPart: 'waist' }), true));
+check('declared noncardio overrides older category', () => assert.equal(cardioPresentation.isCatalogCardio({ movementType: 'stretch', bodyPart: 'cardio' }), false));
+check('unknown identity never classified by name', () => assert.equal(cardioPresentation.occurrenceProgrammingPresentation({ ...bike, exerciseId: 'missing', name: 'Stationary Bike' }).cardio, false));
+check('equipment/name alone insufficient', () => assert.equal(cardioPresentation.isCatalogCardio({ bodyPart: 'waist', name: 'Treadmill Bike', equipment: 'stationary bike' }), false));
+for (const id of ['9008', 'vx_ex_bodyweight_side_plank', '1564', '2208', '2202']) {
+  const occurrence = { ...bike, exerciseId: id, trackingType: 'time_only' };
+  const presentation = cardioPresentation.occurrenceProgrammingPresentation(occurrence);
+  check(`timed noncardio ${id}`, () => assert.equal(presentation.cardio, false));
+  const markup = occurrenceMarkup(occurrence);
+  check(`timed noncardio Sets label ${id}`, () => assert(markup.includes('>Sets</label>') && markup.includes('>Target / prescription</label>') && !markup.includes('Intensity Zone')));
+}
+for (const mode of ['time_only', 'time_weight', 'cardio_hr']) check(`continuous compatible duration mode ${mode}`, () => assert.equal(cardioPresentation.occurrenceProgrammingPresentation({ ...bike, trackingType: mode }).continuous, true));
+for (const mode of ['reps_only', 'reps_weight']) check(`repetition mode not continuous ${mode}`, () => assert.equal(cardioPresentation.occurrenceProgrammingPresentation({ ...bike, trackingType: mode }).continuous, false));
+const continuousCardio = occurrenceMarkup(bike);
+check('continuous Duration full field', () => assert(continuousCardio.includes('>Duration / prescription</label>') && continuousCardio.includes('value="30 mins"')));
+check('continuous count de-emphasized in disclosure', () => assert.match(continuousCardio, /<details[\s\S]*Continuous cardio · Adjust rounds[\s\S]*>Rounds<\/label>/));
+check('continuous never strength Sets label', () => assert(!continuousCardio.includes('>Sets</label>')));
+const multiRoundCardio = occurrenceMarkup({ ...bike, targetSets: 3 });
+check('multiround editable Rounds', () => assert(multiRoundCardio.includes('>Rounds</label>') && multiRoundCardio.includes('value="3"') && !multiRoundCardio.includes('<details')));
+check('multiround preserves targetSets domain', () => assert.equal(bike.targetSets, 1));
+for (const zone of [1, 2, 3, 4, 5]) {
+  check(`explicit Zone ${zone} extraction`, () => assert.equal(cardioPresentation.explicitHeartRateZone(`Zone ${zone}. Context`), zone));
+  check(`explicit Zone ${zone} accessible display`, () => assert(occurrenceMarkup({ ...bike, note: `Zone ${zone}. Context` }).includes(`aria-label="Intensity Zone ${zone}"`)));
+}
+check('case insensitive zone token', () => assert.equal(cardioPresentation.explicitHeartRateZone('zOnE 2'), 2));
+check('programming target explicit zone', () => assert.equal(cardioPresentation.occurrenceProgrammingPresentation({ ...bike, targetValue: '30 mins Zone 5', note: undefined }).zone, 5));
+for (const text of ['', 'easy aerobic hard', 'Zone 0', 'Zone 6', 'Zone 12', 'Zone2', 'Zone 2.5', 'Zone 2–3', 'Zone 2 / 3', 'Zone 2 to 3', 'Zone 1 or Zone 2']) {
+  check(`no fabricated/partial/ambiguous zone ${text}`, () => assert.equal(cardioPresentation.explicitHeartRateZone(text), null));
+  check(`no intensity row ${text}`, () => assert(!occurrenceMarkup({ ...bike, targetValue: '30 mins', note: text }).includes('Intensity Zone')));
+}
+check('conflicting target/note zones suppressed', () => assert.equal(cardioPresentation.occurrenceProgrammingPresentation({ ...bike, targetValue: '30 mins Zone 1', note: 'Zone 2' }).zone, null));
+check('strength Sets label unchanged', () => assert(occurrenceMarkup({ ...bike, exerciseId: '0025', targetSets: 4 }).includes('>Sets</label>')));
+check('cardio notes remain verbatim', () => assert(continuousCardio.includes(bike.note)));
+check('cardio rest control retained', () => assert(continuousCardio.includes('>Rest</label>') && continuousCardio.includes('Use Default') && continuousCardio.includes('Custom')));
+check('cardio custom rest display 75', () => assert(occurrenceMarkup({ ...bike, restSeconds: 75 }).includes('Rest: 1 min 15 sec')));
+for (const occurrence of cardioState.get().routine.days.flatMap(value => value.exercises)) {
+  cardioPresentation.occurrenceProgrammingPresentation(occurrence);
+  occurrenceMarkup(occurrence);
+}
+check('presentation leaves fingerprint unchanged', () => assert.equal(editor.routineFingerprint(cardioState.get().routine), cardioFingerprint));
+check('presentation leaves projection unchanged', () => assert.deepEqual(editor.persistedRoutineProjection(cardioState.get().routine), cardioProjection));
+check('presentation leaves RPC payload unchanged', () => assert.deepEqual(model.routinePlanToRpcPayload(cardioState.get().routine), cardioPayload));
+check('presentation creates no dirty state/buffer/revision', () => assert.deepEqual([cardioState.get().draftStatus, cardioState.get().editorBuffers, cardioState.get().draftRevision], cardioDraftState));
+uiState.get().setPendingAdd({ ...controls.createPendingAdd(catalog.getExerciseById('9003'), day.id), rawTarget: '20–25 mins' });
+const cardioDrawer = render(Drawer, { defaultRest: 90, onAdded() {}, onChooseAnother() {}, onCancel() {} });
+check('Add canonical cardio labels', () => assert(cardioDrawer.includes('>Rounds</label>') && cardioDrawer.includes('>Duration / prescription</label>')));
+check('Add cardio explicit capability selection unchanged', () => assert.equal(uiState.get().pendingAdd.trackingType, null));
+check('Add cardio rest Default/null unchanged', () => assert.equal(uiState.get().pendingAdd.restSeconds, null));
+check('Add has no Zone editor', () => assert(!cardioDrawer.includes('Intensity') && !cardioDrawer.includes('Zone')));
+uiState.get().setPendingAdd(null);
+
+// Contextual rest labels are copy only; existing control behavior is unchanged.
+for (const [exerciseId, targetSets, trackingType, expected] of [
+  ['9003', 1, 'time_only', 'Rest'], ['9003', 3, 'time_only', 'Rest between rounds'],
+  ['0025', 4, 'reps_weight', 'Rest between sets'], ['vx_ex_bodyweight_squat', 3, 'reps_only', 'Rest between sets'],
+  ['vx_ex_arm_swing', 2, 'reps_only', 'Rest between sets'], ['9008', 2, 'time_only', 'Rest between sets'],
+  ['vx_ex_bodyweight_side_plank', 3, 'time_only', 'Rest between sets'], ['1564', 1, 'time_only', 'Rest between sets'],
+  ['2208', 1, 'time_only', 'Rest between sets'],
+]) {
+  const occurrence = { ...bike, exerciseId, targetSets, trackingType };
+  check(`contextual rest label ${exerciseId} / ${targetSets}`, () => assert(occurrenceMarkup(occurrence).includes(`>${expected}</label>`)));
+}
+const labelState = makeStore({ loaded: cardioRoutine }); await labelState.get().fetchRoutine();
+const labelBike = labelState.get().routine.days[0].exercises.find(value => value.exerciseId === '9003');
+const labelBefore = editor.routineFingerprint(labelState.get().routine);
+occurrenceMarkup(labelBike);
+check('label-only render stays Saved', () => assert.equal(labelState.get().draftStatus, 'Saved'));
+check('label-only render preserves fingerprint', () => assert.equal(editor.routineFingerprint(labelState.get().routine), labelBefore));
+labelState.get().updateOccurrence(labelBike.id, { targetSets: 3 });
+const updatedLabelBike = () => labelState.get().routine.days[0].exercises.find(value => value.id === labelBike.id);
+check('1 to 3 changes rest label', () => assert(occurrenceMarkup(updatedLabelBike()).includes('>Rest between rounds</label>')));
+check('rounds edit preserves restSeconds', () => assert.equal(updatedLabelBike().restSeconds, null));
+labelState.get().updateOccurrence(labelBike.id, { targetSets: 1 });
+check('3 to 1 restores continuous rest label', () => assert(occurrenceMarkup(updatedLabelBike()).includes('>Rest</label>')));
+check('rounds exact revert Saved', () => assert.equal(labelState.get().draftStatus, 'Saved'));
+for (const rest of [null, 75]) {
+  for (const label of ['Rest', 'Rest between rounds', 'Rest between sets']) {
+    const markup = render(RestControl, { id: 'label-rest', label, raw: rest === null ? 'default' : String(rest), error: null, defaultRest: 90, onChange() {} });
+    check(`label ${label} preserves rest display ${rest}`, () => assert(markup.includes(`Rest: ${controls.formatRest(rest)}`)));
+    check(`label ${label} preserves presets/custom ${rest}`, () => assert(controls.REST_PRESETS.every(value => markup.includes(`value="${value}"`)) && markup.includes('Use Default') && markup.includes('Custom')));
+  }
+}
+for (const [exerciseId, rawSets, label] of [['9003', '1', 'Rest'], ['9003', '3', 'Rest between rounds'], ['0025', '1', 'Rest between sets']]) {
+  uiState.get().setPendingAdd({ ...controls.createPendingAdd(catalog.getExerciseById(exerciseId), day.id), rawSets });
+  check(`Add contextual rest ${exerciseId} / ${rawSets}`, () => assert(render(Drawer, { defaultRest: 90, onAdded() {}, onChooseAnother() {}, onCancel() {} }).includes(`>${label}</label>`)));
+  check('Add label leaves default null', () => assert.equal(uiState.get().pendingAdd.restSeconds, null));
+}
+uiState.get().setPendingAdd(null);
 console.log(`Routine editor validation passed: ${positive} positive assertions, ${negative} negative fixtures.`);
 console.log('Actual domain operations, Zustand actions, guard bridge, D1 serialization and active workout snapshot exercised.');
 console.log('Deterministic single-flight / subscriber reentry / stale domain+buffer / failure+retry / cancellation+stale approval fixtures passed.');

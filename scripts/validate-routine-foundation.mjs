@@ -1391,8 +1391,14 @@ assert(
   /loadStatus\s*===\s*['\"]error['\"][\s\S]*Retry/i.test(routineEditorSource),
   "Routine Editor exposes a retry action after load failure",
 );
+const editorControls = loadTs("src/lib/routine-editor-controls.ts");
+const eligibleEditorDraft = { routine, loadStatus: "ready", isSaving: false, hasUnsavedChanges: true, pendingAdd: null, editorBuffers: {} };
 assert(
-  /disabled=\{isSaving\s*\|\|\s*loadStatus\s*!==\s*['\"]ready['\"]\}/i.test(routineEditorSource),
+  /disabled=\{!canSaveEditor\(state\)\}/.test(routineEditorSource)
+    && editorControls.canSaveEditor(eligibleEditorDraft)
+    && !editorControls.canSaveEditor({ ...eligibleEditorDraft, loadStatus: "idle" })
+    && !editorControls.canSaveEditor({ ...eligibleEditorDraft, loadStatus: "error" })
+    && !editorControls.canSaveEditor({ ...eligibleEditorDraft, isSaving: true }),
   "Routine Editor gates Save on a verified ready draft",
 );
 
