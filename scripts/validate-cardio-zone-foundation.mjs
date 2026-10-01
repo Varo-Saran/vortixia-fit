@@ -59,8 +59,23 @@ const clone = (value) => structuredClone(value);
 
 async function reject(callback, code, message) {
   negatives++;
-  await assert.rejects(callback, (error) => error.code === code, message);
+  await assert.rejects(async () => { await callback(); }, (error) => error.code === code, message);
 }
+
+// Adapter portability: preserve strict matching for both sync and async failures.
+const expectedRejection = Object.assign(new Error('Synthetic expected rejection'), { code: '23514' });
+await reject(() => { throw expectedRejection; }, '23514', 'Capture a synchronous adapter throw');
+ok(true, 'Synchronous rejection is captured');
+await reject(() => Promise.reject(expectedRejection), '23514', 'Capture a Promise adapter rejection');
+ok(true, 'Asynchronous rejection is captured');
+await assert.rejects(() => reject(() => {}, '23514', 'Unexpected success must fail'),
+  { code: 'ERR_ASSERTION' });
+ok(true, 'An unexpectedly successful call still fails the rejection assertion');
+const wrongRejection = Object.assign(new Error('Synthetic wrong SQLSTATE'), { code: '22023' });
+await assert.rejects(() => reject(() => { throw wrongRejection; }, '23514', 'Wrong SQLSTATE must fail'),
+  (error) => error.code === 'ERR_ASSERTION' && error.actual === wrongRejection);
+ok(true, 'Wrong SQLSTATE remains a failure and preserves the unexpected error');
+
 async function save(db, payload, user = owner) {
   // Real SECURITY DEFINER RPC under authenticated role + synthetic JWT subject.
   await db.exec(`begin; set local role authenticated;
