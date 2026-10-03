@@ -59,7 +59,7 @@ export default function RoutineEditorPage() {
   const changeDisclosure = (action: DisclosureAction, target?: { id: string; firstInput?: boolean }) => {
     const result = transitionDisclosure(view, action, useRoutineStore.getState().editorBuffers);
     if (result.blockedField) {
-      setFocusTarget({ id: editorErrorInputId(result.blockedField) });
+      setFocusTarget({ id: editorErrorInputId(result.blockedField, useRoutineStore.getState().editorBuffers) });
       setFeedback('Check the highlighted field before closing or switching editors.');
       return false;
     }

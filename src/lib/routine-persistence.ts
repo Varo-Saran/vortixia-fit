@@ -61,7 +61,7 @@ export async function loadActiveRoutine(): Promise<RoutinePlan | null> {
     const { data, error } = await supabase
       .from("planned_exercises")
       .select(
-        "id, routine_day_id, exercise_id, name, type, tracking_style, weight_unit, target_sets, target_reps, rest_seconds, note, is_warmup, order_index",
+      "id, routine_day_id, exercise_id, name, type, tracking_style, weight_unit, target_sets, target_reps, rest_seconds, cardio_zone, note, is_warmup, order_index",
       )
       .in("routine_day_id", dayIds)
       .order("order_index");

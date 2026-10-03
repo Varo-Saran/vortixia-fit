@@ -1,7 +1,10 @@
 import type { ResolvedExercise } from '@/types/exercise-catalog';
-import type { DayPlan, ExerciseSection, TrackingType, WeightUnit } from '@/types/routine';
+import { getExerciseById } from './exercise-catalog';
+import type { CardioZone, DayPlan, ExerciseSection, TrackingType, WeightUnit } from '@/types/routine';
 import type { DraftState, EditorField, PendingAdd } from '@/types/routine-editor';
 import { validateOptionalRestSeconds } from './routine-model';
+import { changeTracking, defaultProgramming, programmingOptions, validateCardioZone, validateCompatibleTracking, decodeTrackingConfig, type TrackingConfig } from './routine-programming';
+export { isWeightedMode } from './routine-programming';
 
 export const REST_PRESETS = [30, 45, 60, 90, 120, 180] as const;
 export const TRACKING_LABELS: Record<TrackingType, string> = {
@@ -11,7 +14,6 @@ export const TRACKING_LABELS: Record<TrackingType, string> = {
 export const UNIT_LABELS: Record<WeightUnit, string> = {
   kg: 'kg', lbs: 'lbs', plates: 'plates', unitless: 'Unitless',
 };
-export const isWeightedMode = (mode: TrackingType | null) => mode === 'reps_weight' || mode === 'time_weight';
 export function parseRestInput(raw: string): number | null {
   if (raw === 'default') return null;
   const value = raw.trim() ? Number(raw) : NaN;
@@ -27,33 +29,26 @@ export function restSelection(raw: string): string {
   return raw === 'default' || REST_PRESETS.some(value => String(value) === raw) ? raw : 'custom';
 }
 export function createPendingAdd(exercise: ResolvedExercise, dayId: string, section: ExerciseSection = 'main'): PendingAdd {
-  const trackingType = exercise.defaultTrackingType ?? null;
-  const declaredUnit = exercise.supportedWeightUnits?.[0];
   return {
-    dayId, section, exerciseId: exercise.id, rawSets: '3', rawTarget: '',
-    trackingType, weightUnit: trackingType && !isWeightedMode(trackingType) ? 'unitless'
-      : declaredUnit === 'lb' ? 'lbs' : declaredUnit ?? null,
-    restSeconds: null, rawRest: 'default',
+    dayId, section, exerciseId: exercise.id, ...defaultProgramming(exercise),
   };
 }
 export function addTrackingOptions(exercise: ResolvedExercise): TrackingType[] {
-  return exercise.defaultTrackingType ? [exercise.defaultTrackingType] : Object.keys(TRACKING_LABELS) as TrackingType[];
+  return programmingOptions(exercise, null).trackingTypes;
 }
 export function addUnitOptions(exercise: ResolvedExercise, mode: TrackingType | null): WeightUnit[] {
-  if (!mode) return [];
-  if (!isWeightedMode(mode)) return ['unitless'];
-  return exercise.supportedWeightUnits?.map(unit => unit === 'lb' ? 'lbs' : unit) ?? ['kg', 'lbs', 'plates'];
+  return programmingOptions(exercise, mode).units;
 }
 export function changeAddTracking(pending: PendingAdd, trackingType: TrackingType): PendingAdd {
-  return { ...pending, trackingType, weightUnit: isWeightedMode(trackingType) ? null : 'unitless' };
+  return { ...pending, ...changeTracking(pending, trackingType, getExerciseById(pending.exerciseId)) };
 }
 export function pendingAddErrors(pending: PendingAdd, exercise: ResolvedExercise, day: DayPlan): Record<string, string> {
   const errors: Record<string, string> = {};
   const sets = pending.rawSets.trim() ? Number(pending.rawSets) : NaN;
   if (!Number.isInteger(sets) || sets < 1 || sets > 100) errors.sets = 'Enter a whole number from 1 to 100.';
   if (!pending.rawTarget.trim() || pending.rawTarget.trim().length > 80) errors.target = 'Enter a prescription of 1–80 characters.';
-  if (!pending.trackingType || !addTrackingOptions(exercise).includes(pending.trackingType)) errors.tracking = 'Choose a supported logging mode.';
-  if (!pending.weightUnit || !addUnitOptions(exercise, pending.trackingType).includes(pending.weightUnit)) errors.unit = 'Choose a supported unit.';
+  try { validateCompatibleTracking(exercise, pending); } catch (error) { errors.tracking = error instanceof Error ? error.message : 'Choose a valid tracking configuration.'; }
+  try { validateCardioZone(pending.cardioZone); } catch { errors.zone = 'Choose None or Zone 1–5.'; }
   try { parseRestInput(pending.rawRest ?? (pending.restSeconds === null ? 'default' : String(pending.restSeconds))); }
   catch { errors.rest = 'Use Default or a whole number from 1 to 3600 seconds.'; }
   if (day.kind === 'rest' || pending.dayId !== day.id) errors.day = 'Exercises cannot be added to this day.';
@@ -71,6 +66,8 @@ export function commitEditorInput(field: EditorField, raw: string, actions: {
   setRoutineName: (name: string) => void;
   updateDayMetadata: (weekday: DayPlan['weekday'], updates: { title: string }) => void;
   updateOccurrence: (id: string, updates: { targetSets?: number; targetValue?: string; restSeconds?: number | null }) => void;
+  setOccurrenceCardioZone: (id: string, value: CardioZone | null) => void;
+  setOccurrenceTrackingConfig: (id: string, config: TrackingConfig) => void;
 }, days: readonly DayPlan[]): void {
   switch (field.kind) {
     case 'routine-name': actions.setRoutineName(raw); break;
@@ -82,5 +79,7 @@ export function commitEditorInput(field: EditorField, raw: string, actions: {
     case 'sets': actions.updateOccurrence(field.occurrenceId, { targetSets: raw.trim() ? Number(raw) : NaN }); break;
     case 'target': actions.updateOccurrence(field.occurrenceId, { targetValue: raw }); break;
     case 'rest': actions.updateOccurrence(field.occurrenceId, { restSeconds: parseRestInput(raw) }); break;
+    case 'zone': actions.setOccurrenceCardioZone(field.occurrenceId, raw === 'none' ? null : Number(raw) as CardioZone); break;
+    case 'tracking-config': actions.setOccurrenceTrackingConfig(field.occurrenceId, decodeTrackingConfig(raw) as TrackingConfig); break;
   }
 }

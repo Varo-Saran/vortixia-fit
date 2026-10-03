@@ -5,8 +5,9 @@ import {
   TRACKING_TYPES, validateOptionalRestSeconds, WEEKDAYS,
 } from "@/lib/routine-model";
 import { isTemplateProgrammingCompatible } from "@/lib/template-exercise-compatibility";
+import { catalogUnitToRoutineUnit, validateCardioZone } from './routine-programming';
 import type { ExerciseWeightUnit } from "@/types/exercise-catalog";
-import type { DayKind, PlannedExerciseOccurrence, RoutinePlan, WeightUnit } from "@/types/routine";
+import type { DayKind, PlannedExerciseOccurrence, RoutinePlan } from "@/types/routine";
 import type { BuiltInRoutineTemplate, TemplateExerciseRef } from "@/types/routine-template";
 
 function requireObject(value: unknown, keys: readonly string[], label: string): asserts value is Record<string, unknown> {
@@ -36,9 +37,7 @@ function resolveExercise(id: string) {
   return exercise;
 }
 
-export function catalogUnitToRoutineUnit(unit: ExerciseWeightUnit): WeightUnit {
-  return unit === "lb" ? "lbs" : unit;
-}
+export { catalogUnitToRoutineUnit } from './routine-programming';
 
 export function validateRoutineTemplates(templates: unknown): asserts templates is readonly BuiltInRoutineTemplate[] {
   if (!Array.isArray(templates) || templates.length === 0) throw new Error("Templates must be a nonempty array.");
@@ -62,7 +61,8 @@ export function validateRoutineTemplates(templates: unknown): asserts templates 
       if (day.kind === "rest" && day.occurrences.length) throw new Error("Rest days must be empty.");
       let hasMain = false;
       for (const [order, occurrence] of day.occurrences.entries()) {
-        requireObject(occurrence, ["exercise", "section", "order", "targetSets", "targetValue", "trackingType", "weightUnit", "restSeconds", "note"], "Template occurrence");
+        requireObject(occurrence, ["exercise", "section", "order", "targetSets", "targetValue", "trackingType", "weightUnit", "restSeconds", "cardioZone", "note"], "Template occurrence");
+        validateCardioZone(occurrence.cardioZone);
         if (occurrence.order !== order) throw new Error("Occurrence order must be contiguous and zero-based across the day.");
         if (!EXERCISE_SECTIONS.includes(occurrence.section as typeof EXERCISE_SECTIONS[number])) throw new Error("Invalid section.");
         if (occurrence.section === "warmup" && hasMain) throw new Error("Warmups must precede main occurrences.");
@@ -138,6 +138,7 @@ export function resolveRoutineTemplate(template: BuiltInRoutineTemplate): Resolv
             trackingType: occurrence.trackingType ?? exercise.defaultTrackingType!,
             weightUnit: catalogUnitToRoutineUnit(occurrence.weightUnit!),
             restSeconds: occurrence.restSeconds ?? null,
+            cardioZone: occurrence.cardioZone,
             ...(occurrence.note === undefined ? {} : { note: occurrence.note }),
           };
         }),

@@ -1,10 +1,12 @@
 import { getExerciseById, getPreferredExerciseId } from './exercise-catalog';
 import {
-  assertValidRoutinePlan, createRoutineUuid, DAY_KINDS, TRACKING_TYPES,
-  WEIGHT_UNITS, WEEKDAYS, validateOptionalRestSeconds,
+  assertValidRoutinePlan, createRoutineUuid, DAY_KINDS,
+  WEEKDAYS, validateOptionalRestSeconds,
 } from './routine-model';
 import type { DayKind, DayPlan, NewPlannedExerciseOccurrence, PlannedExerciseOccurrence, RoutinePlan } from '@/types/routine';
 import type { DeepReadonly, DraftState, EditorBuffer, EditorField } from '@/types/routine-editor';
+import { decodeTrackingConfig, validateCardioZone, validateCompatibleTracking, validateTrackingConfig, type TrackingConfig } from './routine-programming';
+import { isCatalogCardio } from './routine-cardio-presentation';
 
 export class RoutineEditorError extends Error {
   constructor(message: string) { super(message); this.name = 'RoutineEditorError'; }
@@ -67,6 +69,20 @@ export function setOccurrenceRest(routine: RoutinePlan, id: string, rest: number
   try { validateOptionalRestSeconds(rest); } catch { return fail('Rest must be Default or an integer from 1 to 3600 seconds.'); }
   return editOccurrence(routine, id, exercise => exercise.restSeconds === rest ? exercise : { ...exercise, restSeconds: rest });
 }
+export function setOccurrenceCardioZone(routine: RoutinePlan, id: string, zone: import('@/types/routine').CardioZone | null): RoutinePlan {
+  validateCardioZone(zone);
+  return editOccurrence(routine, id, exercise => {
+    if (!isCatalogCardio(exercise.exerciseId ? getExerciseById(exercise.exerciseId) : undefined)) return fail('Intensity Zones are available for canonical cardio exercises.');
+    return exercise.cardioZone === zone ? exercise : { ...exercise, cardioZone: zone };
+  });
+}
+export function setOccurrenceTrackingConfig(routine: RoutinePlan, id: string, config: TrackingConfig, historical?: TrackingConfig): RoutinePlan {
+  return editOccurrence(routine, id, exercise => {
+    validateCompatibleTracking(exercise.exerciseId ? getExerciseById(exercise.exerciseId) : undefined, config, historical ?? exercise);
+    return exercise.trackingType === config.trackingType && exercise.weightUnit === config.weightUnit ? exercise
+      : { ...exercise, trackingType: config.trackingType, weightUnit: config.weightUnit };
+  });
+}
 export function moveOccurrence(routine: RoutinePlan, dayId: string, id: string, direction: 'up' | 'down'): RoutinePlan {
   if (direction !== 'up' && direction !== 'down') return fail('Invalid move direction.');
   return editDay(routine, dayId, day => {
@@ -103,12 +119,9 @@ export function addOccurrence(routine: RoutinePlan, dayId: string, input: NewPla
   if (!exercise || exercise.approval === 'red' || exercise.discoveryTier === 'hidden' || exercise.deprecatedForDiscovery || getPreferredExerciseId(exercise.id) !== exercise.id) {
     return fail('Select an available canonical exercise.');
   }
-  if (!TRACKING_TYPES.includes(input.trackingType) || !WEIGHT_UNITS.includes(input.weightUnit)) return fail('Choose an explicit logging mode and unit.');
-  const weighted = input.trackingType === 'reps_weight' || input.trackingType === 'time_weight';
-  if (!weighted && input.weightUnit !== 'unitless') return fail('Non-weighted logging requires unitless.');
-  if (exercise.defaultTrackingType && input.trackingType !== exercise.defaultTrackingType) return fail('This logging mode is not declared by the catalog.');
-  const catalogUnit = input.weightUnit === 'lbs' ? 'lb' : input.weightUnit;
-  if (exercise.supportedWeightUnits && !exercise.supportedWeightUnits.includes(catalogUnit)) return fail('This unit is not supported by the catalog.');
+  validateCompatibleTracking(exercise, input);
+  validateCardioZone(input.cardioZone);
+  if (input.cardioZone !== null && !isCatalogCardio(exercise)) return fail('Intensity Zones are available for canonical cardio exercises.');
   const occurrence = {
     ...input, name: exercise.displayName, targetMuscle: exercise.primaryMuscle,
     targetSets: integer(input.targetSets, 100, 'Sets'), targetValue: text(input.targetValue, 80, 'Target'),
@@ -139,7 +152,7 @@ export function persistedRoutineProjection(routine: DeepReadonly<RoutinePlan>) {
       exercises: [...day.exercises].sort((a, b) => a.order - b.order).map(exercise => ({
         id: exercise.id, exerciseId: exercise.exerciseId, name: exercise.name, targetMuscle: exercise.targetMuscle,
         section: exercise.section, order: exercise.order, targetSets: exercise.targetSets, targetValue: exercise.targetValue,
-        trackingType: exercise.trackingType, weightUnit: exercise.weightUnit, restSeconds: exercise.restSeconds,
+        trackingType: exercise.trackingType, weightUnit: exercise.weightUnit, restSeconds: exercise.restSeconds, cardioZone: exercise.cardioZone,
         note: exercise.note ?? null,
       })),
     })),
@@ -156,7 +169,7 @@ export function immutableRoutine(routine: RoutinePlan): DeepReadonly<RoutinePlan
 export function editorFieldKey(field: EditorField): string {
   return field.kind === 'routine-name' ? field.kind : `${field.kind}:${'dayId' in field ? field.dayId : field.occurrenceId}`;
 }
-export function applyEditorField(routine: RoutinePlan, field: EditorField, raw: string): RoutinePlan {
+export function applyEditorField(routine: RoutinePlan, field: EditorField, raw: string, historical?: TrackingConfig): RoutinePlan {
   switch (field.kind) {
     case 'routine-name': return renameRoutine(routine, raw);
     case 'day-title': return renameDay(routine, field.dayId, raw);
@@ -164,11 +177,17 @@ export function applyEditorField(routine: RoutinePlan, field: EditorField, raw: 
     case 'target': return setOccurrenceTarget(routine, field.occurrenceId, raw);
     // Explicit Default is distinct from an incomplete custom numeric input.
     case 'rest': return setOccurrenceRest(routine, field.occurrenceId, raw === 'default' ? null : raw.trim() ? Number(raw) : NaN);
+    case 'zone': return setOccurrenceCardioZone(routine, field.occurrenceId, raw === 'none' ? null : Number(raw) as import('@/types/routine').CardioZone);
+    case 'tracking-config': {
+      const config = decodeTrackingConfig(raw);
+      validateTrackingConfig(config);
+      return setOccurrenceTrackingConfig(routine, field.occurrenceId, config, historical);
+    }
   }
 }
-export function createEditorBuffer(routine: RoutinePlan, field: EditorField, raw: string): EditorBuffer {
+export function createEditorBuffer(routine: RoutinePlan, field: EditorField, raw: string, historical?: TrackingConfig): EditorBuffer {
   try {
-    const next = applyEditorField(routine, field, raw);
+    const next = applyEditorField(routine, field, raw, historical);
     return { field: { ...field }, raw, changed: routineFingerprint(next) !== routineFingerprint(routine), error: null };
   } catch (error) { return { field: { ...field }, raw, changed: true, error: error instanceof Error ? error.message : 'Invalid input.' }; }
 }

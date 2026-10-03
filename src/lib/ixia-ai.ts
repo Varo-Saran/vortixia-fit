@@ -107,6 +107,7 @@ export function generateRoutine(goal: GoalType, split: SplitType) {
         targetValue: scheme.reps.toString(),
         trackingType: 'reps_weight',
         weightUnit: 'kg',
+        cardioZone: null,
         targetMuscle: ex.target || ex.bodyPart || "full body"
       });
     });

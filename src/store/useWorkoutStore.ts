@@ -2,10 +2,12 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type {
   PlannedExerciseOccurrence,
+  CardioZone,
   TrackingType,
   WeightUnit,
 } from '@/types/routine';
 import { validateOptionalRestSeconds } from '@/lib/routine-model';
+import { CARDIO_ZONES } from '@/lib/routine-programming';
 import { useTrophyStore } from './useTrophyStore';
 import { type MuscleGroup, useRecoveryStore } from './useRecoveryStore';
 import { useSocialStore } from './useSocialStore';
@@ -28,7 +30,7 @@ const MAX_HANDLED_EFFECT_OPERATIONS = 100;
 const DEFAULT_REST_SECONDS = 90;
 const MIN_REST_SECONDS = 1;
 const MAX_REST_SECONDS = 60 * 60;
-const WORKOUT_STORE_VERSION = 3;
+const WORKOUT_STORE_VERSION = 4;
 const completionFlights = new Map<
   string,
   Promise<WorkoutCompletionUiOutcome>
@@ -50,6 +52,8 @@ export interface WorkoutExercise {
   trackingType?: TrackingType;
   weightUnit?: WeightUnit;
   restSeconds: number | null;
+  cardioZone: CardioZone | null;
+  note?: string;
 }
 
 export interface WorkoutSummary {
@@ -261,7 +265,12 @@ function migrateWorkoutStore(
     }));
   }
 
+  if (Array.isArray(migratedState.exercises)) migratedState.exercises = normalizeWorkoutZones(migratedState.exercises);
   return migratedState;
+}
+
+function normalizeWorkoutZones(exercises: WorkoutExercise[]): WorkoutExercise[] {
+  return exercises.map(exercise => ({ ...exercise, cardioZone: CARDIO_ZONES.some(zone => zone === exercise.cardioZone) ? exercise.cardioZone : null }));
 }
 
 function completedSetsFromExercises(
@@ -508,6 +517,8 @@ export const useWorkoutStore = create<WorkoutStore>()(
               trackingType: exercise.trackingType,
               weightUnit: exercise.weightUnit,
               restSeconds: exercise.restSeconds,
+              cardioZone: exercise.cardioZone,
+              note: exercise.note,
             };
           });
 
@@ -808,6 +819,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
               trackingType: 'reps_weight',
               weightUnit: 'lbs',
               restSeconds: null,
+              cardioZone: null,
             };
             return { exercises: [...currentState.exercises, newExercise] };
           });
@@ -842,6 +854,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
       merge: (persistedState, currentState) => ({
         ...currentState,
         ...(persistedState as Partial<WorkoutStore>),
+        exercises: normalizeWorkoutZones((persistedState as Partial<WorkoutStore>)?.exercises ?? currentState.exercises),
         isSaving: false,
         isSummaryDismissed:
           (persistedState as Partial<WorkoutStore>)?.isSummaryDismissed === true,

@@ -77,7 +77,7 @@ check('interleaved ordering load/projection untouched', () => {
   const before = JSON.stringify(interleaved); editor.routineFingerprint(interleaved); assert.equal(JSON.stringify(interleaved), before);
 });
 check('interleaved nearest same-section swap', () => assert.equal(editor.moveOccurrence(interleaved, day.id, first.id, 'down').days[0].exercises[2].id, first.id));
-const addInput = { exerciseId: 'vx_ex_bodyweight_squat', name: 'untrusted legacy display', targetMuscle: 'untrusted', section: 'warmup', targetSets: 2, targetValue: '10', trackingType: 'reps_only', weightUnit: 'unitless', restSeconds: null };
+const addInput = { exerciseId: 'vx_ex_bodyweight_squat', name: 'untrusted legacy display', targetMuscle: 'untrusted', section: 'warmup', targetSets: 2, targetValue: '10', trackingType: 'reps_only', weightUnit: 'unitless', restSeconds: null, cardioZone: null };
 const added = editor.addOccurrence(input, day.id, addInput);
 const fresh = added.days[0].exercises.find(e => !day.exercises.some(old => old.id === e.id));
 check('add exactly one new UUID', () => assert.equal(ids(added).filter(id => !ids(input).includes(id)).length, 1));
@@ -98,7 +98,7 @@ check('projection does not repair malformed order', () => { const next = editor.
 check('absence note consistent', () => { const next = editor.cloneRoutine(input); delete next.days[0].exercises[0].note; const second = editor.cloneRoutine(next); second.days[0].exercises[0].note = undefined; assert.equal(editor.routineFingerprint(next), editor.routineFingerprint(second)); });
 for (const [scope, fields] of [
   ['routine', ['id', 'name']], ['day', ['id', 'weekday', 'title', 'kind']],
-  ['occurrence', ['id', 'exerciseId', 'name', 'targetMuscle', 'section', 'order', 'targetSets', 'targetValue', 'trackingType', 'weightUnit', 'restSeconds', 'note']],
+  ['occurrence', ['id', 'exerciseId', 'name', 'targetMuscle', 'section', 'order', 'targetSets', 'targetValue', 'trackingType', 'weightUnit', 'restSeconds', 'cardioZone', 'note']],
 ]) for (const field of fields) {
   const changed = editor.cloneRoutine(input);
   const subject = scope === 'routine' ? changed : scope === 'day' ? changed.days[0] : changed.days[0].exercises[0];
@@ -111,7 +111,7 @@ const reloaded = model.routinePlanFromRows({ routine: { id: payload.id, name: pa
   days: payload.days.map(d => ({ id: d.id, routine_id: payload.id, day_name: model.weekdayLabel(d.weekday), type: d.kind, title: d.title })),
   exercises: payload.days.flatMap(d => d.exercises.map(e => ({ id: e.id, routine_day_id: d.id, exercise_id: e.exercise_id, name: e.name,
     type: e.target_muscle, tracking_style: e.tracking_type, weight_unit: e.weight_unit, target_sets: e.target_sets,
-    target_reps: e.target_value, rest_seconds: e.rest_seconds, note: e.note, is_warmup: e.section === 'warmup', order_index: e.order }))),
+    target_reps: e.target_value, rest_seconds: e.rest_seconds, cardio_zone: e.cardioZone, note: e.note, is_warmup: e.section === 'warmup', order_index: e.order }))),
 });
 check('editor operations D1 serialization/row reload lossless', () => assert.equal(editor.routineFingerprint(reloaded), editor.routineFingerprint(roundtripDraft)));
 for (const name of ['', ' ', 'x'.repeat(81)]) rejects('invalid name', () => editor.renameRoutine(input, name));
@@ -154,7 +154,7 @@ check('exact revert Saved', () => assert.equal(saved.get().draftStatus, 'Saved')
 const revision = saved.get().draftRevision;
 const fakeReplacement = editor.cloneRoutine(seed); fakeReplacement.days[0].exercises[0].exerciseId = 'other';
 rejects('bulk setter cannot bypass exercise identity lock', () => saved.get().setRoutine(fakeReplacement));
-rejects('existing occurrence logging remains locked', () => saved.get().updateOccurrence(first.id, { trackingType: 'time_only' }));
+rejects('independent tracking mutation remains locked; use atomic config', () => saved.get().updateOccurrence(first.id, { trackingType: 'time_only' }));
 saved.get().setRoutineName(seed.name);
 saved.get().moveOccurrence(day.id, first.id, 'up');
 check('no-op revision stable', () => assert.equal(saved.get().draftRevision, revision));
@@ -176,7 +176,7 @@ saved.get().discardDraft();
 check('discard restores saved graph', () => assert.deepEqual(saved.get().routine, seed));
 check('discard clears buffers', () => assert.deepEqual(saved.get().editorBuffers, {}));
 check('discard no DB write', () => assert.equal(saved.writes(), 0));
-const pendingAdd = { dayId: day.id, section: 'main', exerciseId: 'vx_ex_bodyweight_squat', rawSets: '2', rawTarget: '10', trackingType: 'reps_only', weightUnit: 'unitless', restSeconds: null };
+const pendingAdd = { dayId: day.id, section: 'main', exerciseId: 'vx_ex_bodyweight_squat', rawSets: '2', rawTarget: '10', trackingType: 'reps_only', weightUnit: 'unitless', restSeconds: null, cardioZone: null };
 saved.get().setPendingAdd(pendingAdd);
 check('pending Add unsaved', () => assert.equal(saved.get().hasUnsavedChanges, true));
 check('pending Add no UUID', () => assert.equal(Object.hasOwn(saved.get().pendingAdd, 'id'), false));
@@ -317,8 +317,9 @@ check('unsafe load no default', () => assert.equal(unavailable.get().routine, nu
 check('unsafe load no write', () => assert.equal(unavailable.writes(), 0));
 // Actual workout store, only external IO/effects stubbed. No completion invoked.
 const inert = { getState: () => ({}) };
+let workoutPersistence;
 const workoutLoader = localTypeScriptLoader({
-  'zustand/middleware': { persist: initializer => initializer },
+  'zustand/middleware': { persist: (initializer, options) => { workoutPersistence = options; return initializer; } },
   './useTrophyStore': { useTrophyStore: inert }, './useRecoveryStore': { useRecoveryStore: inert },
   './useSocialStore': { useSocialStore: inert }, './useProfileStore': { useProfileStore: inert },
   './useSettingsStore': { useSettingsStore: { getState: () => ({ defaultRestTimer: 90 }) } },
@@ -424,9 +425,12 @@ check('UI rest has no Add control', () => assert(!render(DayEditor, { day: uiSta
 for (const mode of model.TRACKING_TYPES) {
   const markup = render(OccurrenceEditor, { occurrence: { ...first, trackingType: mode }, expanded: true, canMoveUp: false, canMoveDown: true, defaultRest: 90, isSaving: false, onMove() {}, onRemove() {} });
   check(`UI five-mode label ${mode}`, () => assert(markup.includes(controls.TRACKING_LABELS[mode].replace('&', '&amp;'))));
-  check(`UI tracking read-only ${mode}`, () => assert(markup.includes('Tracking (read-only)') && !markup.includes('Logging mode')));
+  check(`UI tracking editable custom Select ${mode}`, () => assert(markup.includes('>Tracking</label>') && markup.includes('aria-haspopup="listbox"') && !markup.includes('Tracking (read-only)')));
 }
-for (const unit of model.WEIGHT_UNITS) check(`UI unit ${unit}`, () => assert(render(OccurrenceEditor, { occurrence: { ...first, weightUnit: unit }, expanded: true, canMoveUp: false, canMoveDown: false, defaultRest: 90, onMove() {}, onRemove() {} }).includes(controls.UNIT_LABELS[unit])));
+for (const unit of model.WEIGHT_UNITS) check(`UI unit ${unit}`, () => {
+  const markup = render(OccurrenceEditor, { occurrence: { ...first, trackingType: unit === 'unitless' ? 'reps_only' : 'reps_weight', weightUnit: unit }, expanded: true, canMoveUp: false, canMoveDown: false, defaultRest: 90, onMove() {}, onRemove() {} });
+  assert(unit === 'unitless' ? !markup.includes('Load unit') : markup.includes(controls.UNIT_LABELS[unit]));
+});
 check('UI notes verbatim escaped markup', () => assert(render(OccurrenceEditor, { occurrence: seed.days[0].exercises.at(-1), expanded: true, defaultRest: 90, onMove() {}, onRemove() {} }).includes('Aerobic base building')));
 check('UI accordion hooks', () => assert.equal((wholePage.match(/id="day-heading-[^"]+"[^>]*aria-expanded=/g) ?? []).length, 7));
 check('UI region relationships', () => assert.equal((wholePage.match(/role="region"/g) ?? []).length, 7));
@@ -455,7 +459,8 @@ check('UI configured Add valid', () => assert.deepEqual(controls.pendingAddError
 uiState.get().setPendingAdd(configured);
 check('UI pending Add blocks Save', () => assert.equal(controls.canSaveEditor(uiState.get()), false));
 const drawer = render(Drawer, { defaultRest: 90, onAdded() {}, onChooseAnother() {}, onCancel() {} });
-for (const phrase of ['role="dialog"', 'aria-modal="true"', 'Section', 'Sets', 'Target / prescription', 'Logging mode', 'Load unit', 'Rest between sets', 'Custom rest (seconds)']) check(`UI Add drawer ${phrase}`, () => assert(drawer.includes(phrase)));
+for (const phrase of ['role="dialog"', 'aria-modal="true"', 'Section', 'Sets', 'Target / prescription', 'Tracking', 'Rest between sets', 'Custom rest (seconds)']) check(`UI Add drawer ${phrase}`, () => assert(drawer.includes(phrase)));
+check('UI nonweighted Add hides irrelevant Load unit', () => assert(!drawer.includes('Load unit')));
 uiState.get().commitPendingAdd();
 const uiAdded = uiState.get().routine.days[0].exercises.find(value => !uiIds.includes(value.id));
 check('UI Add rest 75 committed', () => assert.equal(uiAdded.restSeconds, 75));
@@ -501,22 +506,22 @@ for (const mode of ['time_only', 'time_weight', 'cardio_hr']) check(`continuous 
 for (const mode of ['reps_only', 'reps_weight']) check(`repetition mode not continuous ${mode}`, () => assert.equal(cardioPresentation.occurrenceProgrammingPresentation({ ...bike, trackingType: mode }).continuous, false));
 const continuousCardio = occurrenceMarkup(bike);
 check('continuous Duration full field', () => assert(continuousCardio.includes('>Duration / prescription</label>') && continuousCardio.includes('value="30 mins"')));
-check('continuous count de-emphasized in disclosure', () => assert.match(continuousCardio, /aria-expanded="false" aria-controls="rounds-[\s\S]*Continuous cardio · Adjust rounds[\s\S]*>Rounds<\/label>/));
+check('continuous count de-emphasized in disclosure', () => assert.match(continuousCardio, /aria-expanded="false" aria-controls="editor-sets:[\s\S]*Continuous cardio · Adjust rounds[\s\S]*>Rounds<\/label>/));
 check('continuous never strength Sets label', () => assert(!continuousCardio.includes('>Sets</label>')));
 const multiRoundCardio = occurrenceMarkup({ ...bike, targetSets: 3 });
 check('multiround editable Rounds', () => assert(multiRoundCardio.includes('>Rounds</label>') && multiRoundCardio.includes('value="3"') && !multiRoundCardio.includes('<details')));
 check('multiround preserves targetSets domain', () => assert.equal(bike.targetSets, 1));
 for (const zone of [1, 2, 3, 4, 5]) {
   check(`explicit Zone ${zone} extraction`, () => assert.equal(cardioPresentation.explicitHeartRateZone(`Zone ${zone}. Context`), zone));
-  check(`explicit Zone ${zone} accessible display`, () => assert(occurrenceMarkup({ ...bike, note: `Zone ${zone}. Context` }).includes(`aria-label="Intensity Zone ${zone}"`)));
+  check(`structured Zone ${zone} editable display`, () => assert(occurrenceMarkup({ ...bike, cardioZone: zone, note: 'Zone 2. Context' }).includes(`Zone ${zone}`)));
 }
 check('case insensitive zone token', () => assert.equal(cardioPresentation.explicitHeartRateZone('zOnE 2'), 2));
-check('programming target explicit zone', () => assert.equal(cardioPresentation.occurrenceProgrammingPresentation({ ...bike, targetValue: '30 mins Zone 5', note: undefined }).zone, 5));
+check('programming target text cannot override structured Zone', () => assert.equal(cardioPresentation.occurrenceProgrammingPresentation({ ...bike, targetValue: '30 mins Zone 5', note: undefined }).zone, 2));
 for (const text of ['', 'easy aerobic hard', 'Zone 0', 'Zone 6', 'Zone 12', 'Zone2', 'Zone 2.5', 'Zone 2–3', 'Zone 2 / 3', 'Zone 2 to 3', 'Zone 1 or Zone 2']) {
   check(`no fabricated/partial/ambiguous zone ${text}`, () => assert.equal(cardioPresentation.explicitHeartRateZone(text), null));
-  check(`no intensity row ${text}`, () => assert(!occurrenceMarkup({ ...bike, targetValue: '30 mins', note: text }).includes('Intensity Zone')));
+  check(`structured None independent of text ${text}`, () => assert.equal(cardioPresentation.occurrenceProgrammingPresentation({ ...bike, cardioZone: null, targetValue: '30 mins', note: text }).zone, null));
 }
-check('conflicting target/note zones suppressed', () => assert.equal(cardioPresentation.occurrenceProgrammingPresentation({ ...bike, targetValue: '30 mins Zone 1', note: 'Zone 2' }).zone, null));
+check('conflicting text does not override structured Zone', () => assert.equal(cardioPresentation.occurrenceProgrammingPresentation({ ...bike, targetValue: '30 mins Zone 1', note: 'Zone 2' }).zone, 2));
 check('strength Sets label unchanged', () => assert(occurrenceMarkup({ ...bike, exerciseId: '0025', targetSets: 4 }).includes('>Sets</label>')));
 check('cardio notes remain verbatim', () => assert(continuousCardio.includes(bike.note)));
 check('cardio rest control retained', () => { occurrenceMarkup(bike); assert(continuousCardio.includes('>Rest</label>') && continuousCardio.includes('Use Default') && lastSelect('Rest').options.some(value => value.value === 'custom')); });
@@ -534,7 +539,7 @@ const cardioDrawer = render(Drawer, { defaultRest: 90, onAdded() {}, onChooseAno
 check('Add canonical cardio labels', () => assert(cardioDrawer.includes('>Rounds</label>') && cardioDrawer.includes('>Duration / prescription</label>')));
 check('Add cardio explicit capability selection unchanged', () => assert.equal(uiState.get().pendingAdd.trackingType, null));
 check('Add cardio rest Default/null unchanged', () => assert.equal(uiState.get().pendingAdd.restSeconds, null));
-check('Add has no Zone editor', () => assert(!cardioDrawer.includes('Intensity') && !cardioDrawer.includes('Zone')));
+check('Add has structured Zone editor', () => { assert(cardioDrawer.includes('Intensity')); assert.deepEqual(lastSelect('Intensity').options.map(value => value.value), ['none', '1', '2', '3', '4', '5']); });
 uiState.get().setPendingAdd(null);
 
 // Contextual rest labels are copy only; existing control behavior is unchanged.
@@ -654,7 +659,7 @@ check('shared Select exposes labelled combobox semantics', () => assert(expanded
 const invalidRoundsBike = uiState.get().routine.days[0].exercises.find(item => item.exerciseId === '9003');
 uiState.get().setEditorBuffer({ kind: 'sets', occurrenceId: invalidRoundsBike.id }, '0');
 const invalidRoundsMarkup = occurrenceMarkup(invalidRoundsBike);
-check('invalid continuous rounds disclosure cannot hide error', () => assert(invalidRoundsMarkup.includes(`aria-expanded="true" aria-controls="rounds-${invalidRoundsBike.id}"`)));
+check('invalid continuous rounds cannot hide error', () => assert(invalidRoundsMarkup.includes(`id="editor-sets:${invalidRoundsBike.id}"`) && invalidRoundsMarkup.includes('aria-invalid="true"') && invalidRoundsMarkup.includes('value="0"')));
 check('invalid continuous rounds field stays visible', () => assert(!invalidRoundsMarkup.includes(`id="rounds-${invalidRoundsBike.id}" hidden`)));
 uiState.get().discardDraft();
 check('custom selects preserve exact rest values', () => { render(RestControl, { id: 'disclosure-rest', label: 'Rest', raw: '75', onChange() {}, defaultRest: 90 }); assert.deepEqual(lastSelect('Rest').options.map(option => option.value), ['default', '30', '45', '60', '90', '120', '180', 'custom']); });
@@ -663,6 +668,181 @@ for (const [occurrence, expected] of [[{ ...bike, exerciseId: '0025', targetSets
   check(`compact summary ${expected}`, () => assert.equal(disclosure.compactOccurrenceSummary(occurrence).prescription, expected));
   check('summary never mutates programming', () => assert.deepEqual(occurrence, before));
 }
+// D2D-B: actual shared domain, adapters, buffers, save lifecycle and hydration.
+const prog = loader('src/lib/routine-programming.ts');
+const clean = materializer.materializeRoutineTemplate(templates[2]);
+const cleanBike = clean.days[0].exercises.at(-1);
+const getOccurrence = (routine, id) => routine.days.flatMap(d => d.exercises).find(e => e.id === id);
+for (const zone of [null, 1, 2, 3, 4, 5]) {
+  const changed = editor.setOccurrenceCardioZone(clean, cleanBike.id, zone);
+  const occurrence = getOccurrence(changed, cleanBike.id);
+  check(`Zone ${zone} pure operation`, () => assert.deepEqual(occurrence, { ...cleanBike, cardioZone: zone }));
+  check(`Zone ${zone} JSON includes exact key`, () => assert.equal(JSON.parse(JSON.stringify(model.routinePlanToRpcPayload(changed))).days[0].exercises.at(-1).cardioZone, zone));
+  const legacy = model.routinePlanToLegacyPlan(changed);
+  check(`Zone ${zone} export includes key`, () => assert(Object.hasOwn(legacy[0].mainLifts.at(-1), 'cardioZone')));
+  check(`Zone ${zone} import exact roundtrip`, () => assert.equal(model.legacyPlanToRoutinePlan('Synthetic', legacy).days[0].exercises.at(-1).cardioZone, zone));
+  const state = makeStore({ loaded: changed }); await state.get().fetchRoutine();
+  check(`Zone ${zone} custom template saved`, () => assert(state.get().saveCustomTemplate('Synthetic', '', changed)));
+  check(`Zone ${zone} custom value retained`, () => assert.equal(state.get().customTemplates[0].plan[0].mainLifts.at(-1).cardioZone, zone));
+  await state.get().applyTemplate(state.get().customTemplates[0].id);
+  check(`Zone ${zone} custom Apply value retained`, () => assert.equal(state.submissions.at(-1).days[0].exercises.at(-1).cardioZone, zone));
+  const encoded = state.get().exportRoutine();
+  check(`Zone ${zone} encoded export exact`, () => assert.equal(JSON.parse(decodeURIComponent(atob(encoded)))[0].mainLifts.at(-1).cardioZone, zone));
+  await state.get().importRoutine(encoded);
+  check(`Zone ${zone} encoded import submits key`, () => assert.equal(state.submissions.at(-1).days[0].exercises.at(-1).cardioZone, zone));
+  const pending = { ...controls.createPendingAdd(catalog.getExerciseById('9003'), clean.days[0].id), rawTarget: '30 mins', trackingType: 'time_only', weightUnit: 'unitless', cardioZone: zone };
+  const addStore = makeStore({ loaded: clean }); await addStore.get().fetchRoutine(); addStore.get().setPendingAdd(pending); addStore.get().commitPendingAdd();
+  check(`Add Zone ${zone} exact`, () => assert.equal(addStore.get().routine.days[0].exercises.at(-1).cardioZone, zone));
+}
+for (const invalid of [undefined, 0, 6, -1, 2.5, '2', true, {}, []]) {
+  rejects(`canonical invalid Zone ${JSON.stringify(invalid)}`, () => { const value = structuredClone(clean); value.days[0].exercises.at(-1).cardioZone = invalid; model.routinePlanToRpcPayload(value); });
+  rejects('invalid present legacy Zone', () => prog.normalizeLegacyCardioZone({ exerciseId: '9003', cardioZone: invalid, note: 'Zone 2' }));
+}
+for (const [id, target, note, expected] of [
+  ['9003', '', 'Zone 1', 1], ['9001', '', 'Zone 2', 2], ['3666', 'Zone 5', '', 5], ['2141', '', 'zOnE 3', 3],
+  ['9003', 'Zone 2', 'Zone 2', 2], ['9003', 'Zone 1', 'Zone 2', null], ['9003', '', 'Zone 6', null],
+  ['9003', '', 'Zone 2 / Zone 6', null], ['9003', '', 'Zone 2.5', null], ['9003', '', 'Zone 2–3', null],
+  ['9003', '', 'Zone 2 to 3', null], ['9003', '', 'Zone 02', null], ['9003', 'Zone', '2', null],
+  ['9003', '', 'easy aerobic recovery hard RPE heart rate', null], ['9003', '', 'Timezone 2', null],
+  ['9008', '', 'Zone 2', null], ['unknown', '', 'Zone 2', null], [null, '', 'Zone 2', null],
+]) check(`strict legacy ${id}/${target}/${note}`, () => assert.equal(prog.normalizeLegacyCardioZone({ exerciseId: id, targetValue: target, note }), expected));
+check('explicit null suppresses legacy', () => assert.equal(prog.normalizeLegacyCardioZone({ exerciseId: '9003', cardioZone: null, note: 'Zone 2' }), null));
+check('structured Zone wins over legacy', () => assert.equal(prog.normalizeLegacyCardioZone({ exerciseId: '9003', cardioZone: 4, note: 'Zone 2' }), 4));
+const oldLegacy = model.routinePlanToLegacyPlan(clean); delete oldLegacy[0].mainLifts.at(-1).cardioZone;
+const oldTemplate = { id: 'cust_legacy', name: 'Legacy', description: 'Synthetic', plan: oldLegacy };
+const customState = makeStore();
+const mergedCustom = customState.options.merge({ customTemplates: [oldTemplate] }, customState.get());
+check('custom hydration preserves version 1', () => assert.equal(customState.options.version, 1));
+check('custom hydration preserves IDs/notes', () => assert.deepEqual(mergedCustom.customTemplates[0].plan[0].mainLifts.at(-1), { ...oldLegacy[0].mainLifts.at(-1), cardioZone: 2 }));
+check('custom hydration preserves template ID', () => assert.equal(mergedCustom.customTemplates[0].id, oldTemplate.id));
+for (const [id, expected] of [['9003', '1'], ['3666', '1'], ['9001', '1'], ['2141', '1'], ['0025', '3'], ['9008', '3']]) {
+  check(`Add ${id} count default`, () => assert.equal(controls.createPendingAdd(catalog.getExerciseById(id), day.id).rawSets, expected));
+}
+check('unit domain exactly four', () => assert.deepEqual(prog.PROGRAMMING_WEIGHT_UNITS, ['kg', 'lbs', 'plates', 'unitless']));
+check('tracking domain exactly five', () => assert.deepEqual(prog.PROGRAMMING_TRACKING_TYPES, model.TRACKING_TYPES));
+check('atomic config cannot mutate unrelated fields through extra runtime keys', () => assert.deepEqual(
+  getOccurrence(editor.setOccurrenceTrackingConfig(clean, cleanBike.id, { trackingType: 'cardio_hr', weightUnit: 'unitless', id: 'not-allowed', cardioZone: 5, note: 'not-allowed', restSeconds: 75 }), cleanBike.id),
+  { ...cleanBike, trackingType: 'cardio_hr', weightUnit: 'unitless' }));
+check('catalog lb maps to lbs', () => assert.equal(prog.catalogUnitToRoutineUnit('lb'), 'lbs'));
+const press = catalog.getExerciseCatalog().find(e => e.displayName === 'Machine Leg Press');
+const cable = catalog.getExerciseById('vx_ex_face_pull');
+check('leg press declared units only', () => assert.deepEqual(prog.programmingOptions(press, 'reps_weight').units, ['kg', 'lbs']));
+check('cable plates declared', () => assert(prog.programmingOptions(cable, 'reps_weight').units.includes('plates')));
+rejects('leg press arbitrary alternate mode rejected', () => prog.validateCompatibleTracking(press, { trackingType: 'time_weight', weightUnit: 'kg' }));
+rejects('leg press plates not invented', () => prog.validateCompatibleTracking(press, { trackingType: 'reps_weight', weightUnit: 'plates' }));
+const historical = { trackingType: 'time_weight', weightUnit: 'plates' };
+check('exact historical pair preserved', () => prog.validateCompatibleTracking(press, historical, historical));
+check('historical options scoped to exact pair', () => assert.deepEqual(prog.programmingOptions(press, 'time_weight', historical).units, ['plates']));
+rejects('historical pair does not broaden cross products', () => prog.validateCompatibleTracking(press, { trackingType: 'time_weight', weightUnit: 'kg' }, historical));
+for (const mode of model.TRACKING_TYPES) for (const unit of model.WEIGHT_UNITS) {
+  const config = { trackingType: mode, weightUnit: unit };
+  const valid = prog.isWeightedMode(mode) ? unit !== 'unitless' : unit === 'unitless';
+  if (valid) {
+    check(`imported explicit ${mode}/${unit}`, () => prog.validateCompatibleTracking(catalog.getExerciseById('9003'), config));
+    const edited = editor.setOccurrenceTrackingConfig(clean, cleanBike.id, config);
+    check(`${mode}/${unit} preserves unrelated programming`, () => assert.deepEqual(getOccurrence(edited, cleanBike.id), { ...cleanBike, ...config }));
+  } else rejects(`invalid pair ${mode}/${unit}`, () => prog.validateTrackingConfig(config));
+}
+const parity = makeStore({ loaded: clean }); await parity.get().fetchRoutine();
+const zoneField = { kind: 'zone', occurrenceId: cleanBike.id };
+const configField = { kind: 'tracking-config', occurrenceId: cleanBike.id };
+const parityCommit = (field, raw) => { parity.get().setEditorBuffer(field, raw); controls.commitEditorInput(field, raw, parity.get(), parity.get().routine.days); };
+for (const raw of ['3', 'none', '1', '5', '2']) {
+  parityCommit(zoneField, raw);
+  check(`Zone buffer ${raw} dirty/revert`, () => assert.equal(parity.get().draftStatus, raw === '2' ? 'Saved' : 'Unsaved changes'));
+}
+const lastValid = editor.routineFingerprint(parity.get().routine);
+const incomplete = prog.transitionTracking({ trackingType: 'time_only', weightUnit: 'unitless' }, 'time_weight', ['kg', 'lbs', 'plates']);
+check('non-weighted to weighted requires choice', () => assert.equal(incomplete.weightUnit, null));
+parity.get().setEditorBuffer(configField, prog.encodeTrackingConfig(incomplete));
+check('incomplete config does not mutate graph', () => assert.equal(editor.routineFingerprint(parity.get().routine), lastValid));
+check('incomplete config blocks Save', () => assert.equal(controls.canSaveEditor(parity.get()), false));
+await rejectsAsync('incomplete config cannot save', () => parity.get().saveRoutineToDb());
+for (const action of [{ kind: 'done' }, { kind: 'occurrence', dayId: clean.days[0].id, occurrenceId: clean.days[0].exercises[0].id }]) {
+  const open = { ...disclosure.INITIAL_EDITOR_DISCLOSURE, dayId: clean.days[0].id, occurrenceId: cleanBike.id };
+  check('incomplete config blocks Done/switch', () => assert.strictEqual(disclosure.transitionDisclosure(open, action, parity.get().editorBuffers).state, open));
+}
+check('incomplete config focuses load unit', () => assert.equal(disclosure.editorErrorInputId(configField, parity.get().editorBuffers), `editor-tracking-config:${cleanBike.id}-unit`));
+for (const unit of ['kg', 'lbs', 'plates']) {
+  parityCommit(configField, prog.encodeTrackingConfig({ trackingType: 'time_weight', weightUnit: unit }));
+  check(`atomic weighted ${unit}`, () => assert.equal(getOccurrence(parity.get().routine, cleanBike.id).weightUnit, unit));
+}
+const nonWeighted = prog.transitionTracking({ trackingType: 'time_weight', weightUnit: 'plates' }, 'cardio_hr', ['unitless']);
+check('weighted to non-weighted atomically unitless', () => assert.deepEqual(nonWeighted, { trackingType: 'cardio_hr', weightUnit: 'unitless' }));
+parityCommit(configField, prog.encodeTrackingConfig(nonWeighted));
+check('tracking keeps Zone/notes/rest/target', () => assert.deepEqual(getOccurrence(parity.get().routine, cleanBike.id), { ...cleanBike, ...nonWeighted }));
+parityCommit(configField, prog.encodeTrackingConfig({ trackingType: cleanBike.trackingType, weightUnit: cleanBike.weightUnit }));
+check('tracking exact revert Saved', () => assert.equal(parity.get().draftStatus, 'Saved'));
+check('editing/Done never persisted implicitly', () => assert.equal(parity.writes(), 0));
+parity.get().setOccurrenceCardioZone(cleanBike.id, 3);
+await parity.get().saveRoutineToDb();
+const freshZone = makeStore({ loaded: parity.submissions.at(-1) }); await freshZone.get().fetchRoutine();
+check('Zone fresh store reload exact', () => assert.equal(getOccurrence(freshZone.get().routine, cleanBike.id).cardioZone, 3));
+check('Zone discard restores saved value', () => { freshZone.get().setOccurrenceCardioZone(cleanBike.id, null); freshZone.get().discardDraft(); assert.equal(getOccurrence(freshZone.get().routine, cleanBike.id).cardioZone, 3); });
+const flight = deferred(); const newer = makeStore({ loaded: clean, save: () => flight.promise }); await newer.get().fetchRoutine();
+newer.get().setOccurrenceCardioZone(cleanBike.id, 3); const one = newer.get().saveRoutineToDb(); const two = newer.get().saveRoutineToDb();
+check('Zone duplicate Save single flight', () => assert.strictEqual(one, two));
+newer.get().setOccurrenceTrackingConfig(cleanBike.id, { trackingType: 'time_weight', weightUnit: 'plates' });
+newer.get().setOccurrenceCardioZone(cleanBike.id, null); flight.resolve(newer.submissions[0]); await one;
+check('newer Zone retained after stale save', () => assert.equal(getOccurrence(newer.get().routine, cleanBike.id).cardioZone, null));
+check('newer tracking retained after stale save', () => assert.equal(getOccurrence(newer.get().routine, cleanBike.id).weightUnit, 'plates'));
+check('stale save leaves dirty', () => assert.equal(newer.get().draftStatus, 'Unsaved changes'));
+let failZone = true; const retryZone = makeStore({ loaded: clean, save: async routine => { if (failZone) throw new Error('Synthetic failure'); return routine; } }); await retryZone.get().fetchRoutine();
+retryZone.get().setOccurrenceCardioZone(cleanBike.id, 4); await rejectsAsync('Zone failure remains explicit', () => retryZone.get().saveRoutineToDb());
+check('Zone failure draft preserved', () => assert.equal(getOccurrence(retryZone.get().routine, cleanBike.id).cardioZone, 4));
+failZone = false; await retryZone.get().saveRoutineToDb(); check('Zone retry Saved', () => assert.equal(retryZone.get().draftStatus, 'Saved'));
+workout.getState().startWorkout('Synthetic zone snapshot', clean.days[0].exercises);
+check('workout start copies Zone', () => assert.equal(workout.getState().exercises.at(-1).cardioZone, 2));
+check('workout start preserves read-only note', () => assert.equal(workout.getState().exercises.at(-1).note, cleanBike.note));
+freshZone.get().setOccurrenceCardioZone(cleanBike.id, 5);
+check('routine Zone edit cannot affect snapshot', () => assert.equal(workout.getState().exercises.at(-1).cardioZone, 2));
+check('workout store version 4', () => assert.equal(workoutPersistence.version, 4));
+const legacyWorkout = { ...structuredClone(Object.fromEntries(Object.entries(workout.getState()).filter(([, value]) => typeof value !== 'function'))), restEndsAt: 12345, restCycleId: 'synthetic-cycle', restTimeRemaining: 75,
+  operationId: 'synthetic-operation', completionStatus: 'queued', completionRequest: { synthetic: true },
+  handledEffectOperationIds: ['synthetic-handled'], lastWorkoutSummary: { operationId: 'synthetic-summary' } };
+delete legacyWorkout.exercises.at(-1).cardioZone;
+const migratedWorkout = workoutPersistence.migrate(structuredClone(legacyWorkout), 3);
+check('legacy workout missing Zone normalizes null', () => assert.equal(migratedWorkout.exercises.at(-1).cardioZone, null));
+check('workout legacy migration preserves all other fields', () => assert.deepEqual(migratedWorkout, { ...legacyWorkout, exercises: legacyWorkout.exercises.map(e => ({ ...e, cardioZone: e.cardioZone ?? null })) }));
+for (const value of [1, 2, 3, 4, 5, null, undefined, 0, 6, '2', true]) {
+  const fixture = structuredClone(legacyWorkout); fixture.exercises.at(-1).cardioZone = value;
+  check(`workout hydration Zone ${value}`, () => assert.equal(workoutPersistence.merge(fixture, workout.getState()).exercises.at(-1).cardioZone, [1, 2, 3, 4, 5].includes(value) ? value : null));
+}
+workout.getState().addExerciseToWorkout('Synthetic ad hoc'); check('ad hoc Zone null', () => assert.equal(workout.getState().exercises.at(-1).cardioZone, null));
+const authoritativeNullRows = structuredClone(reloaded); authoritativeNullRows.days[0].exercises.at(-1).cardioZone = null;
+check('normal render never infers note Zone', () => assert.equal(loader('src/lib/routine-cardio-presentation.ts').occurrenceProgrammingPresentation(authoritativeNullRows.days[0].exercises.at(-1)).zone, null));
+const originalNote = cleanBike.note;
+check('full original note preserved with provenance', () => { const markup = occurrenceMarkup({ ...cleanBike, cardioZone: 3 }); assert(markup.includes(originalNote)); assert(markup.includes('Original source wording')); assert(markup.includes('Zone 3')); });
+for (const id of ['9008', '9009', '1564', 'vx_ex_intermediate_hip_flexor_quad_stretch']) {
+  const resolved = catalog.getExerciseById(id); if (!resolved) continue;
+  check(`non-cardio ${id} no Intensity control`, () => assert(!occurrenceMarkup({ ...cleanBike, exerciseId: id, name: resolved.displayName, cardioZone: null }).includes('>Intensity</label>')));
+}
+check('Add/Edit share six Zone options', () => { uiState.get().setPendingAdd({ ...controls.createPendingAdd(catalog.getExerciseById('9003'), day.id), trackingType: 'time_only', weightUnit: 'unitless' }); render(Drawer, { open: true, dayId: day.id, defaultRest: 90, onClose() {} }); const addOptions = lastSelect('Intensity').options; occurrenceMarkup(cleanBike); assert.deepEqual(lastSelect('Intensity').options, addOptions); uiState.get().setPendingAdd(null); });
+const aiRoutine = loader('src/lib/ixia-ai.ts').generateRoutine('hypertrophy', 'ppl');
+check('AI generated programming explicitly null', () => assert(Object.values(aiRoutine).flat().every(e => Object.hasOwn(e, 'cardioZone') && e.cardioZone === null)));
+const dbNull = structuredClone(model.routinePlanToRpcPayload(clean)); dbNull.days[0].exercises.at(-1).cardioZone = null;
+const dbNullRoutine = model.routinePlanFromRows({ routine: { id: dbNull.id, name: dbNull.name },
+  days: dbNull.days.map(d => ({ id: d.id, routine_id: dbNull.id, day_name: model.weekdayLabel(d.weekday), type: d.kind, title: d.title })),
+  exercises: dbNull.days.flatMap(d => d.exercises.map(e => ({ id: e.id, routine_day_id: d.id, exercise_id: e.exercise_id, name: e.name, type: e.target_muscle,
+    tracking_style: e.tracking_type, weight_unit: e.weight_unit, target_sets: e.target_sets, target_reps: e.target_value, rest_seconds: e.rest_seconds,
+    cardio_zone: e.cardioZone, note: e.note, is_warmup: e.section === 'warmup', order_index: e.order }))) });
+check('DB null stays null despite legacy Zone note', () => assert.equal(dbNullRoutine.days[0].exercises.at(-1).cardioZone, null));
+let historicalGraph = structuredClone(clean);
+const historicalId = historicalGraph.days[0].exercises[3].id, ordinaryId = historicalGraph.days[0].exercises[4].id;
+Object.assign(getOccurrence(historicalGraph, historicalId), { exerciseId: 'vx_ex_face_pull', trackingType: 'time_weight', weightUnit: 'kg' });
+Object.assign(getOccurrence(historicalGraph, ordinaryId), { exerciseId: 'vx_ex_face_pull', trackingType: 'reps_weight', weightUnit: 'plates' });
+const historicalStore = makeStore({ load: () => structuredClone(historicalGraph) }); await historicalStore.get().fetchRoutine();
+check('historical occurrence offers its original pair', () => assert.deepEqual(historicalStore.get().occurrenceProgrammingOptions(historicalId, 'time_weight').units, ['kg']));
+check('historical exception is not global', () => assert(!historicalStore.get().occurrenceProgrammingOptions(ordinaryId, 'time_weight').trackingTypes.includes('time_weight')));
+historicalStore.get().setOccurrenceTrackingConfig(historicalId, { trackingType: 'reps_weight', weightUnit: 'plates' });
+historicalStore.get().setOccurrenceTrackingConfig(historicalId, { trackingType: 'time_weight', weightUnit: 'kg' });
+check('historical exact revert Saved', () => assert.equal(historicalStore.get().draftStatus, 'Saved'));
+rejects('historical pair cannot broaden another occurrence', () => historicalStore.get().setOccurrenceTrackingConfig(ordinaryId, { trackingType: 'time_weight', weightUnit: 'kg' }));
+Object.assign(getOccurrence(historicalGraph, historicalId), { trackingType: 'reps_only', weightUnit: 'unitless' });
+await historicalStore.get().fetchRoutine();
+check('fresh trusted load refreshes allowance', () => assert.deepEqual(historicalStore.get().occurrenceProgrammingOptions(historicalId, 'reps_only').units, ['unitless']));
+check('fresh load does not retain obsolete allowance', () => assert(!historicalStore.get().occurrenceProgrammingOptions(historicalId, 'time_weight').trackingTypes.includes('time_weight')));
+for (const invalid of [undefined, 0, 6, '2', true]) rejects('template requires valid explicit Zone', () => { const copy = structuredClone(templates); copy[0].days[0].occurrences[0].cardioZone = invalid; materializer.validateRoutineTemplates(copy); });
 console.log(`Routine editor validation passed: ${positive} positive assertions, ${negative} negative fixtures.`);
 console.log('Actual domain operations, Zustand actions, guard bridge, D1 serialization and active workout snapshot exercised.');
 console.log('Deterministic single-flight / subscriber reentry / stale domain+buffer / failure+retry / cancellation+stale approval fixtures passed.');

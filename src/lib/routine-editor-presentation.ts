@@ -2,6 +2,7 @@ import type { RoutinePlan, PlannedExerciseOccurrence, ExerciseSection } from '@/
 import type { EditorBuffer, EditorField } from '@/types/routine-editor';
 import { occurrenceProgrammingPresentation } from './routine-cardio-presentation';
 import { formatRest } from './routine-editor-controls';
+import { decodeTrackingConfig, isWeightedMode } from './routine-programming';
 
 // View state only. Never part of RoutinePlan, store revisions or RPC payloads.
 export interface EditorDisclosure {
@@ -52,10 +53,14 @@ export function revealEditorError(state: EditorDisclosure, routine: RoutinePlan,
     occurrenceId: field.kind === 'day-title' ? null : field.occurrenceId };
 }
 
-export function editorErrorInputId(field: EditorField): string {
+export function editorErrorInputId(field: EditorField, buffers: Record<string, EditorBuffer> = {}): string {
   if (field.kind === 'rest') return `rest-${field.occurrenceId}-custom`;
   if (field.kind === 'routine-name') return 'editor-routine-name';
   if (field.kind === 'day-title') return `editor-day-title:${field.dayId}`;
+  if (field.kind === 'tracking-config') {
+    try { if (isWeightedMode(decodeTrackingConfig(buffers[`tracking-config:${field.occurrenceId}`]?.raw ?? '').trackingType)) return `editor-tracking-config:${field.occurrenceId}-unit`; }
+    catch { /* Focus Tracking for malformed raw configuration. */ }
+  }
   return `editor-${field.kind}:${field.occurrenceId}`;
 }
 

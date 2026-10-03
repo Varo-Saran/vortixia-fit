@@ -6,6 +6,7 @@ export type TrackingType =
   | "reps_only";
 
 export type WeightUnit = "kg" | "lbs" | "plates" | "unitless";
+export type CardioZone = 1 | 2 | 3 | 4 | 5;
 
 export type Weekday =
   | "monday"
@@ -32,6 +33,7 @@ export interface PlannedExerciseOccurrence {
   trackingType: TrackingType;
   weightUnit: WeightUnit;
   restSeconds: number | null;
+  cardioZone: CardioZone | null;
   note?: string;
 }
 
@@ -67,6 +69,8 @@ export interface LegacyPlannedExercise {
   targetSets: number;
   targetValue: string;
   restSeconds?: number | null;
+  // Absence is supported only at legacy input boundaries; null means None.
+  cardioZone?: CardioZone | null;
   note?: string;
   isWarmup?: boolean;
 }

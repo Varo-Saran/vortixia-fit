@@ -11,6 +11,7 @@ import type {
   Weekday,
   WeightUnit,
 } from "@/types/routine";
+import { normalizeLegacyCardioZone, PROGRAMMING_TRACKING_TYPES, PROGRAMMING_WEIGHT_UNITS, validateCardioZone, validateTrackingConfig } from './routine-programming';
 
 export const WEEKDAYS: readonly Weekday[] = [
   "monday",
@@ -24,19 +25,8 @@ export const WEEKDAYS: readonly Weekday[] = [
 
 export const DAY_KINDS: readonly DayKind[] = ["training", "rest", "recovery"];
 export const EXERCISE_SECTIONS: readonly ExerciseSection[] = ["warmup", "main"];
-export const TRACKING_TYPES: readonly TrackingType[] = [
-  "reps_weight",
-  "time_weight",
-  "time_only",
-  "cardio_hr",
-  "reps_only",
-];
-export const WEIGHT_UNITS: readonly WeightUnit[] = [
-  "kg",
-  "lbs",
-  "plates",
-  "unitless",
-];
+export const TRACKING_TYPES = PROGRAMMING_TRACKING_TYPES;
+export const WEIGHT_UNITS = PROGRAMMING_WEIGHT_UNITS;
 
 export const ROUTINE_NAME_MAX_LENGTH = 80;
 export const DAY_TITLE_MAX_LENGTH = 60;
@@ -69,6 +59,7 @@ export interface PlannedExerciseRow {
   target_sets: number;
   target_reps: string;
   rest_seconds: number | null;
+  cardio_zone: number | null;
   note: string | null;
   is_warmup: boolean;
   order_index: number;
@@ -100,6 +91,7 @@ export interface RoutineRpcPayload {
       tracking_type: TrackingType;
       weight_unit: WeightUnit;
       rest_seconds: number | null;
+      cardioZone: import('@/types/routine').CardioZone | null;
       note: string | null;
     }>;
   }>;
@@ -221,6 +213,7 @@ function legacyExerciseToOccurrence(
     trackingType: exercise.trackingType,
     weightUnit: exercise.weightUnit,
     restSeconds: exercise.restSeconds ?? null,
+    cardioZone: normalizeLegacyCardioZone(exercise),
     note: exercise.note,
   };
 }
@@ -279,6 +272,14 @@ export function legacyPlanToRoutinePlan(
   return routine;
 }
 
+// Additive input normalization: no fresh identities and no storage version reset.
+export function normalizeLegacyPlanProgramming(plan: readonly LegacyDayPlan[]): LegacyDayPlan[] {
+  return plan.map(day => ({ ...day,
+    warmups: day.warmups.map(exercise => ({ ...exercise, cardioZone: normalizeLegacyCardioZone(exercise) })),
+    mainLifts: day.mainLifts.map(exercise => ({ ...exercise, cardioZone: normalizeLegacyCardioZone(exercise) })),
+  }));
+}
+
 export function routinePlanToLegacyPlan(routine: RoutinePlan): LegacyDayPlan[] {
   return [...routine.days]
     .sort(
@@ -298,6 +299,7 @@ export function routinePlanToLegacyPlan(routine: RoutinePlan): LegacyDayPlan[] {
         targetSets: exercise.targetSets,
         targetValue: exercise.targetValue,
         restSeconds: exercise.restSeconds,
+        cardioZone: exercise.cardioZone,
         note: exercise.note,
         isWarmup: exercise.section === "warmup",
       });
@@ -377,6 +379,8 @@ export function validateRoutinePlan(routine: RoutinePlan): string[] {
       }
       if (!TRACKING_TYPES.includes(exercise.trackingType)) errors.push(`${prefix}: invalid tracking type.`);
       if (!WEIGHT_UNITS.includes(exercise.weightUnit)) errors.push(`${prefix}: invalid weight unit.`);
+      try { validateTrackingConfig(exercise); validateCardioZone(exercise.cardioZone); }
+      catch (error) { errors.push(`${prefix}: ${error instanceof Error ? error.message : 'Invalid programming.'}`); }
       try {
         validateOptionalRestSeconds(exercise.restSeconds);
       } catch (error) {
@@ -419,7 +423,7 @@ export function prepareRoutinePlanForSave(routine: RoutinePlan): RoutinePlan {
             name: exercise.name.trim(),
             targetMuscle: exercise.targetMuscle.trim(),
             targetValue: exercise.targetValue.trim(),
-            note: exercise.note?.trim() || undefined,
+            note: exercise.note,
             order,
           })),
       })),
@@ -450,6 +454,7 @@ export function routinePlanToRpcPayload(routine: RoutinePlan): RoutineRpcPayload
         tracking_type: exercise.trackingType,
         weight_unit: exercise.weightUnit,
         rest_seconds: exercise.restSeconds,
+        cardioZone: exercise.cardioZone,
         note: exercise.note ?? null,
       })),
     })),
@@ -491,6 +496,7 @@ export function routinePlanFromRows(rows: RoutinePersistenceRows): RoutinePlan {
           trackingType: exercise.tracking_style as TrackingType,
           weightUnit: exercise.weight_unit as WeightUnit,
           restSeconds: exercise.rest_seconds,
+          cardioZone: exercise.cardio_zone as import('@/types/routine').CardioZone | null,
           note: exercise.note ?? undefined,
         };
       });
