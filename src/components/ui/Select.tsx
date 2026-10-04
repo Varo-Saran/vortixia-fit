@@ -7,6 +7,7 @@ import { createPortal } from "react-dom";
 export interface SelectOption {
   value: string;
   label: string;
+  triggerLabel?: string;
   disabled?: boolean;
 }
 
@@ -23,6 +24,7 @@ interface SelectProps {
   className?: string;
   triggerClassName?: string;
   size?: "default" | "compact";
+  variant?: "default" | "routine-editor";
 }
 
 interface ListboxPosition {
@@ -51,7 +53,9 @@ export function Select({
   className = "w-full",
   triggerClassName = "",
   size = "default",
+  variant = "default",
 }: SelectProps) {
+  const routinePresentation = variant === "routine-editor";
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const [listboxPosition, setListboxPosition] = useState<ListboxPosition | null>(null);
@@ -233,13 +237,14 @@ export function Select({
           role="listbox"
           aria-label={label}
           onBlur={handleBlur}
+          data-routine-editor-popover={routinePresentation ? "" : undefined}
           style={{
             left: listboxPosition.left,
             maxHeight: listboxPosition.maxHeight,
             top: listboxPosition.top,
             width: listboxPosition.width,
           }}
-          className={`fixed z-[120] overflow-y-auto rounded-2xl border border-white/15 bg-[#141818]/95 p-1.5 shadow-2xl shadow-black/60 backdrop-blur-xl ${listboxPosition.direction === "up" ? "-translate-y-full" : ""}`}
+          className={`fixed z-[120] overflow-y-auto rounded-2xl border p-1.5 shadow-2xl backdrop-blur-xl ${routinePresentation ? "border-white/[0.14] bg-[#151c17]/98 shadow-black/80 routine-popover-fade" : "border-white/15 bg-[#141818]/95 shadow-black/60"} ${listboxPosition.direction === "up" ? "-translate-y-full" : ""}`}
         >
           {options.map((option, index) => {
             const isSelected = option.value === value;
@@ -257,14 +262,14 @@ export function Select({
                 onClick={() => selectOption(index)}
                 className={`flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left leading-5 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent-green/50 disabled:cursor-not-allowed disabled:opacity-40 ${size === "compact" ? "text-xs" : "text-sm"} ${
                   isSelected
-                    ? "bg-accent-green/15 text-accent-green"
-                    : "text-white/80 hover:bg-white/10 hover:text-white"
+                    ? `bg-accent-green/15 text-accent-green ${routinePresentation ? "font-semibold" : ""}`
+                    : `text-white/80 hover:bg-white/10 hover:text-white ${routinePresentation ? "font-medium" : ""}`
                 }`}
               >
                 <span className="min-w-0 flex-1 whitespace-normal break-words">{option.label}</span>
                 <Check
                   aria-hidden="true"
-                  className={`mt-0.5 h-4 w-4 shrink-0 ${isSelected ? "opacity-100" : "opacity-0"}`}
+                  className={`mt-0.5 h-4 w-4 shrink-0 ${routinePresentation ? "text-accent-green" : ""} ${isSelected ? "opacity-100" : "opacity-0"}`}
                 />
               </button>
             );
@@ -286,14 +291,14 @@ export function Select({
           ref={triggerRef}
           type="button"
           role="combobox"
-          aria-label={`${label}: ${selectedOption?.label ?? placeholder}`}
+          aria-label={`${label}: ${selectedOption?.triggerLabel ?? selectedOption?.label ?? placeholder}`}
           aria-haspopup="listbox"
           aria-expanded={isOpen}
           aria-controls={listboxId}
           aria-invalid={invalid}
           aria-describedby={describedBy}
           disabled={isUnavailable}
-          title={selectedOption?.label ?? placeholder}
+          title={selectedOption?.triggerLabel ?? selectedOption?.label ?? placeholder}
           onClick={() => (isOpen ? close() : open())}
           onKeyDown={(event) => {
             if (event.key === "ArrowDown" || event.key === "ArrowUp") {
@@ -307,10 +312,10 @@ export function Select({
               close();
             }
           }}
-          className={`flex w-full min-w-0 items-center gap-2 rounded-xl border border-white/10 bg-black/50 text-left font-medium text-white outline-none transition-colors hover:border-white/20 focus-visible:border-accent-green focus-visible:ring-2 focus-visible:ring-accent-green/30 disabled:cursor-not-allowed disabled:opacity-50 ${sizeClasses} ${triggerClassName}`}
+          className={`flex w-full min-w-0 items-center gap-2 rounded-xl border text-left font-medium text-white outline-none transition-colors focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-50 ${routinePresentation ? `bg-[#141a16] ${invalid ? 'border-red-500/80 focus-visible:border-red-400 focus-visible:ring-red-400/30' : 'border-white/[0.12] hover:border-white/20 focus-visible:border-accent-green focus-visible:ring-accent-green/30'}` : "border-white/10 bg-black/50 hover:border-white/20 focus-visible:border-accent-green focus-visible:ring-accent-green/30"} ${sizeClasses} ${triggerClassName}`}
         >
           <span className="min-w-0 flex-1 truncate">
-            {selectedOption?.label ?? placeholder}
+            {selectedOption?.triggerLabel ?? selectedOption?.label ?? placeholder}
           </span>
           <ChevronDown
             aria-hidden="true"

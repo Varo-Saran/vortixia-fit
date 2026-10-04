@@ -12,8 +12,8 @@ export function RestControl({ id, raw, error, onChange, onCommit, disabled = fal
   let display = 'Check custom seconds';
   try { display = formatRest(parseRestInput(raw)); } catch { /* Raw invalid values remain visible. */ }
   return <div className="space-y-1.5">
-    <label htmlFor={id} className="block text-xs font-semibold text-text-muted">{label}</label>
-    <Select id={id} label={label} value={selection} disabled={disabled} invalid={!!error}
+    <label htmlFor={id} className="block text-xs font-semibold text-white/60">{label}</label>
+    <Select variant="routine-editor" id={id} label={label} value={selection} disabled={disabled} invalid={!!error}
       describedBy={`${id}-help${error ? ` ${id}-error` : ''}`} triggerClassName="min-h-11"
       options={[{ value: 'default', label: 'Use Default' }, ...REST_PRESETS.map(seconds => ({ value: String(seconds), label: `${seconds} sec` })), { value: 'custom', label: 'Custom' }]}
       onValueChange={value => {
@@ -21,13 +21,13 @@ export function RestControl({ id, raw, error, onChange, onCommit, disabled = fal
         if (value !== 'custom') onCommit?.();
       }} />
     {selection === 'custom' && <div className="space-y-1.5">
-      <label htmlFor={`${id}-custom`} className="block text-xs font-semibold text-text-muted">Custom rest (seconds)</label>
+      <label htmlFor={`${id}-custom`} className="block text-xs font-semibold text-white/60">Custom rest (seconds)</label>
       <input id={`${id}-custom`} className={editorInputClass} type="number" inputMode="numeric"
         min={1} max={3600} step={1} value={raw} disabled={disabled}
         onChange={event => onChange(event.target.value)} onBlur={onCommit}
         aria-invalid={!!error} aria-describedby={`${id}-help${error ? ` ${id}-error` : ''}`} />
     </div>}
-    <p id={`${id}-help`} className="text-xs text-text-muted">Rest: {display}
+    <p id={`${id}-help`} className="text-xs text-white/45">Rest: {display}
       {raw === 'default' && defaultRest !== undefined ? ` (${formatRest(defaultRest)} global default)` : ''}</p>
     {error && <p id={`${id}-error`} className="text-xs text-red-300">{error}</p>}
   </div>;

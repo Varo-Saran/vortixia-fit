@@ -5,7 +5,7 @@ import { commitEditorInput } from '@/lib/routine-editor-controls';
 import { useRoutineStore } from '@/store/useRoutineStore';
 import type { EditorField } from '@/types/routine-editor';
 
-export const editorInputClass = 'min-h-11 w-full min-w-0 rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-base text-white outline-none focus-visible:border-accent-green focus-visible:ring-2 focus-visible:ring-accent-green/30 disabled:opacity-50';
+export const editorInputClass = 'min-h-11 w-full min-w-0 rounded-xl border border-white/[0.12] bg-[#141a16] px-3.5 py-2.5 text-base font-medium text-white outline-none transition-colors hover:border-white/20 focus-visible:border-accent-green focus-visible:ring-2 focus-visible:ring-accent-green/30 disabled:cursor-not-allowed disabled:opacity-50 tabular-nums aria-[invalid=true]:border-red-500/80 aria-[invalid=true]:focus-visible:border-red-400 aria-[invalid=true]:focus-visible:ring-red-400/30';
 
 export function useBufferedField(field: EditorField, value: string) {
   const key = editorFieldKey(field);

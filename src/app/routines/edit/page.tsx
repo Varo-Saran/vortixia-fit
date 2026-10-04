@@ -48,7 +48,7 @@ export default function RoutineEditorPage() {
     state.setPendingAdd(createPendingAdd(exercise, day.id, searchSection));
     setSearchDay(null);
   };
-  if (!routine) return <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#050505] px-6 text-center text-text-muted">
+  if (!routine) return <main className="routine-editor flex min-h-screen flex-col items-center justify-center gap-4 bg-[#090c0a] px-6 text-center text-text-muted">
     <p role={loadStatus === 'error' ? 'alert' : 'status'}>{isLoading ? 'Loading routine…' : error ?? 'No routine is available.'}</p>
     {loadStatus === 'error' && <button type="button" className="min-h-11 rounded-xl border border-accent-green/40 px-5 text-accent-green" onClick={() => void fetchRoutine()}>Retry</button>}
     <RoutineGuardedLink href="/routines" className="min-h-11 px-4 py-3">Back to Routines</RoutineGuardedLink>
@@ -71,21 +71,34 @@ export default function RoutineEditorPage() {
     const id = view.occurrenceId ? `occurrence-edit-${view.occurrenceId}` : view.daySettingsId ? `day-settings-${view.daySettingsId}` : view.routineSettings ? 'routine-settings-toggle' : undefined;
     changeDisclosure({ kind: 'done' }, id ? { id } : undefined);
   };
-  return <main className="mx-auto min-h-screen w-full max-w-2xl space-y-4 bg-[#050505] px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] text-white sm:space-y-5">
-    <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-white/10 bg-[#050505]/95 py-3 pt-[calc(var(--notch-top)+0.75rem)] backdrop-blur-lg">
+  const canSave = canSaveEditor(state);
+  const statusColor = isSaving
+    ? 'text-white/60'
+    : saveFailed && error
+    ? 'text-red-400'
+    : draftStatus === 'Saved'
+    ? 'text-accent-green'
+    : 'text-amber-400';
+  return <main className="routine-editor mx-auto min-h-screen w-full max-w-[860px] space-y-4 bg-[#090c0a] px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] text-white sm:space-y-5">
+    <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-white/[0.06] bg-[#090c0a]/90 py-3 pt-[calc(var(--notch-top)+0.75rem)] backdrop-blur-md">
       <div className="flex min-w-0 items-center gap-3">
-        <RoutineGuardedLink href="/routines" aria-label="Go back" className="flex min-h-11 min-w-11 items-center justify-center rounded-full border border-white/10 focus-visible:ring-2 focus-visible:ring-accent-green"><ChevronLeft aria-hidden="true" className="h-5 w-5" /></RoutineGuardedLink>
-        <div className="min-w-0"><h1 className="text-lg font-extrabold sm:text-xl">Routine Editor</h1>
-          <p role="status" aria-live="polite" className={`mt-1 flex items-center gap-1.5 text-xs ${status === 'Save failed' ? 'text-red-300' : draftStatus === 'Saved' ? 'text-accent-green' : 'text-text-muted'}`}>
+        <RoutineGuardedLink href="/routines" aria-label="Go back" className="flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-white/80 hover:bg-white/[0.08] hover:text-white transition-colors focus-visible:ring-2 focus-visible:ring-accent-green"><ChevronLeft aria-hidden="true" className="h-5 w-5" /></RoutineGuardedLink>
+        <div className="min-w-0"><h1 className="text-lg font-bold sm:text-xl tracking-tight">Routine Editor</h1>
+          <p role="status" aria-live="polite" className={`mt-0.5 flex items-center gap-1.5 text-xs font-semibold ${statusColor}`}>
             {isSaving ? <LoaderCircle aria-hidden="true" className="h-3.5 w-3.5 animate-spin" /> : draftStatus === 'Saved' ? <CheckCircle2 aria-hidden="true" className="h-3.5 w-3.5" /> : <CircleAlert aria-hidden="true" className="h-3.5 w-3.5" />}{status}
           </p>
         </div>
       </div>
-      <button type="button" onClick={() => void save()} disabled={!canSaveEditor(state)} aria-busy={isSaving} className="flex min-h-11 shrink-0 items-center gap-2 rounded-xl bg-accent-green/20 px-4 text-sm font-bold text-accent-green focus-visible:ring-2 focus-visible:ring-accent-green disabled:opacity-40">
+      <button type="button" onClick={() => void save()} disabled={!canSaveEditor(state)} aria-busy={isSaving}
+        className={`flex min-h-11 shrink-0 items-center gap-2 rounded-xl px-4 text-xs sm:text-sm font-bold transition-all focus-visible:ring-2 focus-visible:ring-accent-green ${
+          canSave
+            ? 'bg-accent-green text-black hover:bg-accent-green/90 shadow-[0_0_16px_rgba(74,222,128,0.25)]'
+            : 'border border-accent-green/20 bg-accent-green/10 text-accent-green/40 opacity-70 cursor-not-allowed'
+        }`}>
         <Save aria-hidden="true" className="h-4 w-4" />{isSaving ? 'Saving…' : 'Save Changes'}
       </button>
     </header>
-    {error && <p role="alert" className="rounded-xl border border-red-400/30 bg-red-500/10 p-4 text-sm text-red-200">{error}</p>}
+    {error && <p role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200">{error}</p>}
     <RoutineInformation name={routine.name} count={count} expanded={view.routineSettings} onEdit={() => changeDisclosure({ kind: 'routine-settings' }, { id: 'routine-settings-panel', firstInput: true })} onDone={done} />
     <p className="sr-only" aria-live="polite" aria-atomic="true">{feedback}</p>
     {routine.days.map(day => <RoutineDayEditor key={day.id} day={day} expanded={view.dayId === day.id}

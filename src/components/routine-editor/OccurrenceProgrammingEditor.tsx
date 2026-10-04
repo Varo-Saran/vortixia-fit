@@ -30,8 +30,13 @@ export function OccurrenceProgrammingEditor({ cardio, sets, target, zone, rest, 
   const weighted = isWeightedMode(mode);
   const continuous = cardio && Number(sets.raw) === 1 && ['time_only', 'time_weight', 'cardio_hr'].includes(mode ?? '');
   const options = optionsFor(mode);
+  const zoneDescriptions = { 1: 'Recovery', 2: 'Aerobic Base', 3: 'Tempo', 4: 'Threshold', 5: 'VO₂ Max' };
+  const zoneOptions: import('@/components/ui/Select').SelectOption[] = [
+    { value: 'none', label: 'None — No zone target', triggerLabel: 'None' },
+    ...CARDIO_ZONES.map(value => ({ value: String(value), label: `Zone ${value} — ${zoneDescriptions[value]}`, triggerLabel: `Zone ${value}` })),
+  ];
   const input = (field: ProgrammingFieldControl, label: string, numeric = false) => <div className="min-w-0 space-y-1.5">
-    <label htmlFor={field.id} className="block text-xs font-semibold text-text-muted">{label}</label>
+    <label htmlFor={field.id} className="block text-xs font-semibold text-white/60">{label}</label>
     <input id={field.id} className={editorInputClass} type={numeric ? 'number' : 'text'} inputMode={numeric ? 'numeric' : 'text'}
       min={numeric ? 1 : undefined} max={numeric ? 100 : undefined} step={numeric ? 1 : undefined}
       value={field.raw} onChange={event => field.change(event.target.value)} onBlur={field.commit}
@@ -42,34 +47,34 @@ export function OccurrenceProgrammingEditor({ cardio, sets, target, zone, rest, 
   const updateTracking = (value: PendingTrackingConfig) => { tracking.change(value); tracking.commit?.(); };
   const configError = tracking.error ? `${tracking.id}-error` : undefined;
   return <div className="space-y-4">
-    <div className={continuous ? 'min-w-0' : 'grid min-w-0 grid-cols-[5.5rem_minmax(0,1fr)] gap-3'}>
+    <div className={continuous ? 'min-w-0' : 'grid min-w-0 grid-cols-[5.5rem_minmax(0,1fr)] sm:grid-cols-[6.5rem_minmax(0,1fr)] gap-3.5'}>
       {!continuous && input(sets, cardio ? 'Rounds' : 'Sets', true)}
       {input(target, cardio ? 'Duration / prescription' : 'Target / prescription')}
     </div>
     {continuous && <div className="text-sm text-text-muted">
       <button type="button" aria-expanded={roundsOpen || !!sets.error} aria-controls={`${sets.id}-rounds`} onClick={() => setRoundsOpen(!roundsOpen)}
-        className="flex min-h-11 items-center gap-2 rounded-lg py-3 text-left focus-visible:ring-2 focus-visible:ring-accent-green">
-        <ChevronDown aria-hidden="true" className={`h-3.5 w-3.5 ${roundsOpen || sets.error ? 'rotate-180' : ''}`} />Continuous cardio · Adjust rounds
+        className="flex min-h-11 items-center gap-2 rounded-lg py-2.5 text-left text-xs font-medium text-white/60 hover:text-white transition-colors focus-visible:ring-2 focus-visible:ring-accent-green">
+        <ChevronDown aria-hidden="true" className={`h-3.5 w-3.5 transition-transform ${roundsOpen || sets.error ? 'rotate-180' : ''}`} />Continuous cardio · Adjust rounds
       </button>
       <div id={`${sets.id}-rounds`} hidden={!roundsOpen && !sets.error} className="w-28 pb-2">{input(sets, 'Rounds', true)}</div>
     </div>}
     {cardio && <div className="space-y-1.5">
-      <label htmlFor={zone.id} className="block text-xs font-semibold text-text-muted">Intensity</label>
-      <Select id={zone.id} label="Intensity" value={zone.raw} invalid={!!zone.error} describedBy={zone.error ? `${zone.id}-error` : undefined}
-        triggerClassName="min-h-11" options={[{ value: 'none', label: 'None' }, ...CARDIO_ZONES.map(value => ({ value: String(value), label: `Zone ${value}` }))]}
+      <label htmlFor={zone.id} className="block text-xs font-semibold text-white/60">Intensity</label>
+      <Select variant="routine-editor" id={zone.id} label="Intensity" value={zone.raw} invalid={!!zone.error} describedBy={zone.error ? `${zone.id}-error` : undefined}
+        triggerClassName="min-h-11" options={zoneOptions}
         onValueChange={raw => { zone.change(raw); zone.commit?.(); }} />
       {zone.error && <p id={`${zone.id}-error`} className="text-xs text-red-300">{zone.error}</p>}
     </div>}
     <RestControl id={rest.id} raw={rest.raw} error={rest.error} onChange={rest.change} onCommit={rest.commit}
       defaultRest={defaultRest} label={programmingRestLabel(cardio, Number(sets.raw))} />
-    <div className="grid gap-4 border-t border-white/[0.06] pt-4 sm:grid-cols-2">
-      <div className="space-y-1.5"><label htmlFor={tracking.id} className="block text-xs font-semibold text-text-muted">Tracking</label>
-        <Select id={tracking.id} label="Tracking" value={mode ?? ''} placeholder="Choose tracking" invalid={!!tracking.error} describedBy={configError} triggerClassName="min-h-11"
+    <div className={`grid gap-4 border-t border-white/[0.06] pt-4 ${weighted ? 'sm:grid-cols-2' : ''}`}>
+      <div className="space-y-1.5"><label htmlFor={tracking.id} className="block text-xs font-semibold text-white/60">Tracking</label>
+        <Select variant="routine-editor" id={tracking.id} label="Tracking" value={mode ?? ''} placeholder="Choose tracking" invalid={!!tracking.error} describedBy={configError} triggerClassName="min-h-11"
           options={options.trackingTypes.map(value => ({ value, label: TRACKING_LABELS[value] }))}
           onValueChange={value => updateTracking(transitionTracking(tracking.value, value as TrackingType, optionsFor(value as TrackingType).units))} />
       </div>
-      {weighted && <div className="space-y-1.5"><label htmlFor={`${tracking.id}-unit`} className="block text-xs font-semibold text-text-muted">Load unit</label>
-        <Select id={`${tracking.id}-unit`} label="Load unit" value={tracking.value.weightUnit ?? ''} placeholder="Choose unit" invalid={!!tracking.error} describedBy={configError}
+      {weighted && <div className="space-y-1.5"><label htmlFor={`${tracking.id}-unit`} className="block text-xs font-semibold text-white/60">Load unit</label>
+        <Select variant="routine-editor" id={`${tracking.id}-unit`} label="Load unit" value={tracking.value.weightUnit ?? ''} placeholder="Choose unit" invalid={!!tracking.error} describedBy={configError}
           triggerClassName="min-h-11" options={options.units.map(value => ({ value, label: UNIT_LABELS[value] }))}
           onValueChange={value => updateTracking({ ...tracking.value, weightUnit: value as WeightUnit })} />
       </div>}

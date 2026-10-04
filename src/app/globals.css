@@ -142,3 +142,53 @@ button, a, .glass-card {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.2);
 }
+
+/* ==========================================================================
+   Routine Editor Scoped Styling & Motion Tokens (Frozen Visual Specification)
+   ========================================================================== */
+
+.routine-editor input[type="number"]::-webkit-inner-spin-button,
+.routine-editor input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.routine-editor input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+@keyframes routinePopoverFade {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes routineSheetSlideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.routine-editor .routine-sheet-slide-up {
+  animation: routineSheetSlideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+[data-routine-editor-popover].routine-popover-fade {
+  animation: routinePopoverFade 0.14s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .routine-editor *,
+  .routine-editor *::before,
+  .routine-editor *::after,
+  [data-routine-editor-popover],
+  [data-routine-editor-popover] * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .routine-editor .routine-sheet-slide-up {
+    animation: none !important;
+  }
+  [data-routine-editor-popover].routine-popover-fade {
+    animation: none !important;
+  }
+}
