@@ -68,7 +68,8 @@ const approvedFingerprints = [
   "d63ef88b27e4eb96da1a1af216e46e122c8b0b2cb12b6b8472df7d6ba8f30ea4",
 ];
 function fingerprint(template) {
-  return createHash("sha256").update(JSON.stringify(template)).digest("hex");
+  // Keep the pre-D2D golden lock on EVERY old field; Zones are locked separately.
+  return createHash("sha256").update(JSON.stringify(template, (key, value) => key === 'cardioZone' ? undefined : value)).digest("hex");
 }
 function assertApprovedTemplates(values) {
   materializer.validateRoutineTemplates(values);
@@ -106,6 +107,7 @@ function rowsFromPayload(payload) {
       id: e.id, routine_day_id: d.id, exercise_id: e.exercise_id, name: e.name,
       type: e.target_muscle, tracking_style: e.tracking_type, weight_unit: e.weight_unit,
       target_sets: e.target_sets, target_reps: e.target_value, rest_seconds: e.rest_seconds,
+      cardio_zone: e.cardioZone,
       note: e.note, is_warmup: e.section === "warmup", order_index: e.order,
     }))),
   };
@@ -151,6 +153,13 @@ for (const [index, template] of templates.entries()) {
   check(() => assert.equal(JSON.stringify(templates), sourceSnapshot, "Editable output cannot mutate source"));
 }
 const intermediate = templates[2];
+const approvedZones = [[null, null, null, null, null, null, null], [null, null, null, null, null, null, null],
+  [[9, 2], [0, 1, 8, 2], [0, 2], [0, 1, 15, 2], [0, 1, 11, 2], [0, 1, 1, 1], null]];
+for (const [templateIndex, template] of templates.entries()) for (const [dayIndex, day] of template.days.entries()) {
+  const values = approvedZones[templateIndex][dayIndex] ?? [];
+  const expected = new Map(Array.from({ length: values.length / 2 }, (_, index) => [values[index * 2], values[index * 2 + 1]]));
+  for (const occurrence of day.occurrences) check(() => assert.equal(occurrence.cardioZone, expected.get(occurrence.order) ?? null, 'Exact reviewed structured Zone per occurrence'));
+}
 check(() => assert.equal(materialized.flatMap(r => r.days.flatMap(d => d.exercises)).length, 86));
 check(() => assert.deepEqual(intermediate.days.map(d => d.occurrences.length), [10, 9, 9, 16, 12, 8, 0]));
 check(() => assert.equal(intermediate.days.flatMap(d => d.occurrences).filter(o => o.section === "warmup").length, 11));

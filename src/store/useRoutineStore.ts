@@ -7,6 +7,7 @@ import {
   createRoutineUuid,
   legacyPlanToRoutinePlan,
   normalizeRoutineName,
+  normalizeLegacyPlanProgramming,
   prepareRoutinePlanForSave,
   routinePlanToLegacyPlan,
 } from '@/lib/routine-model';
@@ -16,6 +17,8 @@ import {
 } from '@/lib/routine-persistence';
 import * as editor from '@/lib/routine-editor';
 import { parseRestInput } from '@/lib/routine-editor-controls';
+import { getExerciseById } from '@/lib/exercise-catalog';
+import { programmingOptions, validateTrackingConfig, type TrackingConfig, type ProgrammingOptions } from '@/lib/routine-programming';
 import { confirmRoutineDiscard, RoutineGuardCancelledError } from '@/lib/routine-draft-guard';
 import type { DraftState, DraftStatus, EditorField, PendingAdd, ReplacementApproval, SaveOutcome } from '@/types/routine-editor';
 import type {
@@ -68,6 +71,9 @@ export interface RoutineStore extends DraftState {
     updates: Partial<Pick<PlannedExerciseOccurrence, 'targetSets' | 'targetValue' | 'restSeconds'>>,
   ) => void;
   removeOccurrence: (occurrenceId: string) => void;
+  setOccurrenceCardioZone: (id: string, zone: import('@/types/routine').CardioZone | null) => void;
+  setOccurrenceTrackingConfig: (id: string, config: TrackingConfig) => void;
+  occurrenceProgrammingOptions: (id: string, mode: import('@/types/routine').TrackingType | null) => ProgrammingOptions;
   reorderDayOccurrences: (weekday: Weekday, orderedIds: string[]) => void;
   setEditorBuffer: (field: EditorField, raw: string) => void;
   setPendingAdd: (pending: PendingAdd | null) => void;
@@ -102,6 +108,21 @@ export const useRoutineStore = create<RoutineStore>()(
       let routineLoadFlight: Promise<void> | null = null;
       let saveFlight: Promise<SaveOutcome> | null = null;
       const approvals = new WeakSet<ReplacementApproval>();
+      // Compatibility allowances, NOT form/dirty/persisted truth. Each trusted
+      // incoming pair belongs only to its occurrence and canonical ID.
+      const historicalPairs = new Map<string, { exerciseId: string | null; config: TrackingConfig }>();
+      const rememberProgramming = (routine: RoutinePlan) => routine.days.forEach(day => day.exercises.forEach(exercise => {
+        validateTrackingConfig(exercise);
+        if (!historicalPairs.has(exercise.id)) historicalPairs.set(exercise.id, { exerciseId: exercise.exerciseId,
+          config: Object.freeze({ trackingType: exercise.trackingType, weightUnit: exercise.weightUnit }) });
+      }));
+      const historicalFor = (routine: RoutinePlan, id: string) => {
+        const occurrence = routine.days.flatMap(day => day.exercises).find(exercise => exercise.id === id);
+        const allowance = historicalPairs.get(id);
+        return allowance?.exerciseId === occurrence?.exerciseId ? allowance?.config : undefined;
+      };
+      const bufferFor = (routine: RoutinePlan, field: EditorField, raw: string) => editor.createEditorBuffer(routine, field, raw,
+        'occurrenceId' in field ? historicalFor(routine, field.occurrenceId) : undefined);
       const message = (error: unknown) => error instanceof Error ? error.message : 'Unable to update the routine.';
       const requireDraft = () => {
         const state = get();
@@ -114,7 +135,7 @@ export const useRoutineStore = create<RoutineStore>()(
           const next = operation(requireDraft());
           if (editor.routineFingerprint(next) === editor.routineFingerprint(state.routine!)) return;
           const editorBuffers = Object.fromEntries(Object.entries(state.editorBuffers).flatMap(([key, buffer]) => {
-            const updated = editor.createEditorBuffer(next, buffer.field, buffer.raw);
+            const updated = bufferFor(next, buffer.field, buffer.raw);
             // A committed/clean input must not undo a newer domain edit to the
             // same field on the next save. Uncommitted/invalid inputs survive.
             if (!buffer.changed && !buffer.error && updated.changed) return [];
@@ -172,6 +193,8 @@ export const useRoutineStore = create<RoutineStore>()(
               }
 
               const routine = loadedRoutine ?? materializeRoutineTemplate(BUILT_IN_ROUTINE_TEMPLATES[0]);
+              historicalPairs.clear();
+              rememberProgramming(routine);
               const draft = {
                 routine: editor.cloneRoutine(routine),
                 savedBaseline: loadedRoutine ? editor.immutableRoutine(loadedRoutine) : null,
@@ -221,7 +244,7 @@ export const useRoutineStore = create<RoutineStore>()(
       setRoutine: (routine) => edit(current => {
         const protectedFields = (value: RoutinePlan) => JSON.stringify([value.id, value.days.map(day => [day.id, day.weekday,
           [...day.exercises].sort((a, b) => a.id.localeCompare(b.id)).map(exercise => [exercise.id, exercise.exerciseId, exercise.name,
-            exercise.targetMuscle, exercise.section, exercise.trackingType, exercise.weightUnit, exercise.note ?? null])])]);
+            exercise.targetMuscle, exercise.section, exercise.trackingType, exercise.weightUnit, exercise.cardioZone, exercise.note ?? null])])]);
         if (protectedFields(current) !== protectedFields(routine)) throw new editor.RoutineEditorError('Use guarded replacement or occurrence operations to change graph identity or logging metadata.');
         let next = editor.renameRoutine(current, routine.name);
         for (const day of routine.days) {
@@ -265,6 +288,13 @@ export const useRoutineStore = create<RoutineStore>()(
         const draft = { ...state, editorBuffers };
         set({ editorBuffers, ...editor.draftFlags(draft) });
       },
+      setOccurrenceCardioZone: (id, zone) => edit(routine => editor.setOccurrenceCardioZone(routine, id, zone)),
+      setOccurrenceTrackingConfig: (id, config) => edit(routine => editor.setOccurrenceTrackingConfig(routine, id, config, historicalFor(routine, id))),
+      occurrenceProgrammingOptions: (id, mode) => {
+        const routine = requireDraft();
+        const exercise = routine.days.flatMap(day => day.exercises).find(value => value.id === id);
+        return programmingOptions(exercise?.exerciseId ? getExerciseById(exercise.exerciseId) : undefined, mode, historicalFor(routine, id));
+      },
       reorderDayOccurrences: (weekday, ids) => edit(routine => {
         const day = routine.days.find(value => value.weekday === weekday);
         if (!day) throw new editor.RoutineEditorError('The selected day is unavailable.');
@@ -275,7 +305,7 @@ export const useRoutineStore = create<RoutineStore>()(
         const routine = requireDraft();
         const state = get();
         const key = editor.editorFieldKey(field);
-        const buffer = editor.createEditorBuffer(routine, field, raw);
+        const buffer = bufferFor(routine, field, raw);
         if (!state.editorBuffers[key] && !buffer.changed && !buffer.error) return;
         if (JSON.stringify(state.editorBuffers[key]) === JSON.stringify(buffer)) return;
         const editorBuffers = { ...state.editorBuffers, [key]: buffer };
@@ -299,6 +329,7 @@ export const useRoutineStore = create<RoutineStore>()(
             targetSets: pending.rawSets.trim() ? Number(pending.rawSets) : NaN, targetValue: pending.rawTarget,
             trackingType: pending.trackingType, weightUnit: pending.weightUnit,
             restSeconds: pending.rawRest === undefined ? pending.restSeconds : parseRestInput(pending.rawRest),
+            cardioZone: pending.cardioZone,
           });
           const draft = { ...state, routine: next, pendingAdd: null };
           set({ routine: next, pendingAdd: null, draftRevision: state.draftRevision + 1, ...editor.draftFlags(draft), error: null });
@@ -350,7 +381,8 @@ export const useRoutineStore = create<RoutineStore>()(
             if (state.pendingAdd) throw new editor.RoutineEditorError('Finish or cancel Add Exercise before saving.');
             for (const buffer of Object.values(state.editorBuffers)) {
               if (buffer.error) throw new editor.RoutineEditorError(buffer.error);
-              routine = editor.applyEditorField(routine, buffer.field, buffer.raw);
+              routine = editor.applyEditorField(routine, buffer.field, buffer.raw,
+                'occurrenceId' in buffer.field ? historicalFor(routine, buffer.field.occurrenceId) : undefined);
             }
             const prepared = prepareRoutinePlanForSave(editor.cloneRoutine(routine));
             const submittedRevision = state.draftRevision;
@@ -360,14 +392,14 @@ export const useRoutineStore = create<RoutineStore>()(
               set({ routine: prepared, editorBuffers: {}, ...editor.draftFlags(draft), error: null });
               resolve({ submittedRevision, status: 'unchanged' }); return;
             }
-            const editorBuffers = Object.fromEntries(Object.entries(state.editorBuffers).map(([key, buffer]) => [key, editor.createEditorBuffer(prepared, buffer.field, buffer.raw)]));
+            const editorBuffers = Object.fromEntries(Object.entries(state.editorBuffers).map(([key, buffer]) => [key, bufferFor(prepared, buffer.field, buffer.raw)]));
             set({ routine: prepared, editorBuffers, isSaving: true, submittedRevision, error: null, ...editor.draftFlags({ ...state, routine: prepared, editorBuffers }) });
             const savedRoutine = await saveActiveRoutine(editor.cloneRoutine(prepared));
             const latest = get();
             const newer = latest.draftRevision !== submittedRevision;
             const draft = { ...latest, savedBaseline: editor.immutableRoutine(savedRoutine), initialDefaultDraft: null,
               routine: newer ? latest.routine : editor.cloneRoutine(savedRoutine),
-              editorBuffers: newer ? Object.fromEntries(Object.entries(latest.editorBuffers).map(([key, buffer]) => [key, editor.createEditorBuffer(latest.routine!, buffer.field, buffer.raw)])) : {} };
+              editorBuffers: newer ? Object.fromEntries(Object.entries(latest.editorBuffers).map(([key, buffer]) => [key, bufferFor(latest.routine!, buffer.field, buffer.raw)])) : {} };
             saveFlight = null;
             set({ routine: draft.routine, savedBaseline: draft.savedBaseline, initialDefaultDraft: null,
               editorBuffers: draft.editorBuffers, ...editor.draftFlags(draft), isSaving: false, submittedRevision: null, error: null });
@@ -434,6 +466,7 @@ export const useRoutineStore = create<RoutineStore>()(
         checkApproval(approved);
         if (get().isSaving) throw new editor.RoutineEditorError('A routine save is already in progress.');
         approvals.delete(approved);
+        rememberProgramming(replacement);
         const draft = { ...get(), routine: replacement, editorBuffers: {}, pendingAdd: null };
         set({
           routine: replacement,
@@ -508,7 +541,7 @@ export const useRoutineStore = create<RoutineStore>()(
           return false; // Rate limit exceeded
         }
         const legacyPlan = Array.isArray(plan)
-          ? plan
+          ? normalizeLegacyPlanProgramming(plan)
           : routinePlanToLegacyPlan(plan);
         const activeDaysCount = legacyPlan.filter(
           (day) => day.type !== 'Rest' && day.mainLifts.length > 0,
@@ -549,8 +582,10 @@ export const useRoutineStore = create<RoutineStore>()(
       }),
       merge: (persistedState, currentState) => ({
         ...currentState,
-        customTemplates:
-          (persistedState as Partial<RoutineStore>)?.customTemplates ?? [],
+        customTemplates: ((persistedState as Partial<RoutineStore>)?.customTemplates ?? []).map(template => {
+          try { return { ...template, plan: normalizeLegacyPlanProgramming(template.plan) }; }
+          catch { return template; } // Invalid legacy data is preserved; Apply rejects it, never erase templates.
+        }),
       }),
     }
   )

@@ -28,7 +28,7 @@ export function explicitHeartRateZone(...texts: (string | undefined)[]): HeartRa
 }
 
 export function occurrenceProgrammingPresentation(occurrence: Pick<PlannedExerciseOccurrence,
-  'exerciseId' | 'targetSets' | 'trackingType' | 'targetValue' | 'note'>) {
+  'exerciseId' | 'targetSets' | 'trackingType' | 'targetValue' | 'note' | 'cardioZone'>) {
   const cardio = isCatalogCardio(occurrence.exerciseId ? getExerciseById(occurrence.exerciseId) : undefined);
   const durationMode = occurrence.trackingType === 'time_only' || occurrence.trackingType === 'time_weight'
     || occurrence.trackingType === 'cardio_hr';
@@ -37,6 +37,6 @@ export function occurrenceProgrammingPresentation(occurrence: Pick<PlannedExerci
     continuous: cardio && occurrence.targetSets === 1 && durationMode,
     countLabel: cardio ? 'Rounds' : 'Sets',
     targetLabel: cardio ? 'Duration / prescription' : 'Target / prescription',
-    zone: cardio ? explicitHeartRateZone(occurrence.targetValue, occurrence.note) : null,
+    zone: cardio ? occurrence.cardioZone : null,
   };
 }

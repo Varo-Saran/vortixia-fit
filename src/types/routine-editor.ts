@@ -1,10 +1,10 @@
-import type { ExerciseSection, RoutinePlan, TrackingType, WeightUnit } from './routine';
+import type { CardioZone, ExerciseSection, RoutinePlan, TrackingType, WeightUnit } from './routine';
 
 export type DeepReadonly<T> = T extends object ? { readonly [K in keyof T]: DeepReadonly<T[K]> } : T;
 export type EditorField =
   | { kind: 'routine-name' }
   | { kind: 'day-title'; dayId: string }
-  | { kind: 'sets' | 'target' | 'rest'; occurrenceId: string };
+  | { kind: 'sets' | 'target' | 'rest' | 'zone' | 'tracking-config'; occurrenceId: string };
 export interface EditorBuffer {
   field: EditorField;
   // Rest uses "default" for null; blank custom input is invalid, not Default.
@@ -21,6 +21,7 @@ export interface PendingAdd {
   trackingType: TrackingType | null;
   weightUnit: WeightUnit | null;
   restSeconds: number | null;
+  cardioZone: CardioZone | null;
   // Raw custom input survives route remounts without entering the graph.
   rawRest?: string;
 }

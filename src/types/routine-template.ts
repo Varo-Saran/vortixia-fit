@@ -1,5 +1,5 @@
 import type { ExerciseWeightUnit } from "@/types/exercise-catalog";
-import type { DayKind, ExerciseSection, TrackingType, Weekday } from "@/types/routine";
+import type { CardioZone, DayKind, ExerciseSection, TrackingType, Weekday } from "@/types/routine";
 
 export type TemplateExerciseRef =
   | { readonly kind: "single"; readonly exerciseId: string }
@@ -19,6 +19,7 @@ export interface TemplateOccurrence {
   // Blueprint units use catalog vocabulary; materialization translates lb to lbs.
   readonly weightUnit?: ExerciseWeightUnit;
   readonly restSeconds?: number | null;
+  readonly cardioZone: CardioZone | null;
   readonly note?: string;
 }
 

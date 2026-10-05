@@ -1,5 +1,5 @@
 import type { ExerciseWeightUnit } from "@/types/exercise-catalog";
-import type { DayKind, ExerciseSection, TrackingType, Weekday } from "@/types/routine";
+import type { CardioZone, DayKind, ExerciseSection, TrackingType, Weekday } from "@/types/routine";
 import type {
   BuiltInRoutineTemplate, TemplateDay, TemplateExerciseRef, TemplateOccurrence,
 } from "@/types/routine-template";
@@ -42,10 +42,11 @@ function occurrence(
   exercise: string | TemplateExerciseRef, targetSets: number, targetValue: string,
   trackingType: TrackingType, weightUnit: ExerciseWeightUnit, note?: string,
   section: ExerciseSection = "main",
+  cardioZone: CardioZone | null = null,
 ): Omit<TemplateOccurrence, "order"> {
   return {
     exercise: typeof exercise === "string" ? single(exercise) : exercise,
-    section, targetSets, targetValue, trackingType, weightUnit, restSeconds: null,
+    section, targetSets, targetValue, trackingType, weightUnit, restSeconds: null, cardioZone,
     ...(note === undefined ? {} : { note }),
   };
 }
@@ -57,7 +58,7 @@ function day(
   return { weekday, kind, title, occurrences: occurrences.map((item, order) => ({ ...item, order })) };
 }
 
-const zone2 = () => occurrence(ZONE_2, 1, "30 mins", "time_only", "unitless", "Zone 2. Aerobic base building.");
+const zone2 = () => occurrence(ZONE_2, 1, "30 mins", "time_only", "unitless", "Zone 2. Aerobic base building.", "main", 2);
 
 export const BUILT_IN_ROUTINE_TEMPLATES: readonly BuiltInRoutineTemplate[] = deepFreeze([
   {
@@ -129,7 +130,7 @@ export const BUILT_IN_ROUTINE_TEMPLATES: readonly BuiltInRoutineTemplate[] = dee
         zone2(),
       ]),
       day("tuesday", "training", "Back & Biceps", [
-        occurrence(C10, 1, "5 min", "time_only", "unitless", "Zone 1 (50-60% max HR)", "warmup"),
+        occurrence(C10, 1, "5 min", "time_only", "unitless", "Zone 1 (50-60% max HR)", "warmup", 1),
         occurrence("0197", 4, "8-10", "reps_weight", "plates", "Primary vertical pull"),
         occurrence(C11, 4, "10-12", "reps_weight", "kg"),
         occurrence("0292", 3, "10 each", "reps_weight", "kg", "Unilateral row"),
@@ -140,7 +141,7 @@ export const BUILT_IN_ROUTINE_TEMPLATES: readonly BuiltInRoutineTemplate[] = dee
         zone2(),
       ]),
       day("wednesday", "training", "Cardio, Core & Glute Activation", [
-        occurrence("3666", 1, "30-35 mins", "time_only", "unitless", "12-15% incline, 5.5-6.5 km/h. Zone 2."),
+        occurrence("3666", 1, "30-35 mins", "time_only", "unitless", "12-15% incline, 5.5-6.5 km/h. Zone 2.", "main", 2),
         occurrence("0175", 3, "20-25", "reps_weight", "plates", "Slow 3-second descent on every rep"),
         occurrence("0276", 3, "10 each side", "reps_only", "unitless", "Work deep TVA"),
         occurrence("0407", 3, "20 each side", "reps_weight", "kg", "Obliques"),
@@ -151,7 +152,7 @@ export const BUILT_IN_ROUTINE_TEMPLATES: readonly BuiltInRoutineTemplate[] = dee
         occurrence("donkey_kicks", 3, "20 each side", "reps_only", "unitless", "Controlled squeeze"),
       ]),
       day("thursday", "training", "Legs, Hamstrings & Glutes", [
-        occurrence("9003", 1, "5-8 min", "time_only", "unitless", "Zone 1 easy pace", "warmup"),
+        occurrence("9003", 1, "5-8 min", "time_only", "unitless", "Zone 1 easy pace", "warmup", 1),
         occurrence("3013", 2, "15", "reps_only", "unitless", "Glute activation before squats", "warmup"),
         occurrence("1564", 2, "30 seconds each side", "time_only", "unitless", "Each set: 30 seconds per side, 60 seconds total. Complete two sets.", "warmup"),
         occurrence("vx_ex_bodyweight_squat", 2, "10", "reps_only", "unitless", undefined, "warmup"),
@@ -169,7 +170,7 @@ export const BUILT_IN_ROUTINE_TEMPLATES: readonly BuiltInRoutineTemplate[] = dee
         zone2(),
       ]),
       day("friday", "training", "Shoulders, Biceps & Triceps", [
-        occurrence(C15, 1, "5 min", "time_only", "unitless", "Zone 1 easy pace", "warmup"),
+        occurrence(C15, 1, "5 min", "time_only", "unitless", "Zone 1 easy pace", "warmup", 1),
         occurrence(C16, 2, "12", "reps_only", "unitless", "Scapular warm-up", "warmup"),
         occurrence("vx_ex_dumbbell_ytw_raise", 2, "10 each shape", "reps_only", "unitless", "Rear delts and cuff", "warmup"),
         occurrence("0405", 4, "8-10", "reps_weight", "kg"),
@@ -183,8 +184,8 @@ export const BUILT_IN_ROUTINE_TEMPLATES: readonly BuiltInRoutineTemplate[] = dee
         zone2(),
       ]),
       day("saturday", "recovery", "Active Recovery", [
-        occurrence("9001", 1, "20-25 mins", "time_only", "unitless", "Zone 1 easy walk"),
-        occurrence("9003", 1, "20 mins", "time_only", "unitless", "Zone 1 easy spin"),
+        occurrence("9001", 1, "20-25 mins", "time_only", "unitless", "Zone 1 easy walk", "main", 1),
+        occurrence("9003", 1, "20 mins", "time_only", "unitless", "Zone 1 easy spin", "main", 1),
         ...["1271", "1511", "1564", "1365", "2208", "2202"].map((id, index) =>
           occurrence(id, 1, "3 mins total", "time_only", "unitless", `Part ${index + 1}/6 of the 18-minute total recovery protocol. Three minutes total includes side changes; not three minutes per side.`)),
       ]),

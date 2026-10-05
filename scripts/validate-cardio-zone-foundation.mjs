@@ -14,14 +14,26 @@ const model = load('src/lib/routine-model.ts');
 const templates = load('src/lib/routine-templates.ts');
 const catalog = load('src/lib/exercise-catalog.ts');
 const cardio = load('src/lib/routine-cardio-presentation.ts');
+const programming = load('src/lib/routine-programming.ts');
 const owner = randomUUID();
 const otherOwner = randomUUID();
 const matrixOwner = randomUUID();
 const graph = templates.materializeRoutineTemplate(templates.getBuiltInRoutineTemplate('tpl_int_ppl_5'));
 const otherGraph = templates.materializeRoutineTemplate(templates.getBuiltInRoutineTemplate('tpl_bro_5'));
-// Execute CURRENT app serialization, never a hand-built approximation of it.
-const oldPayload = model.routinePlanToRpcPayload(graph);
-const otherPayload = model.routinePlanToRpcPayload(otherGraph);
+// Frozen pre-D2D-B serializer, deliberately independent of the current serializer.
+// No cardioZone key: retain old-client compatibility during rolling deployment.
+function oldClientPayload(routine) {
+  const prepared = model.prepareRoutinePlanForSave(routine);
+  return { id: prepared.id, name: prepared.name, days: prepared.days.map(day => ({
+    id: day.id, weekday: day.weekday, title: day.title, kind: day.kind,
+    exercises: day.exercises.map(e => ({ id: e.id, exercise_id: e.exerciseId, name: e.name,
+      target_muscle: e.targetMuscle, section: e.section, order: e.order,
+      target_sets: e.targetSets, target_value: e.targetValue, tracking_type: e.trackingType,
+      weight_unit: e.weightUnit, rest_seconds: e.restSeconds, note: e.note ?? null })),
+  })) };
+}
+const oldPayload = oldClientPayload(graph);
+const otherPayload = oldClientPayload(otherGraph);
 const matrixCases = [
   { exerciseId: '9003', note: 'Zone 1', trackingType: 'cardio_hr', expected: 1 },
   { exerciseId: '9003', note: 'Zone 2', trackingType: 'time_weight', weightUnit: 'kg', restSeconds: 75, expected: 2 },
@@ -42,11 +54,11 @@ const matrixGraph = {
       return { id: randomUUID(), exerciseId: test.exerciseId, name: resolved.displayName,
         targetMuscle: resolved.primaryMuscle, section: 'main', order, targetSets: 1,
         targetValue: test.targetValue ?? '30 mins', trackingType: test.trackingType ?? 'time_only', weightUnit: test.weightUnit ?? 'unitless',
-        restSeconds: test.restSeconds ?? null, ...(test.note === undefined ? {} : { note: test.note }) };
+        restSeconds: test.restSeconds ?? null, cardioZone: null, ...(test.note === undefined ? {} : { note: test.note }) };
     }) : [],
   })),
 };
-const matrixPayload = model.routinePlanToRpcPayload(matrixGraph);
+const matrixPayload = oldClientPayload(matrixGraph);
 const cardioId = graph.days[0].exercises.at(-1).id;
 const strengthId = graph.days[0].exercises[3].id;
 let assertions = 0;
@@ -161,7 +173,14 @@ eq(graph.days.length, 7, 'Synthetic Intermediate graph has seven days');
 eq(graph.days.flatMap((d) => d.exercises).length, 64, 'Synthetic Intermediate graph has 64 occurrences');
 eq(graph.days.flatMap((d) => d.exercises).filter((e) => e.section === 'warmup').length, 11, '11 warmups');
 ok(oldPayload.days.every((d) => d.exercises.every((e) => !Object.hasOwn(e, 'cardioZone'))),
-  'Current Production serializer has NO cardioZone key');
+  'Old-client fixture has NO cardioZone key');
+const currentPayload = JSON.parse(JSON.stringify(model.routinePlanToRpcPayload(graph)));
+ok(currentPayload.days.every(day => day.exercises.every(exercise => Object.hasOwn(exercise, 'cardioZone'))), 'D2D-B JSON ALWAYS contains cardioZone');
+ok(currentPayload.days.flatMap(day => day.exercises).some(exercise => exercise.cardioZone === null), 'Explicit null is retained in JSON');
+for (const value of [1, 2, 3, 4, 5]) {
+  const current = clone(graph); current.days[0].exercises.at(-1).cardioZone = value;
+  eq(JSON.parse(JSON.stringify(model.routinePlanToRpcPayload(current))).days[0].exercises.at(-1).cardioZone, value, 'New client exact structured JSON value');
+}
 
 const db = await disposablePostgres();
 try {
@@ -208,6 +227,7 @@ try {
     for (let value = 1; value <= 5; value++) {
       eq(await extract(db, id, `Zone ${value}`, null), value, 'Target explicit Zone supported');
       eq(await extract(db, id, '30 mins', `Zone ${value}. Programming.`), value, 'Note explicit Zone supported');
+      eq(programming.legacyCardioZone(id, `Zone ${value}`, `Zone ${value}. Programming.`), value, 'Client normalization mirrors reviewed SQL exact tokens');
     }
   }
   eq(await extract(db, '9003', '30 mins', 'zOnE 2.'), 2, 'Case insensitive');
@@ -218,6 +238,10 @@ try {
     'Zone 20', 'Zone 02', 'Zone 2.5', 'Zone 2-3', 'Zone 2–3', 'Zone 2/3', 'Zone 2 to 3',
     'ozone 2', 'Zone2', 'Zone 2a', 'Zone 1 ... Zone 2', 'Zone 6 ... Zone 2', 'Zone 2-3 ... Zone 4'];
   for (const text of ignoredTexts) eq(await extract(db, '9003', '30 mins', text), null, `Ignore unsupported/ambiguous text: ${text}`);
+  for (const text of ignoredTexts) eq(programming.legacyCardioZone('9003', '30 mins', text), null, `Client strictly ignores the same legacy token: ${text}`);
+  for (const text of ['ézone 2', 'Zone 2é', 'ZONE\t4', 'Zone 2. Notes unchanged.', 'Zone 3 ... Zone 3']) {
+    eq(programming.legacyCardioZone('9003', '', text), await extract(db, '9003', '', text), 'Client/SQL whole-word and whitespace semantics match');
+  }
   for (const id of ['9008', 'vx_ex_bodyweight_side_plank', 'vx_ex_intermediate_hip_flexor_quad_stretch', null, 'unknown', 'Stationary Bike']) {
     eq(await extract(db, id, 'Zone 2', 'Zone 2'), null, 'Non-reviewed identity cannot infer cardio Zone');
   }
