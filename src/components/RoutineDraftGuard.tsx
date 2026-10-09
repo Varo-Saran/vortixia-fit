@@ -6,6 +6,27 @@ import { useEffect, useRef, useState, type ComponentProps } from 'react';
 import { registerRoutineGuard, type RoutineGuardPrompt } from '@/lib/routine-draft-guard';
 import { useRoutineStore } from '@/store/useRoutineStore';
 import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog';
+import { downloadRecoveryBackup } from '@/lib/routine-recovery';
+import { routineCapabilities } from '@/lib/routine-compatibility';
+
+function RecoveryConfirmation({ prompt, finish }: { prompt: Extract<RoutineGuardPrompt, { kind: 'recovery-replace' }>; finish: (confirmed: boolean) => void }) {
+  const [approved, setApproved] = useState(false);
+  const [feedback, setFeedback] = useState('');
+  const source = useRoutineStore(state => state.sourceSnapshot);
+  useEffect(() => { if (source !== prompt.source) finish(false); }, [source, prompt.source, finish]);
+  const backup = async () => {
+    const state = useRoutineStore.getState();
+    if (state.sourceSnapshot !== prompt.source || !routineCapabilities(state).canBackup) return;
+    try { await downloadRecoveryBackup(prompt.source); setFeedback('Private recovery backup downloaded. Keep it somewhere safe.'); }
+    catch { setFeedback('Backup could not be downloaded. Cancel to preserve your routine and try again.'); }
+  };
+  return <ConfirmationDialog isOpen title="Replace this routine?" description="Your saved routine contains older settings that need review. Download a private recovery backup before replacing it. The replacement removes the old routine programming; workout history is not changed."
+    confirmLabel="Replace Routine" cancelLabel="Keep Routine" confirmDisabled={!approved} onConfirm={() => { if (approved) finish(true); }} onCancel={() => finish(false)}>
+    <button type="button" onClick={() => void backup()} className="mt-4 min-h-11 w-full rounded-xl border border-accent-green/30 px-3 text-sm font-semibold text-accent-green">Download Private Recovery Backup</button>
+    <p role="status" aria-live="polite" className="mt-2 text-xs text-white/60">{feedback}</p>
+    <label className="mt-3 flex min-h-11 items-center gap-3 text-sm text-white/80"><input type="checkbox" checked={approved} onChange={event => setApproved(event.target.checked)} className="h-5 w-5 accent-accent-green" />I understand and want to replace this routine.</label>
+  </ConfirmationDialog>;
+}
 
 export function RoutineDraftGuard() {
   const hasUnsavedChanges = useRoutineStore(state => state.hasUnsavedChanges);
@@ -31,6 +52,7 @@ export function RoutineDraftGuard() {
     setPrompt(null);
     resolve?.(confirmed);
   };
+  if (prompt?.kind === 'recovery-replace') return <RecoveryConfirmation prompt={prompt} finish={finish} />;
   return <ConfirmationDialog
     isOpen={prompt !== null}
     title="Unsaved routine changes"

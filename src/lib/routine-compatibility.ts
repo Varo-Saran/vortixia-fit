@@ -1,4 +1,4 @@
-import { assertValidRoutinePlan, DAY_KINDS, EXERCISE_SECTIONS, parseWeekday, WEEKDAYS } from './routine-model';
+import { assertValidRoutinePlan, DAY_KINDS, EXERCISE_SECTIONS, MAX_OCCURRENCES_PER_DAY, parseWeekday, WEEKDAYS } from './routine-model';
 import { legacyCardioZone, PROGRAMMING_TRACKING_TYPES, PROGRAMMING_WEIGHT_UNITS, isWeightedMode, validateTrackingConfig, validateCompatibleTracking, programmingOptions, type TrackingConfig } from './routine-programming';
 import { getExerciseById } from './exercise-catalog';
 import type { RoutinePlan, TrackingType } from '@/types/routine';
@@ -108,7 +108,7 @@ export function analyzeRoutineCompatibility(graph: RoutineReadGraph): RoutineCom
     if (!text(day.title, 60)) issue(target, ['title'], 'invalid_text', 'Choose a day title of 1–60 characters.');
     if (!contains(DAY_KINDS, day.kind)) issue(target, ['kind'], 'unsupported_day_kind', 'Choose a supported day kind.');
     if (day.kind === 'rest' && day.exercises.length) issue(target, ['kind'], 'rest_day_has_occurrences', 'Choose how to handle activities on this Rest day.');
-    if (day.exercises.length > 200) issue(target, ['capacity'], 'write_capacity_exceeded', 'This day exceeds the saved-routine capacity.', 'replacement-or-support');
+    if (day.exercises.length > MAX_OCCURRENCES_PER_DAY) issue(target, ['capacity'], 'write_capacity_exceeded', 'This day exceeds the saved-routine capacity.', 'replacement-or-support');
     const orders = day.exercises.map(item => item.fields.order);
     day.exercises.forEach(item => {
       const f = item.fields, target: CompatibilityTarget = { kind: 'occurrence', dayId: day.id, occurrenceId: item.id };
@@ -192,16 +192,23 @@ export interface RoutineCapabilityState {
   loadStatus: string; routine: RoutinePlan | null; readGraph: RoutineReadGraph | null;
   sourceSnapshot: VerifiedRoutineSnapshot | null; isSaving: boolean; hasUnsavedChanges: boolean;
   editorBuffers: Record<string, { error: string | null }>; pendingAdd: unknown;
+  replacementPending?: boolean;
 }
 export function routineCapabilities(state: RoutineCapabilityState) {
   let valid = false;
   try { if (state.readGraph) promoteRoutineForWrite(state.readGraph); else if (state.routine) assertValidRoutinePlan(state.routine); else throw new Error(); valid = true; } catch { /* Fail closed; never submit unresolved data. */ }
   const ready = state.loadStatus === 'ready', recovery = state.loadStatus === 'needs_attention';
-  return { canViewRoutine: !!(state.routine || state.readGraph), canEditRecoveryFields: recovery && !!state.readGraph && !state.isSaving,
-    canSave: (ready || recovery) && valid && state.hasUnsavedChanges && !state.isSaving && !state.pendingAdd && !Object.values(state.editorBuffers).some(buffer => buffer.error)
-      && (!state.readGraph || Object.keys(state.editorBuffers).length === 0),
-    canStartWorkout: ready && valid && !state.readGraph, canAddExercise: ready && valid && !state.readGraph && !state.isSaving,
-    canApplyTemplate: ready && !!state.routine && !state.readGraph && !state.isSaving,
-    canReset: ready && !!state.routine && !state.readGraph && !state.isSaving,
-    canBackup: !!state.sourceSnapshot };
+  const sourceRoot = state.sourceSnapshot?.rows.routine;
+  const trustedSource = record(sourceRoot) && sourceRoot.user_id === state.sourceSnapshot?.subjectId && sourceRoot.is_active === true
+    && sourceRoot.id === (state.readGraph?.id ?? state.routine?.id);
+  const replacement = !state.isSaving && !state.replacementPending && (ready && !!state.routine || recovery && !!state.readGraph && trustedSource);
+  return { canViewRoutine: !!(state.routine || state.readGraph), canEditRecoveryFields: (recovery || state.loadStatus === 'loading') && !!state.readGraph && !state.isSaving && !state.replacementPending,
+    canSave: (ready || recovery) && valid && state.hasUnsavedChanges && !state.isSaving && !state.replacementPending && !state.pendingAdd && !Object.values(state.editorBuffers).some(buffer => buffer.error)
+      && (!state.readGraph || trustedSource && Object.keys(state.editorBuffers).length === 0),
+    canStartWorkout: ready && valid && !state.readGraph && !state.isSaving && !state.replacementPending, canAddExercise: ready && valid && !state.readGraph && !state.isSaving && !state.replacementPending,
+    canApplyTemplate: replacement,
+    canReset: replacement,
+    canBackup: !!trustedSource,
+    canShare: ready && !!state.routine && !state.readGraph,
+    canBrowseTemplates: true };
 }

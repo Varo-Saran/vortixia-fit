@@ -14,6 +14,8 @@ import { GoalType, SplitType } from "@/lib/ixia-ai";
 import { IxiaLoadingState } from "@/components/IxiaLoadingState";
 import Orb from "@/components/Orb";
 import { toast } from "react-hot-toast";
+import { routineCapabilities } from '@/lib/routine-compatibility';
+import { RoutineStateNotice } from '@/components/routine-editor/RoutineStateNotice';
 
 export default function TemplatesPage() {
   const { 
@@ -21,9 +23,6 @@ export default function TemplatesPage() {
     customTemplates = [], 
     routine,
     loadStatus,
-    isLoading,
-    isSaving,
-    error,
     fetchRoutine,
     applyTemplate,
     applyAiRoutine, 
@@ -31,6 +30,7 @@ export default function TemplatesPage() {
     saveCustomTemplate,
     deleteCustomTemplate
   } = useRoutineStore();
+  const state = useRoutineStore();
   
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"my-plans" | "explore">("my-plans");
@@ -79,10 +79,10 @@ export default function TemplatesPage() {
     if (loadStatus === 'idle') void fetchRoutine();
   }, [fetchRoutine, loadStatus]);
 
-  const replacementUnavailable = loadStatus !== 'ready' || isSaving;
+  const replacementUnavailable = !routineCapabilities(state).canApplyTemplate;
 
   const handleApplyTemplate = async (id: string) => {
-    if (applyingId !== null || replacementUnavailable) return;
+    if (applyingId !== null || !routineCapabilities(useRoutineStore.getState()).canApplyTemplate) return;
 
     setApplyingId(id);
     try {
@@ -135,6 +135,7 @@ export default function TemplatesPage() {
   };
 
   const triggerBackupDownload = () => {
+    if (!routineCapabilities(useRoutineStore.getState()).canShare) return; // Recovery confirmation offers the private source backup instead.
     const base64Str = exportRoutine();
     if (base64Str) {
       const element = document.createElement("a");
@@ -147,7 +148,7 @@ export default function TemplatesPage() {
   };
 
   const handleApplyAiDirectly = async () => {
-    if (!generatedPlan || applyingId !== null || replacementUnavailable) return;
+    if (!generatedPlan || applyingId !== null || !routineCapabilities(useRoutineStore.getState()).canApplyTemplate) return;
 
     setApplyingId('ai-direct');
     if (shouldDownloadBackup) {
@@ -181,7 +182,7 @@ export default function TemplatesPage() {
       toast.error("No generated routine is available to save.");
       return;
     }
-    if (applyAfterSaving && (applyingId !== null || replacementUnavailable)) {
+    if (applyAfterSaving && (applyingId !== null || !routineCapabilities(useRoutineStore.getState()).canApplyTemplate)) {
       toast.error("Load the saved routine before applying this plan.");
       return;
     }
@@ -240,6 +241,7 @@ export default function TemplatesPage() {
   };
 
   const handleSaveActiveTemplate = () => {
+    if (!routineCapabilities(useRoutineStore.getState()).canShare) return;
     if (!activeTemplateName.trim()) {
       toast.error("Please enter a name for your split.");
       return;
@@ -301,23 +303,7 @@ export default function TemplatesPage() {
         </div>
       </header>
 
-      {loadStatus !== 'ready' && (
-        <div
-          role={loadStatus === 'error' ? "alert" : "status"}
-          className="mb-4 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-text-muted"
-        >
-          <p>{isLoading ? "Loading your saved routine…" : (error ?? "Your saved routine is unavailable.")}</p>
-          {loadStatus === 'error' && (
-            <button
-              type="button"
-              onClick={() => void fetchRoutine()}
-              className="mt-3 rounded-lg border border-accent-green/30 bg-accent-green/20 px-3 py-2 font-bold uppercase tracking-wider text-accent-green"
-            >
-              Retry
-            </button>
-          )}
-        </div>
-      )}
+      <RoutineStateNotice />
 
       {/* iXiA AI Premium Button */}
       <button 
@@ -413,11 +399,13 @@ export default function TemplatesPage() {
           
           <button
             onClick={() => {
+              if (!routineCapabilities(useRoutineStore.getState()).canShare) return;
               setActiveTemplateName("My Custom Split");
               setActiveTemplateDesc(`Created on ${new Date().toLocaleDateString()}`);
               setShowSaveActiveModal(true);
             }}
-            className="w-full py-4 border border-dashed border-white/10 hover:border-white/20 bg-white/5 hover:bg-white/10 rounded-2xl text-white font-bold text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2"
+            disabled={!routineCapabilities(state).canShare}
+            className="w-full py-4 border border-dashed border-white/10 hover:border-white/20 bg-white/5 hover:bg-white/10 rounded-2xl text-white font-bold text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 disabled:opacity-40"
           >
             <Plus className="w-4 h-4 text-accent-green" /> Save Current Split as Template
           </button>

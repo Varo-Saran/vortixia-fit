@@ -137,10 +137,10 @@ await rejectAsync('read DTO rejected at actual save boundary', () => wrongSubjec
 check('raw graph no RPC', () => assert.equal(wrongSubject.rpcCalls(), 0));
 
 function makeStore(loaded, save = async routine => model.prepareRoutinePlanForSave(routine)) {
-  let listener, writes = 0, fetcher = async () => loaded;
+  let listener, writes = 0, persisted = null, fetcher = async generation => persisted ? result(rowsFromRoutine(persisted), { ...context, generation }) : loaded;
   const local = localTypeScriptLoader({ 'zustand/middleware': { persist: initializer => initializer }, '@/lib/routine-persistence': {
     observeRoutineSubject: callback => { listener = callback; return () => {}; }, loadActiveRoutine: (...args) => fetcher(...args),
-    saveActiveRoutine: routine => { writes++; return save(routine); },
+    saveActiveRoutine: async routine => { writes++; persisted = await save(routine); return persisted; },
   } });
   const store = local('src/store/useRoutineStore.ts').useRoutineStore;
   return { store, get: store.getState, subject: value => listener(value), setLoad: value => { fetcher = value; }, writes: () => writes };
@@ -149,7 +149,7 @@ const state = makeStore(legacy); await state.get().fetchRoutine();
 check('store reaches needs_attention (no remember throw)', () => assert.equal(state.get().loadStatus, 'needs_attention'));
 check('exclusive preserved read draft', () => assert(state.get().readGraph && !state.get().routine));
 check('opening not dirty/no synthetic buffers', () => assert.deepEqual([state.get().isDirty, state.get().hasUnsavedChanges, state.get().editorBuffers], [false, false, {}]));
-check('capabilities unresolved', () => { const c = compatibility.routineCapabilities(state.get()); assert.deepEqual([c.canViewRoutine, c.canEditRecoveryFields, c.canSave, c.canStartWorkout, c.canAddExercise, c.canBackup, c.canApplyTemplate, c.canReset], [true, true, false, false, false, true, false, false]); });
+check('capabilities unresolved with guarded replacement', () => { const c = compatibility.routineCapabilities(state.get()); assert.deepEqual([c.canViewRoutine, c.canEditRecoveryFields, c.canSave, c.canStartWorkout, c.canAddExercise, c.canBackup, c.canApplyTemplate, c.canReset], [true, true, false, false, false, true, true, true]); });
 await rejectAsync('unresolved Save strict', () => state.get().saveRoutineToDb());
 state.get().setRecoveryTrackingConfig(badIds[0], { trackingType: 'reps_weight', weightUnit: 'kg' });
 check('one correction dirty and second issue remains', () => assert.deepEqual([state.get().isDirty, state.get().compatibilityIssues.length], [true, 1]));
@@ -189,7 +189,7 @@ check('recovery single-flight duplicate and subscriber reentry', () => { assert.
 rejects('recovery correction blocked during save', () => concurrent.get().setRecoveryTrackingConfig(badIds[0], { trackingType: 'reps_weight', weightUnit: 'lbs' }));
 rejects('recovery discard blocked during save', () => concurrent.get().discardDraft());
 gatedSave.resolve(compatibility.promoteRoutineForWrite(concurrent.get().readGraph)); await saveOne; unsubscribe();
-check('saved source evidence invalidated', () => assert.equal(concurrent.get().sourceSnapshot, null));
+check('saved source evidence freshly verified', () => assert(concurrent.get().sourceSnapshot && concurrent.get().sourceSnapshot.fingerprint !== legacy.source.fingerprint));
 let attempts = 0;
 const retry = makeStore(legacy, async routine => { if (++attempts === 1) throw new Error('Synthetic first attempt'); return routine; });
 await retry.get().fetchRoutine(); resolvePairs(retry);

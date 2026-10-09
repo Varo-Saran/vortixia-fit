@@ -1,7 +1,7 @@
 import { getExerciseById, getPreferredExerciseId } from './exercise-catalog';
 import {
   assertValidRoutinePlan, createRoutineUuid, DAY_KINDS,
-  WEEKDAYS, validateOptionalRestSeconds,
+  WEEKDAYS, MAX_OCCURRENCES_PER_DAY, validateOptionalRestSeconds,
 } from './routine-model';
 import type { DayKind, DayPlan, NewPlannedExerciseOccurrence, PlannedExerciseOccurrence, RoutinePlan } from '@/types/routine';
 import type { DeepReadonly, DraftState, EditorBuffer, EditorField } from '@/types/routine-editor';
@@ -114,7 +114,7 @@ export function reorderDay(routine: RoutinePlan, dayId: string, ids: readonly st
 export function addOccurrence(routine: RoutinePlan, dayId: string, input: NewPlannedExerciseOccurrence): RoutinePlan {
   const day = dayById(routine, dayId);
   if (day.kind === 'rest') return fail('Exercises cannot be added to a Rest day.');
-  if (day.exercises.length >= 1000) return fail('A day cannot contain more than 1000 occurrences.');
+  if (day.exercises.length >= MAX_OCCURRENCES_PER_DAY) return fail('A day can contain at most 200 exercises. Remove one before adding another.');
   const exercise = input.exerciseId ? getExerciseById(input.exerciseId) : undefined;
   if (!exercise || exercise.approval === 'red' || exercise.discoveryTier === 'hidden' || exercise.deprecatedForDiscovery || getPreferredExerciseId(exercise.id) !== exercise.id) {
     return fail('Select an available canonical exercise.');

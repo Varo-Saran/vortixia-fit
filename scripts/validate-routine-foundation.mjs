@@ -26,6 +26,7 @@ const routinesPageSource = await readFile(
   path.join(root, "src/app/routines/page.tsx"),
   "utf8",
 );
+const routineNoticeSource = await readFile(path.join(root, 'src/components/routine-editor/RoutineStateNotice.tsx'), 'utf8');
 
 async function readApplicationSources(directory) {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -1390,13 +1391,13 @@ assert(
   "Routine Editor fetches once from the idle state",
 );
 assert(
-  /loadStatus\s*===\s*['\"]error['\"][\s\S]*Retry/i.test(routineEditorSource),
+  /<RoutineStateNotice editor/.test(routineEditorSource) && /!attention[\s\S]*Retry/.test(routineNoticeSource),
   "Routine Editor exposes a retry action after load failure",
 );
 const editorControls = loadTs("src/lib/routine-editor-controls.ts");
 const eligibleEditorDraft = { routine, loadStatus: "ready", isSaving: false, hasUnsavedChanges: true, pendingAdd: null, editorBuffers: {} };
 assert(
-  /disabled=\{!canSaveEditor\(state\)\}/.test(routineEditorSource)
+  /disabled=\{!canSave\}/.test(routineEditorSource) && /caps.canSave && \(!routine \|\| canSaveEditor\(state\)\)/.test(routineEditorSource)
     && editorControls.canSaveEditor(eligibleEditorDraft)
     && !editorControls.canSaveEditor({ ...eligibleEditorDraft, loadStatus: "idle" })
     && !editorControls.canSaveEditor({ ...eligibleEditorDraft, loadStatus: "error" })
@@ -1423,6 +1424,7 @@ const replacementReadyIndex = replacementSource.indexOf(
 );
 const replacementConvertIndex = replacementSource.indexOf(
   "replacement = Array.isArray(plan)",
+  replacementReadyIndex,
 );
 const replacementInstallIndex = replacementSource.indexOf(
   "routine: replacement",
@@ -1553,14 +1555,14 @@ assert(
   "Templates page loads the authoritative routine on cold direct navigation",
 );
 assert(
-  /loadStatus\s*===\s*['"]error['"][\s\S]*Retry/i.test(templatesPageSource),
+  /<RoutineStateNotice/.test(templatesPageSource) && /!attention[\s\S]*Retry/.test(routineNoticeSource),
   "Templates page exposes a retry action after load failure",
 );
 assert(
-  /replacementUnavailable\s*=\s*loadStatus\s*!==\s*['"]ready['"]\s*\|\|\s*isSaving/i.test(
+  /replacementUnavailable\s*=\s*!routineCapabilities\(state\).canApplyTemplate/i.test(
     templatesPageSource,
   ),
-  "Templates page disables graph replacement until load state is ready",
+  "Templates page uses verified replacement capability (recovery confirmation runtime covered)",
 );
 
 const aiDirectHandlerStart = templatesPageSource.indexOf(
@@ -1671,16 +1673,16 @@ assert(
   "Reset retry is re-enabled after success or failure",
 );
 assert(
-  /disabled=\{importCode\.length\s*===\s*0\s*\|\|\s*isImporting\s*\|\|\s*isSaving\s*\|\|\s*loadStatus\s*!==\s*'ready'\}/i.test(
+  /disabled=\{importCode\.length\s*===\s*0\s*\|\|\s*isImporting\s*\|\|\s*!caps.canApplyTemplate\}/i.test(
     routinesPageSource,
   ),
-  "Import is disabled until a verified routine state is ready",
+  "Import is gated by verified replacement capability",
 );
 assert(
-  /disabled=\{isResetting\s*\|\|\s*isSaving\s*\|\|\s*loadStatus\s*!==\s*'ready'\}/i.test(
+  /disabled=\{isResetting\s*\|\|\s*!caps.canReset\}/i.test(
     routinesPageSource,
   ),
-  "Reset is disabled until a verified routine state is ready",
+  "Reset is gated by verified replacement capability",
 );
 
 const directRoutineMutation = applicationSources.find(({ source }) =>
