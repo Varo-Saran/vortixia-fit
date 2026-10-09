@@ -13,6 +13,7 @@
     "validate:routine-foundation": "node scripts/validate-routine-foundation.mjs",
     "validate:templates": "node scripts/validate-templates.mjs",
     "validate:routine-editor": "node scripts/validate-routine-editor.mjs",
+    "validate:routine-compatibility": "node scripts/validate-routine-compatibility.mjs",
     "validate:cardio-zone-foundation": "node scripts/validate-cardio-zone-foundation.mjs"
   },
   "dependencies": {

@@ -14,7 +14,10 @@ import {
 import {
   loadActiveRoutine,
   saveActiveRoutine,
+  observeRoutineSubject,
 } from '@/lib/routine-persistence';
+import { analyzeRoutineCompatibility, correctRecoveryTracking, detachedImmutable, promoteRoutineForWrite, readGraphFingerprint } from '@/lib/routine-compatibility';
+import type { RoutineReadGraph, RoutineCompatibilityIssue, VerifiedRoutineSnapshot, RoutineLoadError, RoutineNormalization } from '@/types/routine-compatibility';
 import * as editor from '@/lib/routine-editor';
 import { parseRestInput } from '@/lib/routine-editor-controls';
 import { getExerciseById } from '@/lib/exercise-catalog';
@@ -44,7 +47,17 @@ export type {
 } from '@/types/routine';
 
 export interface RoutineStore extends DraftState {
-  loadStatus: 'idle' | 'loading' | 'ready' | 'error';
+  loadStatus: 'idle' | 'loading' | 'ready' | 'needs_attention' | 'error';
+  // Exclusive read-draft lane: routine stays null until strict promotion/save.
+  // Existing pages must not deploy with this foundation alone (D2E-B required).
+  readGraph: RoutineReadGraph | null;
+  readBaseline: RoutineReadGraph | null;
+  compatibilityIssues: readonly RoutineCompatibilityIssue[];
+  normalizations: readonly RoutineNormalization[];
+  sourceSnapshot: VerifiedRoutineSnapshot | null;
+  loadError: RoutineLoadError | null;
+  setRecoveryTrackingConfig: (id: string, config: TrackingConfig) => void;
+  revertRecoveryOccurrence: (id: string) => void;
   isLoading: boolean;
   isSaving: boolean;
   isDirty: boolean;
@@ -107,6 +120,9 @@ export const useRoutineStore = create<RoutineStore>()(
     (set, get) => {
       let routineLoadFlight: Promise<void> | null = null;
       let saveFlight: Promise<SaveOutcome> | null = null;
+      let loadGeneration = 0;
+      let subject: string | null | undefined;
+      let subjectEpoch = 0;
       const approvals = new WeakSet<ReplacementApproval>();
       // Compatibility allowances, NOT form/dirty/persisted truth. Each trusted
       // incoming pair belongs only to its occurrence and canonical ID.
@@ -151,8 +167,24 @@ export const useRoutineStore = create<RoutineStore>()(
           throw new editor.RoutineEditorError('The draft changed. Confirm replacement again.');
         }
       };
+      const readFlags = (graph: RoutineReadGraph, baseline: RoutineReadGraph) => {
+        const isDirty = readGraphFingerprint(graph) !== readGraphFingerprint(baseline);
+        return { isDirty, hasUnsavedChanges: isDirty, draftStatus: isDirty ? 'Unsaved changes' as const : 'Saved' as const };
+      };
+      observeRoutineSubject(next => {
+        if (next === subject) return;
+        const first = subject === undefined;
+        subject = next;
+        if (first && !get()?.routine && !get()?.readGraph) return;
+        subjectEpoch++; loadGeneration++; routineLoadFlight = null; historicalPairs.clear();
+        set({ routine: null, savedBaseline: null, initialDefaultDraft: null, readGraph: null, readBaseline: null,
+          sourceSnapshot: null, compatibilityIssues: [], normalizations: [], loadError: null, editorBuffers: {}, pendingAdd: null,
+          loadStatus: 'idle', isLoading: false, isSaving: false, isDirty: false, hasUnsavedChanges: false, error: null,
+          draftStatus: 'Saved', draftRevision: (get()?.draftRevision ?? 0) + 1 });
+      });
       return ({
       routine: null,
+      readGraph: null, readBaseline: null, compatibilityIssues: [], normalizations: [], sourceSnapshot: null, loadError: null,
       savedBaseline: null,
       initialDefaultDraft: null,
       editorBuffers: {},
@@ -171,7 +203,7 @@ export const useRoutineStore = create<RoutineStore>()(
       
       fetchRoutine: async () => {
         const currentState = get();
-        if ((currentState.hasUnsavedChanges || currentState.isSaving) && currentState.routine) {
+        if ((currentState.hasUnsavedChanges || currentState.isSaving) && (currentState.routine || currentState.readGraph)) {
           return;
         }
 
@@ -179,10 +211,46 @@ export const useRoutineStore = create<RoutineStore>()(
           return routineLoadFlight;
         }
 
-        routineLoadFlight = (async () => {
-          set({ loadStatus: 'loading', isLoading: true, error: null });
+        const generation = ++loadGeneration;
+        const run = async () => {
+          if (generation !== loadGeneration) return;
           try {
-            const loadedRoutine = await loadActiveRoutine();
+            const loaded = await loadActiveRoutine(generation);
+            if (generation !== loadGeneration) return;
+            if (loaded.status !== 'empty' && loaded.source) {
+              if (subject === undefined) subject = loaded.source.subjectId;
+              if (subject !== loaded.source.subjectId) {
+                set({ routine: null, readGraph: null, readBaseline: null, sourceSnapshot: null, savedBaseline: null,
+                  initialDefaultDraft: null, compatibilityIssues: [], normalizations: [], editorBuffers: {}, pendingAdd: null,
+                  loadStatus: 'error', isLoading: false, isDirty: false, hasUnsavedChanges: false,
+                  loadError: { kind: 'auth', code: 'subject_changed', message: 'The signed-in account changed. Load again.' } });
+                return;
+              }
+            }
+            const latest = get();
+            if ((latest.hasUnsavedChanges || latest.isSaving) && (latest.routine || latest.readGraph)) {
+              set({ loadStatus: latest.readGraph ? 'needs_attention' : 'ready', isLoading: false });
+              return;
+            }
+            if (loaded.status === 'fatal') {
+              set({ routine: null, readGraph: null, readBaseline: null, sourceSnapshot: loaded.source, loadError: loaded.error,
+                savedBaseline: null, initialDefaultDraft: null, compatibilityIssues: [], normalizations: [], editorBuffers: {}, pendingAdd: null,
+                loadStatus: 'error', isLoading: false, isDirty: false, hasUnsavedChanges: false, error: loaded.error.message });
+              return;
+            }
+            if (loaded.status === 'needs_attention') {
+              // Invalid historical pairs remain in evidence/read state, never in
+              // rememberProgramming's valid-pair allowances or synthetic buffers.
+              if (get().hasUnsavedChanges) return;
+              historicalPairs.clear();
+              set({ routine: null, savedBaseline: null, initialDefaultDraft: null, readGraph: structuredClone(loaded.routine),
+                readBaseline: detachedImmutable(loaded.routine), sourceSnapshot: loaded.source, compatibilityIssues: loaded.issues,
+                normalizations: loaded.normalizations,
+                loadError: null, editorBuffers: {}, pendingAdd: null, loadStatus: 'needs_attention', isLoading: false,
+                ...readFlags(loaded.routine, loaded.routine), draftRevision: get().draftRevision + 1, error: null });
+              return;
+            }
+            const loadedRoutine = loaded.status === 'valid' ? loaded.routine : null;
             set((state) => {
               if ((state.hasUnsavedChanges || state.isSaving) && state.routine) {
                 return {
@@ -203,17 +271,24 @@ export const useRoutineStore = create<RoutineStore>()(
               };
               return {
                 ...draft, ...editor.draftFlags(draft), draftRevision: state.draftRevision + 1,
+                readGraph: null, readBaseline: null, compatibilityIssues: [], loadError: null,
+                normalizations: loaded.status === 'valid' ? loaded.normalizations : [],
+                sourceSnapshot: loaded.status === 'valid' ? loaded.source : null,
                 loadStatus: 'ready',
                 isLoading: false,
                 error: null,
               };
             });
           } catch (error) {
+            if (generation !== loadGeneration) return;
             const message = error instanceof Error
               ? error.message
               : 'Unable to load the active routine.';
             console.error('Error fetching routine:', error);
             set((state) => {
+              if (state.hasUnsavedChanges && state.readGraph) {
+                return { loadStatus: 'needs_attention', isLoading: false, error: message };
+              }
               if (state.hasUnsavedChanges && state.routine) {
                 return {
                   loadStatus: 'ready',
@@ -224,6 +299,9 @@ export const useRoutineStore = create<RoutineStore>()(
 
               return {
                 routine: null,
+                readGraph: null, readBaseline: null, sourceSnapshot: null, compatibilityIssues: [], normalizations: [],
+                savedBaseline: null, initialDefaultDraft: null, editorBuffers: {}, pendingAdd: null, hasUnsavedChanges: false,
+                loadError: { kind: 'transport', code: 'incomplete_read', message: 'Unable to read a complete routine.' },
                 loadStatus: 'error',
                 isLoading: false,
                 isDirty: false,
@@ -231,13 +309,40 @@ export const useRoutineStore = create<RoutineStore>()(
               };
             });
           }
-        })();
+        };
+        let resolve!: () => void, reject!: (error: unknown) => void;
+        const flight = new Promise<void>((yes, no) => { resolve = yes; reject = no; });
+        routineLoadFlight = flight;
+        // Notify only after reserving the flight, while preserving immediate
+        // loading state for existing callers and subscriber reentry.
+        set({ loadStatus: 'loading', isLoading: true, error: null });
+        void run().then(resolve, reject);
 
         try {
-          await routineLoadFlight;
+          await flight;
         } finally {
-          routineLoadFlight = null;
+          if (routineLoadFlight === flight) routineLoadFlight = null;
         }
+      },
+
+      setRecoveryTrackingConfig: (id, config) => {
+        const state = get();
+        if (!state.readGraph || !state.readBaseline || state.isSaving) throw new editor.RoutineEditorError('An editable recovery graph is required.');
+        const next = correctRecoveryTracking(state.readGraph, id, config);
+        if (readGraphFingerprint(next) === readGraphFingerprint(state.readGraph)) return;
+        set({ readGraph: next, compatibilityIssues: analyzeRoutineCompatibility(next), ...readFlags(next, state.readBaseline),
+          draftRevision: state.draftRevision + 1, error: null });
+      },
+      revertRecoveryOccurrence: id => {
+        const state = get();
+        if (!state.readGraph || !state.readBaseline || state.isSaving) throw new editor.RoutineEditorError('An editable recovery baseline is required.');
+        const original = state.readBaseline.days.flatMap(day => day.exercises).find(item => item.id === id);
+        if (!original) throw new editor.RoutineEditorError('The stored recovery occurrence is unavailable.');
+        const next = structuredClone(state.readGraph);
+        next.days.forEach(day => { day.exercises = day.exercises.map(item => item.id === id ? structuredClone(original) : item); });
+        if (readGraphFingerprint(next) === readGraphFingerprint(state.readGraph)) return;
+        // Exact restoration of source evidence is not permission to SAVE it.
+        set({ readGraph: next, compatibilityIssues: analyzeRoutineCompatibility(next), ...readFlags(next, state.readBaseline), draftRevision: state.draftRevision + 1 });
       },
 
       // Compatibility setter is an edit, not a load/replacement gate bypass.
@@ -338,6 +443,12 @@ export const useRoutineStore = create<RoutineStore>()(
       discardDraft: () => {
         const state = get();
         if (saveFlight || state.isSaving) throw new editor.RoutineEditorError('Wait for the routine save before discarding.');
+        if (state.readBaseline) {
+          const graph = structuredClone(state.readBaseline);
+          set({ readGraph: graph, compatibilityIssues: analyzeRoutineCompatibility(graph), ...readFlags(graph, state.readBaseline),
+            editorBuffers: {}, pendingAdd: null, draftRevision: state.draftRevision + Number(state.isDirty), error: null });
+          return;
+        }
         const baseline = state.savedBaseline ?? state.initialDefaultDraft;
         if (!baseline) throw new editor.RoutineEditorError('No verified baseline is available.');
         const draft = { ...state, routine: editor.cloneRoutine(baseline), editorBuffers: {}, pendingAdd: null };
@@ -374,9 +485,25 @@ export const useRoutineStore = create<RoutineStore>()(
         const flight = new Promise<SaveOutcome>((yes, no) => { resolve = yes; reject = no; });
         // Reserve before validation, state notification, or IO (subscriber reentry).
         saveFlight = flight;
+        const epoch = subjectEpoch;
         void (async () => {
           try {
             const state = get();
+            if (state.readGraph) {
+              if (state.pendingAdd || Object.keys(state.editorBuffers).length) throw new editor.RoutineEditorError('Finish recovery field edits before saving.');
+              if (!state.hasUnsavedChanges) throw new editor.RoutineEditorError('Choose explicit corrections before saving.');
+              const prepared = promoteRoutineForWrite(state.readGraph);
+              const submittedRevision = state.draftRevision;
+              set({ isSaving: true, submittedRevision, error: null });
+              const savedRoutine = await saveActiveRoutine(editor.cloneRoutine(prepared), state.sourceSnapshot?.subjectId ?? subject);
+              if (epoch !== subjectEpoch) throw new Error('The signed-in account changed during save.');
+              historicalPairs.clear(); rememberProgramming(savedRoutine);
+              const draft = { ...get(), routine: editor.cloneRoutine(savedRoutine), savedBaseline: editor.immutableRoutine(savedRoutine), initialDefaultDraft: null, editorBuffers: {}, pendingAdd: null };
+              saveFlight = null;
+              set({ ...draft, ...editor.draftFlags(draft), readGraph: null, readBaseline: null, compatibilityIssues: [],
+                sourceSnapshot: null, normalizations: [], loadStatus: 'ready', isSaving: false, submittedRevision: null, error: null });
+              resolve({ submittedRevision, status: 'saved' }); return;
+            }
             let routine = requireDraft();
             if (state.pendingAdd) throw new editor.RoutineEditorError('Finish or cancel Add Exercise before saving.');
             for (const buffer of Object.values(state.editorBuffers)) {
@@ -394,7 +521,8 @@ export const useRoutineStore = create<RoutineStore>()(
             }
             const editorBuffers = Object.fromEntries(Object.entries(state.editorBuffers).map(([key, buffer]) => [key, bufferFor(prepared, buffer.field, buffer.raw)]));
             set({ routine: prepared, editorBuffers, isSaving: true, submittedRevision, error: null, ...editor.draftFlags({ ...state, routine: prepared, editorBuffers }) });
-            const savedRoutine = await saveActiveRoutine(editor.cloneRoutine(prepared));
+            const savedRoutine = await saveActiveRoutine(editor.cloneRoutine(prepared), subject);
+            if (epoch !== subjectEpoch) throw new Error('The signed-in account changed during save.');
             const latest = get();
             const newer = latest.draftRevision !== submittedRevision;
             const draft = { ...latest, savedBaseline: editor.immutableRoutine(savedRoutine), initialDefaultDraft: null,
@@ -402,10 +530,16 @@ export const useRoutineStore = create<RoutineStore>()(
               editorBuffers: newer ? Object.fromEntries(Object.entries(latest.editorBuffers).map(([key, buffer]) => [key, bufferFor(latest.routine!, buffer.field, buffer.raw)])) : {} };
             saveFlight = null;
             set({ routine: draft.routine, savedBaseline: draft.savedBaseline, initialDefaultDraft: null,
+              sourceSnapshot: null, normalizations: [],
               editorBuffers: draft.editorBuffers, ...editor.draftFlags(draft), isSaving: false, submittedRevision: null, error: null });
             resolve({ submittedRevision, status: newer ? 'saved-with-newer-edits' : 'saved' });
           } catch (error) {
             saveFlight = null;
+            if (epoch !== subjectEpoch) { reject(error); return; }
+            if (get().readGraph && get().readBaseline) {
+              set({ isSaving: false, submittedRevision: null, error: message(error), ...readFlags(get().readGraph!, get().readBaseline!) });
+              reject(error); return;
+            }
             set({ isSaving: false, submittedRevision: null, error: message(error), ...editor.draftFlags(get()) });
             reject(error);
           }

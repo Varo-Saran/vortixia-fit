@@ -289,7 +289,14 @@ function localStore(loadActiveRoutine, saveActiveRoutine) {
     // Existing replacement fixtures now explicitly approve the new shared UI
     // guard. They still exercise the real store boundary and persistence.
     "@/lib/routine-draft-guard": { confirmRoutineDiscard: async () => true, RoutineGuardCancelledError: class extends Error {} },
-    "@/lib/routine-persistence": { loadActiveRoutine, saveActiveRoutine },
+    "@/lib/routine-persistence": {
+      observeRoutineSubject: () => () => {},
+      loadActiveRoutine: async () => {
+        const routine = await loadActiveRoutine();
+        return routine ? { status: 'valid', routine, source: null, normalizations: [] } : { status: 'empty' };
+      },
+      saveActiveRoutine,
+    },
     "zustand/middleware": { persist: (initializer, options) => { persistOptions = options; return initializer; } },
     "zustand": { create: () => initializer => {
       let state;
