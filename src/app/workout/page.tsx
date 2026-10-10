@@ -11,6 +11,9 @@ import { ExerciseSelectionModal } from "@/components/ExerciseSelectionModal";
 import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import { toast } from "react-hot-toast";
 import { durationSecondsBetween, formatDuration } from "@/lib/duration";
+import { useRoutineStore } from '@/store/useRoutineStore';
+import { routineCapabilities } from '@/lib/routine-compatibility';
+import { RoutineStateNotice } from '@/components/routine-editor/RoutineStateNotice';
 
 const TRACKING_MODES: ReadonlyArray<{ id: TrackingType; label: string }> = [
   { id: 'reps_weight', label: 'Weight & Reps' },
@@ -44,6 +47,9 @@ export default function ActiveWorkoutPage() {
     && lastWorkoutSummary
     && (completionStatus === 'committed' || completionStatus === 'queued'),
   );
+  const routineState = useRoutineStore();
+  const { loadStatus: routineLoadStatus, fetchRoutine } = routineState;
+  useEffect(() => { if (!isActive && !isSummaryVisible && routineLoadStatus === 'idle') void fetchRoutine(); }, [isActive, isSummaryVisible, routineLoadStatus, fetchRoutine]);
   
   // Plate Calculator State
   const [isPlateCalcOpen, setIsPlateCalcOpen] = useState(false);
@@ -219,6 +225,7 @@ export default function ActiveWorkoutPage() {
   }
 
   if (!isActive) {
+    if (!routineCapabilities(routineState).canStartWorkout) return <main className="mx-auto flex min-h-screen max-w-xl items-center p-6 pb-28"><RoutineStateNotice workout /></main>;
     return (
       <main className="flex min-h-screen flex-col items-center justify-center p-6 bg-background">
         <h1 className="text-xl font-bold text-white mb-4">No Active Workout</h1>

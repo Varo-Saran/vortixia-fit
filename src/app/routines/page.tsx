@@ -8,7 +8,10 @@ import {
   shortWeekday,
   weekdayLabel,
 } from "@/lib/routine-model";
-import type { PlannedExerciseOccurrence } from "@/types/routine";
+import { routineCapabilities } from '@/lib/routine-compatibility';
+import { savedValue, workoutDaySelection } from '@/lib/routine-recovery';
+import { RoutineStateNotice, RecoveryBackupButton } from '@/components/routine-editor/RoutineStateNotice';
+import { RoutineDayEditor } from '@/components/routine-editor/RoutineDayEditor';
 import { Settings2, Play, Library, Share, Download, X, Copy, Check, Edit3, RotateCcw, Trash2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -20,16 +23,16 @@ export default function RoutinesPage() {
   const { 
     routine,
     loadStatus,
-    isLoading,
     isSaving,
     draftStatus,
-    error,
     fetchRoutine, 
     exportRoutine, 
     importRoutine,
     resetActiveSplit,
     clearAllCustomTemplates
   } = useRoutineStore();
+  const state = useRoutineStore(), caps = routineCapabilities(state);
+  const [readDay, setReadDay] = useState<string | null>(null);
   
   const { startWorkout } = useWorkoutStore();
   const router = useRouter();
@@ -56,6 +59,7 @@ export default function RoutinesPage() {
   }, [loadStatus, fetchRoutine]);
 
   const handleExport = () => {
+    if (!routineCapabilities(useRoutineStore.getState()).canShare) return;
     const code = exportRoutine();
     setExportCode(code);
     setShowExportModal(true);
@@ -70,7 +74,7 @@ export default function RoutinesPage() {
   };
 
   const handleImport = async () => {
-    if (isImporting || isSaving || loadStatus !== 'ready') return;
+    if (isImporting || !routineCapabilities(useRoutineStore.getState()).canApplyTemplate) return;
 
     setIsImporting(true);
     setImportError(null);
@@ -94,8 +98,9 @@ export default function RoutinesPage() {
 
   // Resets active split to defaults
   const handleResetActive = async () => {
-    if (isResetting || isSaving || loadStatus !== 'ready') return;
-    if (confirm("Are you sure you want to reset your active split to the default Push/Pull/Legs (6-Day) program? This will overwrite your current schedule.")) {
+    const current = useRoutineStore.getState();
+    if (isResetting || !routineCapabilities(current).canReset) return;
+    if (current.loadStatus === 'needs_attention' || confirm("Are you sure you want to reset your active split to the default Push/Pull/Legs (6-Day) program? This will overwrite your current schedule.")) {
       setIsResetting(true);
       try {
         const outcome = await resetActiveSplit();
@@ -125,6 +130,7 @@ export default function RoutinesPage() {
 
   // Download active split file
   const handleDownloadBackup = () => {
+    if (!routineCapabilities(useRoutineStore.getState()).canShare) return;
     const base64Str = exportRoutine();
     if (base64Str) {
       const element = document.createElement("a");
@@ -141,16 +147,12 @@ export default function RoutinesPage() {
   };
 
   // Workout launching helper
-  const handleLaunchWorkout = (
-    title: string,
-    lifts: PlannedExerciseOccurrence[],
-  ) => {
-    if (lifts.length === 0) {
-      toast.error("Cannot start a workout with 0 exercises.");
-      return;
-    }
-    startWorkout(title, lifts);
-    toast.success(`Started workout: ${title}!`);
+  const handleLaunchWorkout = (dayId: string) => {
+    let selection;
+    try { selection = workoutDaySelection(useRoutineStore.getState(), dayId); }
+    catch (error) { toast.error(error instanceof Error ? error.message : 'Unable to start workout.'); return; }
+    startWorkout(selection.title, selection.exercises);
+    toast.success(`Started workout: ${selection.title}!`);
     router.push("/workout");
   };
 
@@ -174,23 +176,7 @@ export default function RoutinesPage() {
         </button>
       </header>
 
-      {loadStatus !== 'ready' && (
-        <div
-          role={loadStatus === 'error' ? "alert" : "status"}
-          className="mb-4 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-text-muted"
-        >
-          <p>{isLoading ? "Loading your saved routine…" : (error ?? "Your saved routine is unavailable.")}</p>
-          {loadStatus === 'error' && (
-            <button
-              type="button"
-              onClick={() => void fetchRoutine()}
-              className="mt-3 rounded-lg border border-accent-green/30 bg-accent-green/20 px-3 py-2 font-bold uppercase tracking-wider text-accent-green"
-            >
-              Retry
-            </button>
-          )}
-        </div>
-      )}
+      <RoutineStateNotice />
 
       {/* Action Bar */}
       {routine && <p role="status" className="mb-3 text-xs text-text-muted">{isSaving ? 'Saving…' : draftStatus}</p>}
@@ -199,13 +185,13 @@ export default function RoutinesPage() {
             <Library className="w-5 h-5 text-accent-green" />
             <span className="text-[10px] uppercase font-bold text-white tracking-widest">Templates</span>
          </Link>
-         <button onClick={handleExport} className="flex-1 bg-white/5 border border-white/10 rounded-xl p-3 flex flex-col items-center justify-center gap-1 active:scale-95 transition-transform">
+         <button onClick={handleExport} disabled={!caps.canShare} className="flex-1 bg-white/5 border border-white/10 rounded-xl p-3 flex flex-col items-center justify-center gap-1 active:scale-95 transition-transform disabled:opacity-40">
             <Share className="w-5 h-5 text-blue-400" />
             <span className="text-[10px] uppercase font-bold text-white tracking-widest">Share</span>
          </button>
           <button
-            onClick={() => setShowImportModal(true)}
-            disabled={loadStatus !== 'ready' || isSaving}
+            onClick={() => { if (routineCapabilities(useRoutineStore.getState()).canApplyTemplate) setShowImportModal(true); }}
+            disabled={!caps.canApplyTemplate}
             className="flex-1 bg-white/5 border border-white/10 rounded-xl p-3 flex flex-col items-center justify-center gap-1 active:scale-95 transition-transform disabled:opacity-50"
           >
             <Download className="w-5 h-5 text-orange-400" />
@@ -217,12 +203,13 @@ export default function RoutinesPage() {
         <div className="glass-card p-5 flex flex-col relative overflow-hidden group border-accent-green/30">
            <div className="absolute top-0 right-0 w-32 h-32 bg-accent-green/10 blur-3xl rounded-full" />
            <span className="text-[10px] text-accent-green font-bold tracking-widest uppercase mb-1 z-10">Active Split</span>
-           <h2 className="text-2xl font-black text-white z-10">{routine?.name ?? "Routine"}</h2>
+           <h2 className="text-2xl font-black text-white z-10">{savedValue(routine?.name ?? state.readGraph?.name ?? 'Routine')}</h2>
            <p className="text-xs text-text-muted mt-1 z-10 mb-4">View your weekly split below.</p>
            
            <div className="flex gap-2 w-full z-10">
              <button 
-               onClick={() => setShowDaySelectModal(true)}
+               onClick={() => { if (routineCapabilities(useRoutineStore.getState()).canStartWorkout) setShowDaySelectModal(true); }}
+               disabled={!caps.canStartWorkout}
                className="flex-[2] bg-accent-green hover:bg-[#2ae07b] text-black font-black py-4 rounded-xl flex justify-center items-center gap-2 active:scale-95 transition-all shadow-[0_0_20px_rgba(74,222,128,0.3)]"
              >
                <Play className="w-5 h-5 fill-black" />
@@ -233,13 +220,14 @@ export default function RoutinesPage() {
                className="flex-1 bg-white/10 border border-white/10 text-white font-bold py-4 rounded-xl flex flex-col justify-center items-center gap-1 hover:bg-white/20 active:scale-95 transition-all"
              >
                <Edit3 className="w-5 h-5" />
-               <span className="text-[10px] tracking-widest uppercase">Edit Split</span>
+               <span className="text-[10px] tracking-widest uppercase">{state.readGraph ? 'Fix Routine' : 'Edit Split'}</span>
              </Link>
            </div>
         </div>
       </section>
 
       <section className="flex flex-col gap-3 pb-8">
+        {state.readGraph && state.readGraph.days.map(day => <RoutineDayEditor key={day.id} day={day} expanded={readDay === day.id} onToggle={() => setReadDay(readDay === day.id ? null : day.id)} onOccurrence={() => router.push('/routines/edit')} onAdd={() => {}} defaultRest={60} announce={() => {}} focus={() => {}} />)}
         {weeklyPlan.map((plan, index) => {
           const lifts = mainOccurrences(plan);
           return (
@@ -266,7 +254,7 @@ export default function RoutinesPage() {
               {/* Direct Play button on card */}
               {isDayStartable(plan) && (
                 <button
-                  onClick={() => handleLaunchWorkout(plan.title, lifts)}
+                  onClick={() => handleLaunchWorkout(plan.id)}
                   aria-label={`Start ${weekdayLabel(plan.weekday)} Workout`}
                   className="w-10 h-10 rounded-full bg-accent-green/10 border border-accent-green/30 hover:bg-accent-green hover:text-black flex items-center justify-center text-accent-green transition-all active:scale-95"
                 >
@@ -295,7 +283,7 @@ export default function RoutinesPage() {
       </section>
 
       {/* WORKOUT DAY SELECTOR MODAL */}
-      {showDaySelectModal && (
+      {showDaySelectModal && caps.canStartWorkout && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-[#111] border border-white/10 w-full max-w-sm rounded-[2rem] p-6 relative animate-fade-in-up">
             <button 
@@ -309,7 +297,6 @@ export default function RoutinesPage() {
             
             <div className="flex flex-col gap-2 max-h-[50vh] overflow-y-auto pr-1">
               {weeklyPlan.map((plan) => {
-                const lifts = mainOccurrences(plan);
                 const isToday = plan.weekday === todayName;
                 const isRest = !isDayStartable(plan);
 
@@ -319,7 +306,7 @@ export default function RoutinesPage() {
                     disabled={isRest}
                     onClick={() => {
                       setShowDaySelectModal(false);
-                      handleLaunchWorkout(plan.title, lifts);
+                      handleLaunchWorkout(plan.id);
                     }}
                     className={`p-3 rounded-xl flex items-center justify-between border transition-all text-left ${
                       isRest 
@@ -366,7 +353,7 @@ export default function RoutinesPage() {
             {importError && <p className="text-red-500 text-xs font-bold mb-4">{importError}</p>}
             <button 
               onClick={() => void handleImport()}
-              disabled={importCode.length === 0 || isImporting || isSaving || loadStatus !== 'ready'}
+              disabled={importCode.length === 0 || isImporting || !caps.canApplyTemplate}
               className="w-full py-3 bg-accent-green text-black font-black rounded-xl active:scale-95 transition-transform disabled:opacity-50"
             >
               {isImporting ? "IMPORTING..." : "IMPORT"}
@@ -411,7 +398,7 @@ export default function RoutinesPage() {
             <div className="flex flex-col gap-3">
               <button 
                 onClick={() => void handleResetActive()}
-                disabled={isResetting || isSaving || loadStatus !== 'ready'}
+                disabled={isResetting || !caps.canReset}
                 className="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold p-4 rounded-xl flex items-center gap-3 transition-colors text-left disabled:opacity-50"
               >
                 <RotateCcw className="w-5 h-5 text-accent-green" />
@@ -432,8 +419,9 @@ export default function RoutinesPage() {
                 </div>
               </button>
 
-              <button 
-                onClick={handleDownloadBackup}
+              {!caps.canReset && !state.replacementPending && !isSaving && <p className="text-xs text-white/60">Reset is unavailable until your saved routine and ownership can be verified. Retry loading first.</p>}
+              {state.readGraph ? <RecoveryBackupButton /> : <button
+                onClick={handleDownloadBackup} disabled={!caps.canShare}
                 className="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold p-4 rounded-xl flex items-center gap-3 transition-colors text-left"
               >
                 <Download className="w-5 h-5 text-blue-400" />
@@ -441,7 +429,7 @@ export default function RoutinesPage() {
                   <span className="text-sm font-black">Backup Active Split</span>
                   <span className="text-[10px] text-text-muted">Download your current active routine as a file</span>
                 </div>
-              </button>
+              </button>}
             </div>
           </div>
         </div>

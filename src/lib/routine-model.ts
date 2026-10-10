@@ -31,6 +31,7 @@ export const WEIGHT_UNITS = PROGRAMMING_WEIGHT_UNITS;
 export const ROUTINE_NAME_MAX_LENGTH = 80;
 export const DAY_TITLE_MAX_LENGTH = 60;
 export const REST_SECONDS_MAX = 3_600;
+export const MAX_OCCURRENCES_PER_DAY = 200;
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -339,6 +340,7 @@ export function validateRoutinePlan(routine: RoutinePlan): string[] {
   const occurrenceIds = new Set<string>();
 
   for (const day of routine.days) {
+    if (day.exercises.length > MAX_OCCURRENCES_PER_DAY) errors.push(`${day.weekday}: a day can contain at most ${MAX_OCCURRENCES_PER_DAY} occurrences.`);
     if (!WEEKDAYS.includes(day.weekday)) errors.push(`Invalid weekday: ${day.weekday}`);
     if (weekdays.has(day.weekday)) errors.push(`Duplicate weekday: ${day.weekday}`);
     weekdays.add(day.weekday);

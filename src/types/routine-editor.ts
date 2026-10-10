@@ -41,3 +41,9 @@ export interface ReplacementApproval {
   readonly revision: number;
   readonly fingerprint: string;
 }
+export interface RecoveryReplacementApproval extends ReplacementApproval {
+  readonly subjectId: string;
+  readonly generation: number;
+  readonly sourceFingerprint: string;
+  readonly replacementFingerprint: string;
+}

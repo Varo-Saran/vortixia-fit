@@ -134,7 +134,10 @@ function makeStore({ loaded = seed, save = async routine => model.prepareRoutine
   let options, writes = 0, loads = 0;
   const submissions = [];
   const local = localTypeScriptLoader({
-    '@/lib/routine-persistence': { loadActiveRoutine: async () => { loads++; return load ? load() : loaded && structuredClone(loaded); }, saveActiveRoutine: async routine => { writes++; submissions.push(structuredClone(routine)); return save(routine); } },
+    '@/lib/routine-persistence': { observeRoutineSubject: () => () => {}, loadActiveRoutine: async () => {
+      loads++; const routine = load ? await load() : loaded && structuredClone(loaded);
+      return routine ? { status: 'valid', routine, source: null, normalizations: [] } : { status: 'empty' };
+    }, saveActiveRoutine: async routine => { writes++; submissions.push(structuredClone(routine)); return save(routine); } },
     'zustand/middleware': { persist: (initializer, opts) => { options = opts; return initializer; } },
   });
   const guard = local('src/lib/routine-draft-guard.ts');

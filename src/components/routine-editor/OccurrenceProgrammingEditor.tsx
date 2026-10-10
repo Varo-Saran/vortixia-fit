@@ -27,9 +27,7 @@ export interface ProgrammingEditorProps {
 export function OccurrenceProgrammingEditor({ cardio, sets, target, zone, rest, tracking, optionsFor, defaultRest }: ProgrammingEditorProps) {
   const [roundsOpen, setRoundsOpen] = useState(false);
   const mode = tracking.value.trackingType;
-  const weighted = isWeightedMode(mode);
   const continuous = cardio && Number(sets.raw) === 1 && ['time_only', 'time_weight', 'cardio_hr'].includes(mode ?? '');
-  const options = optionsFor(mode);
   const zoneDescriptions = { 1: 'Recovery', 2: 'Aerobic Base', 3: 'Tempo', 4: 'Threshold', 5: 'VO₂ Max' };
   const zoneOptions: import('@/components/ui/Select').SelectOption[] = [
     { value: 'none', label: 'None — No zone target', triggerLabel: 'None' },
@@ -44,8 +42,6 @@ export function OccurrenceProgrammingEditor({ cardio, sets, target, zone, rest, 
       aria-invalid={!!field.error} aria-describedby={field.error ? `${field.id}-error` : undefined} />
     {field.error && <p id={`${field.id}-error`} className="text-xs text-red-300">{field.error}</p>}
   </div>;
-  const updateTracking = (value: PendingTrackingConfig) => { tracking.change(value); tracking.commit?.(); };
-  const configError = tracking.error ? `${tracking.id}-error` : undefined;
   return <div className="space-y-4">
     <div className={continuous ? 'min-w-0' : 'grid min-w-0 grid-cols-[5.5rem_minmax(0,1fr)] sm:grid-cols-[6.5rem_minmax(0,1fr)] gap-3.5'}>
       {!continuous && input(sets, cardio ? 'Rounds' : 'Sets', true)}
@@ -67,14 +63,23 @@ export function OccurrenceProgrammingEditor({ cardio, sets, target, zone, rest, 
     </div>}
     <RestControl id={rest.id} raw={rest.raw} error={rest.error} onChange={rest.change} onCommit={rest.commit}
       defaultRest={defaultRest} label={programmingRestLabel(cardio, Number(sets.raw))} />
+    <TrackingControls tracking={tracking} optionsFor={optionsFor} />
+  </div>;
+}
+
+export function TrackingControls({ tracking, optionsFor, disabled = false }: Pick<ProgrammingEditorProps, 'tracking' | 'optionsFor'> & { disabled?: boolean }) {
+  const mode = tracking.value.trackingType, weighted = isWeightedMode(mode), options = optionsFor(mode);
+  const updateTracking = (value: PendingTrackingConfig) => { tracking.change(value); tracking.commit?.(); };
+  const configError = tracking.error ? `${tracking.id}-error` : undefined;
+  return <div>
     <div className={`grid gap-4 border-t border-white/[0.06] pt-4 ${weighted ? 'sm:grid-cols-2' : ''}`}>
       <div className="space-y-1.5"><label htmlFor={tracking.id} className="block text-xs font-semibold text-white/60">Tracking</label>
-        <Select variant="routine-editor" id={tracking.id} label="Tracking" value={mode ?? ''} placeholder="Choose tracking" invalid={!!tracking.error} describedBy={configError} triggerClassName="min-h-11"
+        <Select variant="routine-editor" disabled={disabled} id={tracking.id} label="Tracking" value={mode ?? ''} placeholder="Choose tracking" invalid={!!tracking.error} describedBy={configError} triggerClassName="min-h-11"
           options={options.trackingTypes.map(value => ({ value, label: TRACKING_LABELS[value] }))}
           onValueChange={value => updateTracking(transitionTracking(tracking.value, value as TrackingType, optionsFor(value as TrackingType).units))} />
       </div>
       {weighted && <div className="space-y-1.5"><label htmlFor={`${tracking.id}-unit`} className="block text-xs font-semibold text-white/60">Load unit</label>
-        <Select variant="routine-editor" id={`${tracking.id}-unit`} label="Load unit" value={tracking.value.weightUnit ?? ''} placeholder="Choose unit" invalid={!!tracking.error} describedBy={configError}
+        <Select variant="routine-editor" disabled={disabled} id={`${tracking.id}-unit`} label="Load unit" value={tracking.value.weightUnit ?? ''} placeholder="Choose unit" invalid={!!tracking.error} describedBy={configError}
           triggerClassName="min-h-11" options={options.units.map(value => ({ value, label: UNIT_LABELS[value] }))}
           onValueChange={value => updateTracking({ ...tracking.value, weightUnit: value as WeightUnit })} />
       </div>}

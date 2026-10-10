@@ -14,13 +14,17 @@ import {
 import {
   loadActiveRoutine,
   saveActiveRoutine,
+  observeRoutineSubject,
 } from '@/lib/routine-persistence';
+import { analyzeRoutineCompatibility, correctRecoveryTracking, detachedImmutable, promoteRoutineForWrite, readGraphFingerprint, routineCapabilities } from '@/lib/routine-compatibility';
+import { recoveryGuardFingerprint } from '@/lib/routine-recovery';
+import type { RoutineReadGraph, RoutineCompatibilityIssue, VerifiedRoutineSnapshot, RoutineLoadError, RoutineNormalization } from '@/types/routine-compatibility';
 import * as editor from '@/lib/routine-editor';
 import { parseRestInput } from '@/lib/routine-editor-controls';
 import { getExerciseById } from '@/lib/exercise-catalog';
-import { programmingOptions, validateTrackingConfig, type TrackingConfig, type ProgrammingOptions } from '@/lib/routine-programming';
+import { programmingOptions, validateTrackingConfig, encodeTrackingConfig, type PendingTrackingConfig, type TrackingConfig, type ProgrammingOptions } from '@/lib/routine-programming';
 import { confirmRoutineDiscard, RoutineGuardCancelledError } from '@/lib/routine-draft-guard';
-import type { DraftState, DraftStatus, EditorField, PendingAdd, ReplacementApproval, SaveOutcome } from '@/types/routine-editor';
+import type { DraftState, DraftStatus, EditorField, PendingAdd, ReplacementApproval, RecoveryReplacementApproval, SaveOutcome } from '@/types/routine-editor';
 import type {
   LegacyDayPlan,
   NewPlannedExerciseOccurrence,
@@ -44,7 +48,19 @@ export type {
 } from '@/types/routine';
 
 export interface RoutineStore extends DraftState {
-  loadStatus: 'idle' | 'loading' | 'ready' | 'error';
+  loadStatus: 'idle' | 'loading' | 'ready' | 'needs_attention' | 'error';
+  // Exclusive read-draft lane: routine stays null until strict promotion/save.
+  // Existing pages must not deploy with this foundation alone (D2E-B required).
+  readGraph: RoutineReadGraph | null;
+  readBaseline: RoutineReadGraph | null;
+  compatibilityIssues: readonly RoutineCompatibilityIssue[];
+  normalizations: readonly RoutineNormalization[];
+  sourceSnapshot: VerifiedRoutineSnapshot | null;
+  loadError: RoutineLoadError | null;
+  setRecoveryTrackingConfig: (id: string, config: TrackingConfig) => void;
+  setRecoveryTrackingBuffer: (id: string, config: PendingTrackingConfig) => void;
+  replacementPending: boolean;
+  revertRecoveryOccurrence: (id: string) => void;
   isLoading: boolean;
   isSaving: boolean;
   isDirty: boolean;
@@ -107,6 +123,10 @@ export const useRoutineStore = create<RoutineStore>()(
     (set, get) => {
       let routineLoadFlight: Promise<void> | null = null;
       let saveFlight: Promise<SaveOutcome> | null = null;
+      let loadGeneration = 0;
+      let subject: string | null | undefined;
+      let subjectEpoch = 0;
+      let recoveryReplacementFlight: { key: string; promise: Promise<SaveOutcome> } | null = null;
       const approvals = new WeakSet<ReplacementApproval>();
       // Compatibility allowances, NOT form/dirty/persisted truth. Each trusted
       // incoming pair belongs only to its occurrence and canonical ID.
@@ -151,8 +171,84 @@ export const useRoutineStore = create<RoutineStore>()(
           throw new editor.RoutineEditorError('The draft changed. Confirm replacement again.');
         }
       };
+      const readFlags = (graph: RoutineReadGraph, baseline: RoutineReadGraph, buffers = get().editorBuffers) => {
+        const isDirty = readGraphFingerprint(graph) !== readGraphFingerprint(baseline) || Object.values(buffers).some(buffer => buffer.changed);
+        return { isDirty, hasUnsavedChanges: isDirty, draftStatus: isDirty ? 'Unsaved changes' as const : 'Saved' as const };
+      };
+      observeRoutineSubject(next => {
+        if (next === subject) return;
+        const first = subject === undefined;
+        subject = next;
+        if (first && !get()?.routine && !get()?.readGraph) return;
+        subjectEpoch++; loadGeneration++; routineLoadFlight = null; historicalPairs.clear();
+        set({ routine: null, savedBaseline: null, initialDefaultDraft: null, readGraph: null, readBaseline: null,
+          sourceSnapshot: null, compatibilityIssues: [], normalizations: [], loadError: null, editorBuffers: {}, pendingAdd: null,
+          loadStatus: 'idle', isLoading: false, isSaving: false, isDirty: false, hasUnsavedChanges: false, error: null,
+          draftStatus: 'Saved', replacementPending: false, submittedRevision: null, draftRevision: (get()?.draftRevision ?? 0) + 1 });
+      });
+      const verifiedAfterWrite = async (submitted: RoutinePlan, epoch: number, expectedSubject: string) => {
+        if (epoch !== subjectEpoch) throw new Error('The signed-in account changed during verification.');
+        const loaded = await loadActiveRoutine(++loadGeneration);
+        if (epoch !== subjectEpoch) throw new Error('The signed-in account changed during verification.');
+        if (loaded.status !== 'valid' || !loaded.source || loaded.source.subjectId !== expectedSubject
+          || editor.routineFingerprint(prepareRoutinePlanForSave(loaded.routine)) !== editor.routineFingerprint(prepareRoutinePlanForSave(submitted))) {
+          throw new Error('Save was accepted, but the saved routine could not be verified. Retry loading before another change.');
+        }
+        historicalPairs.clear(); rememberProgramming(loaded.routine);
+        const draft = { routine: editor.cloneRoutine(loaded.routine), savedBaseline: editor.immutableRoutine(loaded.routine), initialDefaultDraft: null, editorBuffers: {}, pendingAdd: null };
+        set({ ...draft, ...editor.draftFlags(draft), sourceSnapshot: loaded.source, normalizations: loaded.normalizations,
+          readGraph: null, readBaseline: null, compatibilityIssues: [], loadError: null, loadStatus: 'ready', isLoading: false });
+      };
+      const recoverReplace = (replacement: RoutinePlan, key: string, intent: string): Promise<SaveOutcome> => {
+        const state = get(), source = state.sourceSnapshot;
+        if (!routineCapabilities(state).canApplyTemplate || !source || !state.readGraph) return Promise.reject(new Error('A verified recovery source is required before replacement.'));
+        const prepared = prepareRoutinePlanForSave(replacement), epoch = subjectEpoch;
+        const approval: RecoveryReplacementApproval = Object.freeze({ revision: state.draftRevision, fingerprint: recoveryGuardFingerprint(state),
+          subjectId: source.subjectId, generation: source.generation, sourceFingerprint: source.fingerprint, replacementFingerprint: editor.routineFingerprint(prepared) });
+        const verifyApproval = () => {
+          const current = get();
+          if (epoch !== subjectEpoch || current.sourceSnapshot?.subjectId !== approval.subjectId || current.sourceSnapshot.generation !== approval.generation
+            || current.sourceSnapshot.fingerprint !== approval.sourceFingerprint || current.draftRevision !== approval.revision
+            || recoveryGuardFingerprint(current) !== approval.fingerprint || editor.routineFingerprint(prepared) !== approval.replacementFingerprint
+            || current.loadStatus !== 'needs_attention' || current.isSaving || saveFlight) throw new Error('The routine changed. Review and confirm replacement again.');
+        };
+        let resolve!: (result: SaveOutcome) => void, reject!: (error: unknown) => void;
+        const flight = new Promise<SaveOutcome>((yes, no) => { resolve = yes; reject = no; });
+        recoveryReplacementFlight = { key, promise: flight };
+        set({ replacementPending: true, error: null });
+        void (async () => {
+          let committed = false;
+          try {
+            if (!await confirmRoutineDiscard({ kind: 'recovery-replace', intent, source })) throw new RoutineGuardCancelledError();
+            verifyApproval();
+            // Detect remote/source drift immediately before reserving the shared
+            // mutation flight. This is a checked precondition, not server CAS.
+            const fresh = await loadActiveRoutine(++loadGeneration);
+            verifyApproval();
+            if ((fresh.status !== 'valid' && fresh.status !== 'needs_attention') || fresh.source.subjectId !== approval.subjectId
+              || fresh.source.fingerprint !== approval.sourceFingerprint) throw new Error('The saved routine changed. Reload and make a new backup before replacing it.');
+            prepareRoutinePlanForSave(prepared);
+            saveFlight = flight;
+            set({ isSaving: true, submittedRevision: approval.revision });
+            const saved = await saveActiveRoutine(editor.cloneRoutine(prepared), approval.subjectId);
+            committed = true;
+            await verifiedAfterWrite(saved, epoch, approval.subjectId);
+            resolve({ submittedRevision: approval.revision, status: 'saved' });
+          } catch (error) {
+            if (epoch === subjectEpoch) set({ error: error instanceof RoutineGuardCancelledError ? null : message(error),
+              ...(committed ? { loadStatus: 'error' as const, hasUnsavedChanges: false, isDirty: false, loadError: { kind: 'transport' as const, code: 'incomplete_read' as const, message: message(error) } } : {}) });
+            reject(error);
+          } finally {
+            if (saveFlight === flight) saveFlight = null;
+            if (recoveryReplacementFlight?.promise === flight) recoveryReplacementFlight = null;
+            if (epoch === subjectEpoch) set({ isSaving: false, replacementPending: false, submittedRevision: null });
+          }
+        })();
+        return flight;
+      };
       return ({
       routine: null,
+      readGraph: null, readBaseline: null, compatibilityIssues: [], normalizations: [], sourceSnapshot: null, loadError: null,
       savedBaseline: null,
       initialDefaultDraft: null,
       editorBuffers: {},
@@ -166,12 +262,13 @@ export const useRoutineStore = create<RoutineStore>()(
       hasUnsavedChanges: false,
       draftStatus: 'Saved',
       error: null,
+      replacementPending: false,
       templates: BUILT_IN_ROUTINE_TEMPLATES,
       customTemplates: [],
       
       fetchRoutine: async () => {
         const currentState = get();
-        if ((currentState.hasUnsavedChanges || currentState.isSaving) && currentState.routine) {
+        if (currentState.isSaving || currentState.replacementPending || currentState.loadStatus !== 'error' && currentState.hasUnsavedChanges && (currentState.routine || currentState.readGraph)) {
           return;
         }
 
@@ -179,10 +276,46 @@ export const useRoutineStore = create<RoutineStore>()(
           return routineLoadFlight;
         }
 
-        routineLoadFlight = (async () => {
-          set({ loadStatus: 'loading', isLoading: true, error: null });
+        const generation = ++loadGeneration;
+        const run = async () => {
+          if (generation !== loadGeneration) return;
           try {
-            const loadedRoutine = await loadActiveRoutine();
+            const loaded = await loadActiveRoutine(generation);
+            if (generation !== loadGeneration) return;
+            if (loaded.status !== 'empty' && loaded.source) {
+              if (subject === undefined) subject = loaded.source.subjectId;
+              if (subject !== loaded.source.subjectId) {
+                set({ routine: null, readGraph: null, readBaseline: null, sourceSnapshot: null, savedBaseline: null,
+                  initialDefaultDraft: null, compatibilityIssues: [], normalizations: [], editorBuffers: {}, pendingAdd: null,
+                  loadStatus: 'error', isLoading: false, isDirty: false, hasUnsavedChanges: false,
+                  loadError: { kind: 'auth', code: 'subject_changed', message: 'The signed-in account changed. Load again.' } });
+                return;
+              }
+            }
+            const latest = get();
+            if ((latest.hasUnsavedChanges || latest.isSaving) && (latest.routine || latest.readGraph)) {
+              set({ loadStatus: latest.readGraph ? 'needs_attention' : 'ready', isLoading: false });
+              return;
+            }
+            if (loaded.status === 'fatal') {
+              set({ routine: null, readGraph: null, readBaseline: null, sourceSnapshot: loaded.source, loadError: loaded.error,
+                savedBaseline: null, initialDefaultDraft: null, compatibilityIssues: [], normalizations: [], editorBuffers: {}, pendingAdd: null,
+                loadStatus: 'error', isLoading: false, isDirty: false, hasUnsavedChanges: false, error: loaded.error.message });
+              return;
+            }
+            if (loaded.status === 'needs_attention') {
+              // Invalid historical pairs remain in evidence/read state, never in
+              // rememberProgramming's valid-pair allowances or synthetic buffers.
+              if (get().hasUnsavedChanges) return;
+              historicalPairs.clear();
+              set({ routine: null, savedBaseline: null, initialDefaultDraft: null, readGraph: structuredClone(loaded.routine),
+                readBaseline: detachedImmutable(loaded.routine), sourceSnapshot: loaded.source, compatibilityIssues: loaded.issues,
+                normalizations: loaded.normalizations,
+                loadError: null, editorBuffers: {}, pendingAdd: null, loadStatus: 'needs_attention', isLoading: false,
+                ...readFlags(loaded.routine, loaded.routine), draftRevision: get().draftRevision + 1, error: null });
+              return;
+            }
+            const loadedRoutine = loaded.status === 'valid' ? loaded.routine : null;
             set((state) => {
               if ((state.hasUnsavedChanges || state.isSaving) && state.routine) {
                 return {
@@ -203,17 +336,24 @@ export const useRoutineStore = create<RoutineStore>()(
               };
               return {
                 ...draft, ...editor.draftFlags(draft), draftRevision: state.draftRevision + 1,
+                readGraph: null, readBaseline: null, compatibilityIssues: [], loadError: null,
+                normalizations: loaded.status === 'valid' ? loaded.normalizations : [],
+                sourceSnapshot: loaded.status === 'valid' ? loaded.source : null,
                 loadStatus: 'ready',
                 isLoading: false,
                 error: null,
               };
             });
           } catch (error) {
+            if (generation !== loadGeneration) return;
             const message = error instanceof Error
               ? error.message
               : 'Unable to load the active routine.';
             console.error('Error fetching routine:', error);
             set((state) => {
+              if (state.hasUnsavedChanges && state.readGraph) {
+                return { loadStatus: 'needs_attention', isLoading: false, error: message };
+              }
               if (state.hasUnsavedChanges && state.routine) {
                 return {
                   loadStatus: 'ready',
@@ -224,6 +364,9 @@ export const useRoutineStore = create<RoutineStore>()(
 
               return {
                 routine: null,
+                readGraph: null, readBaseline: null, sourceSnapshot: null, compatibilityIssues: [], normalizations: [],
+                savedBaseline: null, initialDefaultDraft: null, editorBuffers: {}, pendingAdd: null, hasUnsavedChanges: false,
+                loadError: { kind: 'transport', code: 'incomplete_read', message: 'Unable to read a complete routine.' },
                 loadStatus: 'error',
                 isLoading: false,
                 isDirty: false,
@@ -231,13 +374,53 @@ export const useRoutineStore = create<RoutineStore>()(
               };
             });
           }
-        })();
+        };
+        let resolve!: () => void, reject!: (error: unknown) => void;
+        const flight = new Promise<void>((yes, no) => { resolve = yes; reject = no; });
+        routineLoadFlight = flight;
+        // Notify only after reserving the flight, while preserving immediate
+        // loading state for existing callers and subscriber reentry.
+        set({ loadStatus: 'loading', isLoading: true, error: null });
+        void run().then(resolve, reject);
 
         try {
-          await routineLoadFlight;
+          await flight;
         } finally {
-          routineLoadFlight = null;
+          if (routineLoadFlight === flight) routineLoadFlight = null;
         }
+      },
+
+      setRecoveryTrackingConfig: (id, config) => {
+        const state = get();
+        if (!routineCapabilities(state).canEditRecoveryFields || !state.readGraph || !state.readBaseline || state.replacementPending) throw new editor.RoutineEditorError('An editable recovery graph is required.');
+        const next = correctRecoveryTracking(state.readGraph, id, config);
+        const editorBuffers = { ...state.editorBuffers }; delete editorBuffers[`tracking-config:${id}`];
+        if (readGraphFingerprint(next) === readGraphFingerprint(state.readGraph) && !state.editorBuffers[`tracking-config:${id}`]) return;
+        set({ editorBuffers, readGraph: next, compatibilityIssues: analyzeRoutineCompatibility(next), ...readFlags(next, state.readBaseline, editorBuffers),
+          draftRevision: state.draftRevision + 1, error: null });
+      },
+      setRecoveryTrackingBuffer: (id, config) => {
+        const state = get();
+        if (!routineCapabilities(state).canEditRecoveryFields || !state.readGraph || state.replacementPending) throw new Error('Recovery fields are unavailable.');
+        try { validateTrackingConfig(config); get().setRecoveryTrackingConfig(id, config); return; }
+        catch (error) {
+          const raw = encodeTrackingConfig(config), key = `tracking-config:${id}`;
+          if (state.editorBuffers[key]?.raw === raw) return;
+          const editorBuffers = { ...state.editorBuffers, [key]: { field: { kind: 'tracking-config' as const, occurrenceId: id }, raw, changed: true, error: message(error) } };
+          set({ editorBuffers, draftRevision: state.draftRevision + 1, isDirty: true, hasUnsavedChanges: true, draftStatus: 'Unsaved changes', error: null });
+        }
+      },
+      revertRecoveryOccurrence: id => {
+        const state = get();
+        if (!state.readGraph || !state.readBaseline || !routineCapabilities(state).canEditRecoveryFields) throw new editor.RoutineEditorError('An editable recovery baseline is required.');
+        const original = state.readBaseline.days.flatMap(day => day.exercises).find(item => item.id === id);
+        if (!original) throw new editor.RoutineEditorError('The stored recovery occurrence is unavailable.');
+        const next = structuredClone(state.readGraph);
+        next.days.forEach(day => { day.exercises = day.exercises.map(item => item.id === id ? structuredClone(original) : item); });
+        const editorBuffers = { ...state.editorBuffers }; delete editorBuffers[`tracking-config:${id}`];
+        if (readGraphFingerprint(next) === readGraphFingerprint(state.readGraph) && !state.editorBuffers[`tracking-config:${id}`]) return;
+        // Exact restoration of source evidence is not permission to SAVE it.
+        set({ editorBuffers, readGraph: next, compatibilityIssues: analyzeRoutineCompatibility(next), ...readFlags(next, state.readBaseline, editorBuffers), draftRevision: state.draftRevision + 1 });
       },
 
       // Compatibility setter is an edit, not a load/replacement gate bypass.
@@ -269,6 +452,7 @@ export const useRoutineStore = create<RoutineStore>()(
         return next;
       }),
       addOccurrence: (weekday, occurrence) => edit(routine => {
+        if (!routineCapabilities(get()).canAddExercise) throw new editor.RoutineEditorError('Fix and save the routine before adding exercises.');
         const day = routine.days.find(value => value.weekday === weekday);
         if (!day) throw new editor.RoutineEditorError('The selected day is unavailable.');
         return editor.addOccurrence(routine, day.id, occurrence);
@@ -315,6 +499,9 @@ export const useRoutineStore = create<RoutineStore>()(
       setPendingAdd: pendingAdd => {
         requireDraft();
         const state = get();
+        // Existing valid draft buffers may change during an in-flight normal Save;
+        // revision coordination preserves them. Recovery has no Add lane.
+        if (pendingAdd && (state.readGraph || state.replacementPending)) throw new editor.RoutineEditorError('Fix and save the existing routine settings before adding exercises.');
         if (JSON.stringify(state.pendingAdd) === JSON.stringify(pendingAdd)) return;
         const draft = { ...state, pendingAdd: pendingAdd && structuredClone(pendingAdd) };
         set({ pendingAdd: draft.pendingAdd, draftRevision: state.draftRevision + 1, ...editor.draftFlags(draft), error: null });
@@ -323,6 +510,7 @@ export const useRoutineStore = create<RoutineStore>()(
         const state = get();
         const pending = state.pendingAdd;
         try {
+          if (!routineCapabilities(state).canAddExercise) throw new editor.RoutineEditorError('Fix and save the routine before adding exercises.');
           if (!pending?.trackingType || !pending.weightUnit) throw new editor.RoutineEditorError('Choose explicit logging configuration before adding.');
           const next = editor.addOccurrence(requireDraft(), pending.dayId, {
             exerciseId: pending.exerciseId, name: '', targetMuscle: '', section: pending.section,
@@ -337,7 +525,13 @@ export const useRoutineStore = create<RoutineStore>()(
       },
       discardDraft: () => {
         const state = get();
-        if (saveFlight || state.isSaving) throw new editor.RoutineEditorError('Wait for the routine save before discarding.');
+        if (saveFlight || state.isSaving || state.replacementPending) throw new editor.RoutineEditorError('Wait for the routine save or cancel replacement before discarding.');
+        if (state.readBaseline) {
+          const graph = structuredClone(state.readBaseline);
+          set({ readGraph: graph, compatibilityIssues: analyzeRoutineCompatibility(graph), ...readFlags(graph, state.readBaseline, {}),
+            editorBuffers: {}, pendingAdd: null, draftRevision: state.draftRevision + Number(state.isDirty), error: null });
+          return;
+        }
         const baseline = state.savedBaseline ?? state.initialDefaultDraft;
         if (!baseline) throw new editor.RoutineEditorError('No verified baseline is available.');
         const draft = { ...state, routine: editor.cloneRoutine(baseline), editorBuffers: {}, pendingAdd: null };
@@ -356,12 +550,12 @@ export const useRoutineStore = create<RoutineStore>()(
       },
       requestLeave: async destination => {
         const state = get();
-        if (saveFlight || state.isSaving) return false;
+        if (saveFlight || state.isSaving || state.replacementPending) return false;
         if (!state.hasUnsavedChanges) return true;
         const revision = state.draftRevision;
-        const fingerprint = editor.draftGuardFingerprint(state);
+        const fingerprint = recoveryGuardFingerprint(state);
         if (!await confirmRoutineDiscard({ kind: 'leave', intent: destination })) return false;
-        if (revision !== get().draftRevision || fingerprint !== editor.draftGuardFingerprint(get()) || get().isSaving) {
+        if (revision !== get().draftRevision || fingerprint !== recoveryGuardFingerprint(get()) || get().isSaving) {
           set({ error: 'The draft changed. Confirm leaving again.' }); return false;
         }
         get().discardDraft();
@@ -369,14 +563,34 @@ export const useRoutineStore = create<RoutineStore>()(
       },
       saveRoutineToDb: () => {
         if (saveFlight) return saveFlight;
+        if (get().replacementPending) return Promise.reject(new Error('Finish or cancel replacement before saving.'));
         let resolve!: (outcome: SaveOutcome) => void;
         let reject!: (error: unknown) => void;
         const flight = new Promise<SaveOutcome>((yes, no) => { resolve = yes; reject = no; });
         // Reserve before validation, state notification, or IO (subscriber reentry).
         saveFlight = flight;
+        const epoch = subjectEpoch;
         void (async () => {
+          let recoveryCommitted = false;
           try {
             const state = get();
+            if (state.readGraph) {
+              if (!routineCapabilities(state).canSave) throw new editor.RoutineEditorError('Resolve the highlighted settings before saving this routine.');
+              if (state.loadStatus !== 'needs_attention') throw new Error('Retry loading before saving this routine.');
+              if (!state.sourceSnapshot) throw new Error('The recovery source is unavailable.');
+              if (state.pendingAdd || Object.keys(state.editorBuffers).length) throw new editor.RoutineEditorError('Finish recovery field edits before saving.');
+              if (!state.hasUnsavedChanges) throw new editor.RoutineEditorError('Choose explicit corrections before saving.');
+              const prepared = promoteRoutineForWrite(state.readGraph);
+              const submittedRevision = state.draftRevision;
+              set({ isSaving: true, submittedRevision, error: null });
+              const savedRoutine = await saveActiveRoutine(editor.cloneRoutine(prepared), state.sourceSnapshot?.subjectId ?? subject);
+              recoveryCommitted = true;
+              if (epoch !== subjectEpoch) throw new Error('The signed-in account changed during save.');
+              await verifiedAfterWrite(savedRoutine, epoch, state.sourceSnapshot.subjectId);
+              saveFlight = null;
+              set({ isSaving: false, submittedRevision: null, error: null });
+              resolve({ submittedRevision, status: 'saved' }); return;
+            }
             let routine = requireDraft();
             if (state.pendingAdd) throw new editor.RoutineEditorError('Finish or cancel Add Exercise before saving.');
             for (const buffer of Object.values(state.editorBuffers)) {
@@ -394,7 +608,8 @@ export const useRoutineStore = create<RoutineStore>()(
             }
             const editorBuffers = Object.fromEntries(Object.entries(state.editorBuffers).map(([key, buffer]) => [key, bufferFor(prepared, buffer.field, buffer.raw)]));
             set({ routine: prepared, editorBuffers, isSaving: true, submittedRevision, error: null, ...editor.draftFlags({ ...state, routine: prepared, editorBuffers }) });
-            const savedRoutine = await saveActiveRoutine(editor.cloneRoutine(prepared));
+            const savedRoutine = await saveActiveRoutine(editor.cloneRoutine(prepared), subject);
+            if (epoch !== subjectEpoch) throw new Error('The signed-in account changed during save.');
             const latest = get();
             const newer = latest.draftRevision !== submittedRevision;
             const draft = { ...latest, savedBaseline: editor.immutableRoutine(savedRoutine), initialDefaultDraft: null,
@@ -402,10 +617,21 @@ export const useRoutineStore = create<RoutineStore>()(
               editorBuffers: newer ? Object.fromEntries(Object.entries(latest.editorBuffers).map(([key, buffer]) => [key, bufferFor(latest.routine!, buffer.field, buffer.raw)])) : {} };
             saveFlight = null;
             set({ routine: draft.routine, savedBaseline: draft.savedBaseline, initialDefaultDraft: null,
+              sourceSnapshot: null, normalizations: [],
               editorBuffers: draft.editorBuffers, ...editor.draftFlags(draft), isSaving: false, submittedRevision: null, error: null });
             resolve({ submittedRevision, status: newer ? 'saved-with-newer-edits' : 'saved' });
           } catch (error) {
             saveFlight = null;
+            if (epoch !== subjectEpoch) { reject(error); return; }
+            if (recoveryCommitted) {
+              set({ isSaving: false, submittedRevision: null, loadStatus: 'error', hasUnsavedChanges: false, isDirty: false,
+                loadError: { kind: 'transport', code: 'incomplete_read', message: message(error) }, error: message(error) });
+              reject(error); return;
+            }
+            if (get().readGraph && get().readBaseline) {
+              set({ isSaving: false, submittedRevision: null, error: message(error), ...readFlags(get().readGraph!, get().readBaseline!) });
+              reject(error); return;
+            }
             set({ isSaving: false, submittedRevision: null, error: message(error), ...editor.draftFlags(get()) });
             reject(error);
           }
@@ -415,6 +641,17 @@ export const useRoutineStore = create<RoutineStore>()(
 
       replaceAndSaveRoutine: async (plan, name, approval) => {
         let currentState = get();
+        const key = JSON.stringify({ plan, name });
+        if (recoveryReplacementFlight) {
+          if (recoveryReplacementFlight.key === key) return await recoveryReplacementFlight.promise;
+          throw new Error('Another routine replacement is already being reviewed.');
+        }
+        if (currentState.loadStatus === 'needs_attention' && currentState.readGraph) {
+          if (approval) throw new Error('Recovery replacement needs a fresh source-bound confirmation.');
+          const rootId = currentState.readGraph.id;
+          const replacement = Array.isArray(plan) ? legacyPlanToRoutinePlan(name ?? 'Replacement Routine', plan, rootId) : materializeRoutineTemplate(plan, rootId);
+          return await recoverReplace(replacement, key, replacement.name);
+        }
         if (currentState.isSaving) {
           const error = new Error('A routine save is already in progress.');
           set({ error: error.message });

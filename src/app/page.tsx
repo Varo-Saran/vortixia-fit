@@ -21,7 +21,10 @@ import {
 } from "@/lib/workout-reversal-client";
 import { durationSecondsBetween, formatDuration } from "@/lib/duration";
 import { getLocalCalendarWeek, localDayTimestamp } from "@/lib/calendar-week";
-import { isDayStartable, mainOccurrences } from "@/lib/routine-model";
+import { isDayStartable } from "@/lib/routine-model";
+import { routineCapabilities } from '@/lib/routine-compatibility';
+import { workoutDaySelection } from '@/lib/routine-recovery';
+import { RoutineStateNotice } from '@/components/routine-editor/RoutineStateNotice';
 
 interface RecommendedAthlete {
   id: string;
@@ -73,7 +76,8 @@ export default function Dashboard() {
     : "Hello";
   const [streakDays, setStreakDays] = useState<{ day: string; date: string; active: boolean; today: boolean; timestamp: number }[]>([]);
   
-  const { routine, loadStatus, fetchRoutine } = useRoutineStore();
+  const routineState = useRoutineStore();
+  const { routine, loadStatus, fetchRoutine } = routineState;
   const { profile, fetchProfile } = useProfileStore();
   const { friends, fetchFriends } = useFriendsStore();
   const { readinessScore, cnsStatus, muscles } = useRecoveryStore();
@@ -400,13 +404,15 @@ export default function Dashboard() {
       router.push("/workout");
       return;
     }
+    if (!routineCapabilities(useRoutineStore.getState()).canStartWorkout) { router.push('/routines/edit'); return; }
 
     const daysOfWeek = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"] as const;
     const todayName = daysOfWeek[new Date().getDay()];
     const todayPlan = routine?.days.find((day) => day.weekday === todayName);
 
     if (todayPlan && isDayStartable(todayPlan)) {
-      startWorkout(todayPlan.title, mainOccurrences(todayPlan));
+      const selection = workoutDaySelection(useRoutineStore.getState(), todayPlan.id);
+      startWorkout(selection.title, selection.exercises);
       toast.success(`Started workout: ${todayPlan.title}`);
       router.push("/workout");
     } else {
@@ -587,7 +593,7 @@ export default function Dashboard() {
       <section className="relative z-10 w-full px-4 grid grid-cols-2 gap-3 auto-rows-[minmax(115px,auto)] animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
         
         {/* 1. Today's Plan (col-span-2, row-span-1) */}
-        <button 
+        {!isActive && loadStatus !== 'ready' ? <div className="col-span-2"><RoutineStateNotice /></div> : <button
           onClick={handleWorkoutTileClick}
           className={`col-span-2 row-span-1 relative p-5 rounded-[2rem] overflow-hidden flex items-center justify-between group border shadow-2xl active:scale-[0.98] transition-all text-left w-full ${
             mounted && isActive 
@@ -629,7 +635,7 @@ export default function Dashboard() {
               )}
             </div>
           </div>
-        </button>
+        </button>}
 
         {/* 2. CNS Readiness (col-span-1, row-span-1) */}
         <Link href="/recovery" className="col-span-1 row-span-1 relative p-4 rounded-[2rem] bg-[#1a0f0f] border border-red-500/10 overflow-hidden flex flex-col justify-between group active:scale-95 transition-all">

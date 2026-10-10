@@ -1,7 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
-import { useEffect, useId, useRef } from "react";
+import { useEffect, useId, useRef, type ReactNode } from "react";
 
 interface ConfirmationDialogProps {
   isOpen: boolean;
@@ -11,6 +11,8 @@ interface ConfirmationDialogProps {
   cancelLabel: string;
   onConfirm: () => void;
   onCancel: () => void;
+  children?: ReactNode;
+  confirmDisabled?: boolean;
 }
 
 const FOCUSABLE_SELECTOR = [
@@ -30,6 +32,8 @@ export function ConfirmationDialog({
   cancelLabel,
   onConfirm,
   onCancel,
+  children,
+  confirmDisabled = false,
 }: ConfirmationDialogProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
@@ -108,7 +112,7 @@ export function ConfirmationDialog({
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={descriptionId}
-        className="relative z-10 w-full max-w-sm rounded-3xl border border-white/10 bg-[#111] p-6 shadow-2xl shadow-black/70"
+        className="relative z-10 max-h-[90dvh] overflow-y-auto w-full max-w-sm rounded-3xl border border-white/10 bg-[#111] p-6 shadow-2xl shadow-black/70"
       >
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
@@ -119,12 +123,13 @@ export function ConfirmationDialog({
             type="button"
             onClick={onCancel}
             aria-label={cancelLabel}
-            className="shrink-0 rounded-full border border-white/10 bg-white/5 p-2 text-text-muted outline-none transition-colors hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-white/40"
+            className="flex min-h-11 min-w-11 items-center justify-center shrink-0 rounded-full border border-white/10 bg-white/5 p-2 text-text-muted outline-none transition-colors hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-white/40"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
+        {children}
         <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <button
             ref={cancelRef}
@@ -137,7 +142,8 @@ export function ConfirmationDialog({
           <button
             type="button"
             onClick={onConfirm}
-            className="min-h-11 rounded-xl border border-red-500/40 bg-red-500/15 px-4 py-3 text-sm font-black text-red-400 outline-none transition-colors hover:bg-red-500/25 focus-visible:ring-2 focus-visible:ring-red-400/60"
+            disabled={confirmDisabled}
+            className="min-h-11 rounded-xl border border-red-500/40 bg-red-500/15 px-4 py-3 text-sm font-black text-red-400 outline-none transition-colors hover:bg-red-500/25 focus-visible:ring-2 focus-visible:ring-red-400/60 disabled:opacity-40"
           >
             {confirmLabel}
           </button>

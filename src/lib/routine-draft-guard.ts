@@ -1,7 +1,9 @@
 export class RoutineGuardCancelledError extends Error {
   constructor() { super('Keep editing.'); this.name = 'RoutineGuardCancelledError'; }
 }
-export type RoutineGuardPrompt = { kind: 'leave' | 'replace'; intent: string };
+import type { VerifiedRoutineSnapshot } from '@/types/routine-compatibility';
+export type RoutineGuardPrompt = { kind: 'leave' | 'replace'; intent: string }
+  | { kind: 'recovery-replace'; intent: string; source: VerifiedRoutineSnapshot };
 type Confirm = (prompt: RoutineGuardPrompt) => Promise<boolean>;
 let confirm: Confirm | null = null;
 export function registerRoutineGuard(handler: Confirm): () => void {
